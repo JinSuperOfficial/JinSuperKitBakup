@@ -21,7 +21,12 @@
 
 ## UI 圆角规范
 
-**圆角不宜过高**，一律按 `.Skills/theme-plus/references/circle_angle.md`（macOS 风格圆角规范）优化：
+**圆角不宜过高**，一律按 `theme-plus` 技能的圆角规范（macOS 风格，`references/circle_angle.md`）优化。
+该技能是 **DSH 全局技能**，不在这个仓库里（原先的 `.agents/skills/theme-plus` 已移出去）：
+
+```
+F:\@AI\skills\theme-plus\references\circle_angle.md
+```
 
 - 默认 `rounded-md` / `rounded-lg`，窗口、主面板、弹窗最多 `rounded-xl`（12px）
 - 禁止 `rounded-2xl` / `rounded-3xl`，禁止按钮、输入框、卡片使用 `rounded-full`

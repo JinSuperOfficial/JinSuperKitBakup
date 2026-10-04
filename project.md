@@ -77,7 +77,8 @@ F:\@Project\node\
 │   └── asset\                ← 站点自己的静态资源（604 个，含 logo.svg）
 │
 ├── asset\                    ← 图标库（603 个，会被合并进 dist\asset\，见 §10.3）
-├── .Skills\                  ← 参考资料（retiehe-web / theme-plus），不发布
+├── .Skills\                  ← 参考资料（retiehe-web），不发布
+│   （theme-plus 已移出仓库，变成 DSH 全局技能：F:\@AI\skills\theme-plus\）
 │
 ├── build\                    ← ★ 构建与部署工具，**不发布**
 │   ├── README.md             ← 构建系统详细文档，改渲染器/样式前必读
@@ -306,9 +307,10 @@ node console\test\console.test.mjs     （或 npm run console:test）
   实现上是 `build\backup-github.mjs` + `build\lib\git-backup.mjs`，
   和推 Pages 的 `push-github.mjs` + `lib\git-dist.mjs` **刻意不复用代码** ——
   两条通道的目标仓库、工作目录、排除规则都不一样，混在一起迟早误推。
-- 自带 `.git` 的子目录（`dist\`、`.agents\skills\theme-plus\`）会被**跳过并提醒**：
+- 自带 `.git` 的子目录（现在只剩 `dist\`）会被**跳过并提醒**：
   直接 `git add -A` 只会把它们记成一个 commit 号（空壳），源码等于没备份。
   要让它们真的进备份，得删掉里面的 `.git` 或声明成正经的 submodule。
+  （原先的 `.agents\skills\theme-plus` 就是这种情况，已经从仓库移出去、改成 DSH 全局技能了。）
 
 **回滚**：备份仓库里每个 tag / 提交都是完整快照，要退回去就在那儿 `git checkout <tag>`
 （或 `git switch -c 旧版本 <tag>`），比在本地凭记忆改安全。
@@ -511,7 +513,7 @@ cmd.exe 按「当前代码页」逐字节解码批处理文件，而且会按字
 | GitHub 推送报连不上 | 需要代理。`push-github.mjs` 已内建：优先用环境变量，否则退到 `127.0.0.1:7890` |
 | `部署.cmd bakup` 报「远程不是备份仓库」 | 项目根的 `origin` 被改成别的地址了。脚本**不会擅自改**你的 remote：确认要备份就 `git remote set-url origin https://github.com/JinSuperOfficial/JinSuperKitBakup.git`，要推到别处就用 git 自己来 |
 | `部署.cmd bakup` 报有些文件超过 95MB | GitHub 单文件上限 100MB。把大文件加进 `.gitignore` 或改用 Git LFS（`dist\` 那种产物本来就不该进源码备份） |
-| `部署.cmd bakup` 说某个子目录「不进本次备份」 | 那个目录自带 `.git`（现在是 `dist\` 和 `.agents\skills\theme-plus\`）。直接加进去只会存一个 commit 号，所以脚本跳过并提醒；要真备份就先删掉里面的 `.git`，或声明成 submodule |
+| `部署.cmd bakup` 说某个子目录「不进本次备份」 | 那个目录自带 `.git`（现在只剩 `dist\`）。直接加进去只会存一个 commit 号，所以脚本跳过并提醒；要真备份就先删掉里面的 `.git`，或声明成 submodule |
 | 改了文档却没生效 | 确认是发到**两个**热铁盒站点（§5）；或浏览器缓存，强刷 |
 | 公式不显示 / 退化成平台渲染的样子 | `p\raw.php` 没生效，检查云函数是否还在 |
 | 构建后 `p\docs.html` 里改动没了 | 你改的是产物不是模板，见 §10.1 |
@@ -529,7 +531,7 @@ cmd.exe 按「当前代码页」逐字节解码批处理文件，而且会按字
 
 | 文件 | 内容 |
 |:--|:--|
-| `AGENTS.md` | **项目级约定**：硬规则 + UI 圆角规范（按 `.Skills\theme-plus\references\circle_angle.md`） |
+| `AGENTS.md` | **项目级约定**：硬规则 + UI 圆角规范（按 `theme-plus` 全局技能的 `references/circle_angle.md`） |
 | `MANIFEST.md` | **清单规范**：加工具只改 json、字段表、三条硬规则、校验命令 |
 | `build\README.md` | **构建系统详解**：打包器、预渲染、样式合并、对比度脚本、图标生成、部署细节 |
 | `console\lib\store.mjs` / `api.mjs` | **发布控制台**的实现（sk.json 保形读写、归档流程、接口）；用法见 §4.5 |
@@ -537,7 +539,7 @@ cmd.exe 按「当前代码页」逐字节解码批处理文件，而且会按字
 | `rth-sites.json` | 要发布的站点清单 |
 | `部署.cmd --help` / `控制台.cmd` | 部署命令与选项 / 启动本地控制台 |
 | `.Skills\retiehe-web\SKILL.md` | 热铁盒平台参考资料 |
-| `.Skills\theme-plus\` | 主题相关参考资料 |
+| `F:\@AI\skills\theme-plus\` | 主题相关参考资料（**DSH 全局技能，不在本仓库**；原先在 `.agents\skills\theme-plus`） |
 
 ---
 
@@ -553,4 +555,4 @@ cmd.exe 按「当前代码页」逐字节解码批处理文件，而且会按字
 - [ ] 决定 §10.3 的两份 `asset\` 要不要合并
 - [ ] 确认 GitHub 推送凭据（`dist\.git` 的 remote）可用，或重新配置
 - [ ] 确认备份通道可用：`部署.cmd bakup --check` 能列出文件，`部署.cmd bakup` 能推到 `JinSuperKitBakup`
-- [ ] 决定 `.agents\skills\theme-plus` 要不要真的进源码备份（现在因为自带 `.git` 被跳过，见 §5.2）
+- [x] `theme-plus` 已移出仓库、改成 DSH 全局技能（`F:\@AI\skills\theme-plus\`），源码备份不再受它拖累

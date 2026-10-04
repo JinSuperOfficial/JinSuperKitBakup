@@ -473,7 +473,7 @@ npm run bakup / bakup:check         :: 同上的 npm 写法
   所以「部署包括什么」这件事没有因为多了备份而变化。
 - 排除规则就是项目根的 **`.gitignore`**：`node_modules/`、`dist/`、`.env`、`.npm-cache/`、
   `.deno-cache/`、`.deploy-logs/`、`*.log` 都不会进备份。
-- 额外还会跳过**自带 `.git` 的子目录**（现在有两个：`dist/`、`.agents/skills/theme-plus/`）。
+- 额外还会跳过**自带 `.git` 的子目录**（现在只剩 `dist/`）。
   交给 `git add -A` 的话它们只会被记成一个 commit 号（gitlink 空壳），源码根本没备进去 ——
   脚本会把这些路径列出来并提醒；想让它们真的进备份，要么删掉里面的 `.git`，
   要么在 `.gitmodules` 里声明成正经的 submodule。
