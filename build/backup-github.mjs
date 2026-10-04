@@ -29,9 +29,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
   BACKUP_BRANCH, BACKUP_REPO, BIG_FILE_BYTES,
-  addAll, aheadCount, commitCount, currentBranch, ensureCommitIdentity, ensureOrigin, ensureRepo,
-  git, gitlinks, hasCommits, hasGit, nestedRepos, output, proxyArgs,
-  remoteHasBranch, sanitize, stagedFiles,
+  addAll, aheadCount, checkTagName, commitCount, createTag, currentBranch,
+  ensureCommitIdentity, ensureOrigin, ensureRepo, git, gitlinks, hasCommits, hasGit,
+  headShort, nestedRepos, output, proxyArgs, pushTags,
+  remoteHasBranch, sanitize, stagedFiles, tagExists,
 } from './lib/git-backup.mjs';
 
 const CHECK_ONLY = process.argv.includes('--check');
@@ -43,6 +44,19 @@ const argOf = (name) => {
 };
 const CUSTOM_MSG = argOf('--message') || argOf('-m');
 
+/* --tag v1.0.0       给这次备份的提交打个附注 tag
+   --tag（不给名字）  自动用 bakup-YYYYMMDD-HHmm
+   说明用 --tag-message 或 -m，都没给就写一句版本身份（含 commit sha） */
+const TAG_ARG = argOf('--tag');
+const TAG_WANTED = process.argv.includes('--tag') || TAG_ARG !== null;
+const TAG_MSG = argOf('--tag-message');
+
+/** 自动 tag 名：时间戳，好记也好排序 */
+function autoTagName(d = new Date()) {
+  const p = (n) => String(n).padStart(2, '0');
+  return `bakup-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
+}
+
 if (process.argv.some((a) => a === '--help' || a === '-h' || a === '/?')) {
   console.log(`
   用法：node build/backup-github.mjs [选项]
@@ -52,9 +66,17 @@ if (process.argv.some((a) => a === '--help' || a === '-h' || a === '/?')) {
     （和推 dist/ 到 GitHub Pages 的 push-github.mjs 互不影响）
 
   选项
-    --check              只看会备份什么，不提交也不推
-    -m, --message "说明" 自定义提交信息
-    -h, --help           这条帮助
+    --check               只看会备份什么，不提交也不推
+    -m, --message "说明"   自定义提交信息
+    --tag [名称]           给这次备份的提交打 tag（不给名称就用 ${autoTagName()}
+                           这种时间戳名），并单独把 tag 推到远程
+                           —— git 默认不推 tag，不打就不会有
+    --tag-message "说明"   tag 的说明（默认写上 commit sha 和备份时间）
+    -h, --help            这条帮助
+
+  例
+    node build/backup-github.mjs --tag v1.0.0 --tag-message "第一个可回滚的版本"
+    node build/backup-github.mjs --tag            # 自动时间戳名
 `);
   process.exit(0);
 }
@@ -129,7 +151,7 @@ if (!hasGit()) {
   process.exit(1);
 }
 
-console.log('\n[1/6] 检查仓库状态');
+console.log('\n[1/7] 检查仓库状态');
 
 /* ── 1. 仓库 ── */
 const repo = ensureRepo();
@@ -158,7 +180,7 @@ if (nestedLive.length) {
 }
 
 /* ── 2. 远程 ── */
-console.log('\n[2/6] 准备远程仓库');
+console.log('\n[2/7] 准备远程仓库');
 const origin = ensureOrigin();
 if (origin.added) {
   ok(`已添加远程 origin → ${BACKUP_REPO}`);
@@ -178,7 +200,7 @@ if (origin.added) {
    3. 暂存
    ══════════════════════════════════════════════════ */
 
-console.log('\n[3/6] 暂存改动（遵守 .gitignore）');
+console.log('\n[3/7] 暂存改动（遵守 .gitignore）');
 const add = addAll(nested);
 if (add.status !== 0) {
   bad('git add 失败');
@@ -246,7 +268,7 @@ if (CHECK_ONLY) {
    4. 提交
    ══════════════════════════════════════════════════ */
 
-console.log('\n[4/6] 提交');
+console.log('\n[4/7] 提交');
 const noCommitNeeded = !files.length;
 if (ensureCommitIdentity()) log('设置了仓库级提交身份（不影响全局 git 配置）');
 
@@ -282,11 +304,33 @@ if (noCommitNeeded) {
   }
 }
 
+console.log('\n[5/7] 版本标签（tag）');
+
+/* 这里只**定名**，真正的 tag 留到第 6 步对齐之后再打 ——
+   万一远程分叉、需要 reset 到 origin/main 重新提交，打早了 tag 就会指向一个
+   谁都不认识的孤儿提交。 */
+let tagName = null;
+if (!TAG_WANTED) {
+  log('这次不打 tag（要打就加 --tag v1.0.0，或用 --tag 取时间戳名）');
+  log('注意：git push 默认**不推** tag —— 不打就没有，GitHub 的标签页会一直是空的。');
+} else {
+  tagName = (TAG_ARG || autoTagName()).trim();
+  const check = checkTagName(tagName);
+  if (!check.ok) die(check.error + '\n  tag 名里不要有空格 ~ ^ : ? * [ \\ 这类字符。');
+  if (tagExists(tagName)) {
+    warn(`tag「${tagName}」已经存在（指向 ${tagTarget(tagName) || '?'}）—— 不覆盖、不重打`);
+    log('想给这次提交单独留个记号，换个名字再跑：部署.cmd bakup --tag v1.0.1');
+    tagName = null;
+  } else {
+    ok(`这次会给提交打 tag：${tagName}（附注 tag，带说明和日期）`);
+  }
+}
+
 /* ══════════════════════════════════════════════════
-   5. 与远程对齐
+   6. 与远程对齐
    ══════════════════════════════════════════════════ */
 
-console.log('\n[5/6] 与远程对齐');
+console.log('\n[6/7] 与远程对齐');
 const head = branch || BACKUP_BRANCH;
 const probe = remoteHasBranch(head);
 if (!probe.ok) {
@@ -350,11 +394,25 @@ if (!probe.has) {
 }
 
 /* ══════════════════════════════════════════════════
-   6. 推送
+   7. 打 tag（只落在本地）→ 推送分支 → 推送 tag
    ══════════════════════════════════════════════════ */
 
-console.log('\n[6/6] 推送');
+console.log('\n[7/7] 推送');
 log(`origin/${head}  ←  ${BACKUP_REPO}`);
+
+/* 到这一步 HEAD 才是「最终要推的那个提交」，现在打 tag 才不会指错 */
+if (tagName) {
+  const sha = headShort();
+  const body = TAG_MSG || `备份 ${stamp} · 提交 ${sha}`;
+  const made = createTag(tagName, body);
+  if (!made.ok) {
+    bad(`打 tag 失败：${tagName}`);
+    showGitError({ stderr: made.out });
+    process.exit(1);
+  }
+  ok(`已打附注 tag：${tagName} → ${sha}`);
+  log('  说明：' + body);
+}
 
 /* GIT_TERMINAL_PROMPT=0：认证不行就当场失败，不要挂在那儿等人输密码
    （部署工具经常在管道/无人值守里跑，挂住比报错更难查） */
@@ -367,6 +425,21 @@ if (push.status === 0) {
   const n = commitCount();
   console.log('');
   ok(`备份完成（仓库共 ${n} 个提交）`);
+
+  /* tag 必须单独推一次：git push <远程> <分支> 不会顺带推 tag，
+     用 --follow-tags 又只认「已被本次推送的提交可达的附注 tag」，
+     情况一多就漏；这里直接 --tags，语义最直白。 */
+  if (tagName) {
+    const pt = pushTags();
+    if (pt.ok) {
+      ok(`tag 已推送：${tagName}`);
+      log(`标签页：${BACKUP_REPO.replace(/\.git$/, '')}/tags`);
+    } else {
+      warn('分支推上去了，但 tag 没推成功（本地 tag 还在，重跑一次就会补上）');
+      for (const line of sanitize(pt.out).split(/\r?\n/)) console.error('  | ' + line);
+    }
+  }
+
   log('仓库地址：' + BACKUP_REPO.replace(/\.git$/, ''));
   log('只看会备份什么：部署.cmd bakup --check');
   console.log('');

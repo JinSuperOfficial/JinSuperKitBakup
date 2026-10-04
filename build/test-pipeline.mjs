@@ -21,7 +21,7 @@ import { fileURLToPath } from 'node:url';
 
 import { PIPELINES, QUICK_CHECK, JOB_PIPELINES, JOB_FLAGS, resolveSteps, runPipeline } from './lib/pipeline.mjs';
 import { uploadSet, EXCLUDE, mirrorInto, countFiles } from './lib/deploy-files.mjs';
-import { BACKUP_REPO, BACKUP_BRANCH, nestedReposIn, sanitize } from './lib/git-backup.mjs';
+import { BACKUP_REPO, BACKUP_BRANCH, nestedReposIn, sanitize, checkTagName } from './lib/git-backup.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(here, '..');
@@ -333,6 +333,51 @@ test('sanitize：认证报错里带 token 的 URL 不会被原样打进日志', 
   const clean = sanitize(raw);
   assert.ok(!clean.includes('ghp_abcd1234'), 'token 必须被抹掉');
   assert.match(clean, /github\.com\/x\/y\.git/);
+});
+
+/* ═══════════ 备份的版本 tag ═══════════ */
+
+test('checkTagName：交给 git 判（正常名字放行，带空格/怪字符的拦住）', () => {
+  assert.equal(checkTagName('v1.0.0').ok, true);
+  assert.equal(checkTagName('bakup-20261004-0842').ok, true);
+  assert.equal(checkTagName('发布-第一个版本').ok, true);
+  assert.equal(checkTagName('').ok, false);
+  assert.equal(checkTagName('   ').ok, false);
+  assert.equal(checkTagName('v1.0.0 空格').ok, false);
+  assert.equal(checkTagName('v1..0').ok, false, '连续的 . 不是合法 ref');
+  assert.equal(checkTagName('v1.0.0^').ok, false);
+  assert.ok(checkTagName('a b').error, '不合格要给一句人话');
+});
+
+test('附注 tag：打完能查到、指向当前提交，删掉后不残留', () => {
+  /* 在临时仓库里跑，绝不碰项目根自己的 tag。
+     用 `git -C <dir> tag -a` 走的是和 lib/git-backup.mjs 里 createTag 同一条命令。 */
+  const root = tmpRoot('tag-check');
+  const inTmp = (args) => spawnSync('git', ['-C', root, ...args], { encoding: 'utf8' });
+  inTmp(['init', '-b', 'main']);
+  inTmp(['config', 'user.name', 'Test']);
+  inTmp(['config', 'user.email', 't@example.com']);
+  fs.writeFileSync(path.join(root, 'a.txt'), 'a');
+  inTmp(['add', '-A']);
+  inTmp(['commit', '-m', '第一次备份']);
+
+  const made = inTmp(['tag', '-a', 'v1.0.0', '-m', '备份 X · 提交 abc123']);
+  assert.equal(made.status, 0, made.stderr);
+
+  const list = inTmp(['tag', '-l']).stdout.trim().split(/\r?\n/);
+  assert.deepEqual(list, ['v1.0.0']);
+  /* 附注 tag：cat-file 的类型是 tag（轻量 tag 是 commit），说明也存得住 */
+  assert.equal(inTmp(['cat-file', '-t', 'v1.0.0']).stdout.trim(), 'tag');
+  assert.match(inTmp(['tag', '-n', 'v1.0.0']).stdout, /备份 X · 提交 abc123/);
+  const head = inTmp(['rev-parse', 'HEAD']).stdout.trim();
+  assert.equal(inTmp(['rev-parse', 'v1.0.0^{commit}']).stdout.trim(), head, 'tag 要指向当前提交');
+
+  /* 重名不该被静默覆盖：git 自己就会拒 */
+  assert.notEqual(inTmp(['tag', '-a', 'v1.0.0', '-m', 'x']).status, 0);
+
+  inTmp(['tag', '-d', 'v1.0.0']);
+  assert.equal(inTmp(['tag', '-l']).stdout.trim(), '');
+  fs.rmSync(root, { recursive: true, force: true });
 });
 
 test('backup-github.mjs：--help 走帮助（不会顺手暂存/推送）', () => {

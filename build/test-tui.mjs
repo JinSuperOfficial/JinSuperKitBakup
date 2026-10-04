@@ -58,6 +58,16 @@ const PLANS = [
   { id: 'full', name: '快速部署', desc: '构建 → 自检 → 组装 → 热铁盒 → GitHub', steps: PIPELINES.full.map((s) => ({ ...s, on: true })) },
   { id: 'prep', name: '只组装', desc: '拼出 dist/，不上传', steps: PIPELINES.prep.map((s) => ({ ...s, on: true })) },
   { id: 'diff', name: '看改动', desc: 'git 会提交什么（不推）', steps: [{ id: 'diff', label: '看会提交什么（不推）', script: 'push-github.mjs', args: ['--check'], on: true }] },
+  {
+    id: 'bakup',
+    name: '备份源码',
+    desc: '整个项目源码 → JinSuperKitBakup',
+    steps: [{ id: 'bakup', label: '备份整个项目源码 → JinSuperKitBakup', script: 'backup-github.mjs', on: true }],
+    formFields: [
+      { key: 'tag', label: '版本 tag', def: 'v1.0.0' },
+      { key: 'tagMessage', label: 'tag 说明', def: '' },
+    ],
+  },
   { id: 'status', name: '状态', desc: '站点 / dist / 密钥 / Deno / Git', special: 'status', steps: [] },
 ];
 
@@ -85,11 +95,19 @@ function mount(opts = {}) {
     projectRoot: process.cwd(),
     initialId: opts.initialId || null,
     runner: opts.runner || null,
+    planArgsOf: opts.planArgsOf || null,
   }), { stdout, stdin, exitOnCtrlC: false, patchConsole: false });
   return { stdout, stdin, inst };
 }
 
 const tick = (ms = 60) => new Promise((r) => setTimeout(r, ms));
+
+/** 最后一帧的文本：ink 是一帧帧重绘的，用累积文本判断「现在屏幕上有什么」会误判 */
+function lastFrame(stdout) {
+  const t = stdout.text;
+  const i = t.lastIndexOf('\u001b[?2026h');
+  return i >= 0 ? t.slice(i) : t;
+}
 
 /* ink 7 的渲染是批处理的：固定 sleep 会偶发赶不上，改成等到内容真的出现 */
 async function waitFor(fn, ms = 3000) {
@@ -241,5 +259,97 @@ test('执行中按 Ctrl+C 会中止（runner 收到 abort 信号）', async () =
   stdin.press('\u0003');        /* Ctrl+C */
   await tick(150);
   assert.equal(sawAbort, true, 'Ctrl+C 要把 abort 传给正在跑的管线');
+  inst.unmount();
+});
+
+/* ═══════════ 备份计划的额外字段（tag 勾选 + 输入） ═══════════ */
+
+test('备份计划的字段显示在步骤下面，并有默认版本号', async () => {
+  const { stdout, inst } = mount({ initialId: 'bakup' });
+  await tick();
+  const t = stdout.text;
+  assert.match(t, /计划：备份源码/);
+  assert.match(t, /\[x\] 备份整个项目源码/);
+  assert.match(t, /版本 tag/);
+  assert.match(t, /v1\.0\.0/, '默认值要直接显示出来，省得手输');
+  assert.match(t, /Tab\/↓ 进输入框/);
+  inst.unmount();
+});
+
+test('关掉那一步时提示「选项不生效」，字段跟着藏起来', async () => {
+  const { stdout, stdin, inst } = mount({ initialId: 'bakup' });
+  await tick();
+  stdin.press(' ');                  /* 关掉唯一那一步 */
+  await tick();
+  const frame = lastFrame(stdout);
+  assert.match(frame, /\[ \] 备份整个项目源码/);
+  assert.match(frame, /关掉后下面的选项不生效/);
+  assert.doesNotMatch(frame, /版本 tag/, '步骤关掉后字段不该还留在屏幕上');
+  inst.unmount();
+});
+
+test('进入输入框编辑 tag 名：退格删字、输入加字', async () => {
+  const { stdout, stdin, inst } = mount({ initialId: 'bakup' });
+  await tick();
+  stdin.press('\t');                 /* 进输入框 */
+  await tick();
+  assert.match(stdout.text, /输入后 Enter 回到选项/, '进编辑态要有提示');
+  stdin.press('\u007f');             /* 退格：v1.0.0 → v1.0. */
+  await tick();
+  assert.match(stdout.text, /v1\.0\.(?!0)/);
+  stdin.press('7');                  /* → v1.0.7 */
+  await tick();
+  assert.match(stdout.text, /v1\.0\.7/);
+  stdin.press('\r');                 /* 退出编辑 */
+  await tick();
+  assert.match(stdout.text, /Tab\/↓ 进输入框/);
+  inst.unmount();
+});
+
+test('tag 名清空后按 Enter 拦住（不静默丢字段），补回来才能跑', async () => {
+  const { stdout, stdin, inst } = mount({ initialId: 'bakup' });
+  await tick();
+  stdin.press('\t');
+  await tick();
+  for (let i = 0; i < 'v1.0.0'.length; i++) { stdin.press('\u007f'); await tick(20); }
+  stdin.press('\r');                 /* 退出编辑，此时是空字符串 */
+  await tick();
+  stdin.press('\r');                 /* 想直接开跑 */
+  await tick(120);
+  assert.match(stdout.text, /不能为空/, '空 tag 名要拦住并说明怎么跳过');
+  assert.doesNotMatch(stdout.text, /正在执行/);
+  inst.unmount();
+});
+
+test('确认后字段被翻译成命令行参数（planArgsOf），并落到执行页', async () => {
+  let called = null;
+  const runner = async (steps, opts) => {
+    called = { args: steps.map((s) => s.args || []) };
+    opts.onEvent({ ev: 'step', id: steps[0].id, state: 'start' });
+    opts.onEvent({ ev: 'step', id: steps[0].id, state: 'ok', ms: 800, code: 0 });
+    return { ok: true, ms: 900, steps: [{ id: 'bakup', state: 'ok', ms: 800 }], domains: [], changed: [] };
+  };
+  /* 与 deploy-cli.mjs 里的 planArgsOf 同一套映射 */
+  const planArgsOf = (step, form) => {
+    if (step.script !== 'backup-github.mjs') return [];
+    const tag = String(form.tag || '').trim();
+    if (!tag) return [];
+    const args = ['--tag', tag];
+    const msg = String(form.tagMessage || '').trim();
+    if (msg) args.push('--tag-message', msg);
+    return args;
+  };
+
+  const { stdout, stdin, inst } = mount({ initialId: 'bakup', runner, planArgsOf });
+  await tick();
+  stdin.press('\t');
+  await tick();
+  stdin.press('2');                  /* v1.0.02 */
+  stdin.press('\r');
+  await tick();
+  stdin.press('\r');                 /* 开跑 */
+  await tick(150);
+  assert.deepEqual(called.args, [['--tag', 'v1.0.02']], '字段要变成 --tag <名称>');
+  assert.match(stdout.text, /正在执行|全部完成/);
   inst.unmount();
 });

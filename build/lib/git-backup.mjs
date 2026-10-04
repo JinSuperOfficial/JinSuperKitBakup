@@ -296,5 +296,74 @@ export function sanitize(text) {
   return String(text || '').replace(/https:\/\/[^\s/@]*@github\.com/gi, 'https://***@github.com');
 }
 
+/* ═══════════════════════════════════════════════════
+   标签（tag）
+   ---------------------------------------------------
+   备份仓库里「哪个 commit 对应哪一版」靠 tag 认。
+   注意 git push 默认**不推** tag，得显式 --tags（见 backup-github.mjs 第 6 步）。
+   ═══════════════════════════════════════════════════ */
+
+/** 本地已有的 tag（新的在前，git 自己按版本号排序） */
+export function listTags() {
+  const r = git(['tag', '-l', '--sort=-creatordate']);
+  if (r.status !== 0) return [];
+  return String(r.stdout || '').split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+}
+
+/**
+ * tag 名合不合法。
+ * 交给 git 自己判：`git check-ref-format` 是权威，别自己写正则慢慢长歪。
+ * @returns {{ok:boolean, error:string|null}}
+ */
+export function checkTagName(name) {
+  const n = String(name || '').trim();
+  if (!n) return { ok: false, error: 'tag 名不能为空' };
+  const r = git(['check-ref-format', `refs/tags/${n}`]);
+  if (r.status === 0) return { ok: true, error: null };
+  return { ok: false, error: `不是合法的 tag 名：${output(r) || n}` };
+}
+
+export function tagExists(name) {
+  return git(['rev-parse', '--verify', '--quiet', `refs/tags/${name}`]).status === 0;
+}
+
+/**
+ * 给当前提交打一个**附注** tag（带说明、作者、日期 —— 轻量 tag 在 GitHub 上信息太少）。
+ * @param {string} name
+ * @param {string} message 说明（空的话 git 会自己写一句）
+ * @returns {{ok:boolean, out:string}}
+ */
+export function createTag(name, message) {
+  const args = ['tag', '-a', name, '-m', message || `备份 ${name}`];
+  const r = git(args);
+  return { ok: r.status === 0, out: output(r) };
+}
+
+/** 当前 HEAD 的短 sha（用来写 tag 说明 / 事后找回那一版） */
+export function headShort() {
+  const r = git(['rev-parse', '--short', 'HEAD']);
+  return r.status === 0 ? String(r.stdout).trim() : '';
+}
+
+/** 某个 tag 指向哪个 commit（短 sha） */
+export function tagTarget(name) {
+  const r = git(['rev-parse', '--short', `${name}^{commit}`]);
+  return r.status === 0 ? String(r.stdout).trim() : '';
+}
+
+/** 本地一共几个 tag */
+export function tagCount() {
+  return listTags().length;
+}
+
+/** 推到远程的 tag 数 / 失败信息（--tags 会把所有本地 tag 都推一遍） */
+export function pushTags(remote = 'origin') {
+  const r = git([...proxyArgs(), 'push', '--tags', remote], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
+  });
+  return { ok: r.status === 0, out: output(r) };
+}
+
 /** 体积偏大、GitHub 会拒收的文件（100MB 是硬线，留点余量早点提醒） */
 export const BIG_FILE_BYTES = 95 * 1024 * 1024;

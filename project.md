@@ -288,14 +288,19 @@ node console\test\console.test.mjs     （或 npm run console:test）
 发到线上的是 `dist\`（网页产物），源码本身另有一条备份通道：
 
 ```bat
-部署.cmd bakup --check     :: 先看会备份什么（不提交、不推）
-部署.cmd bakup             :: 提交并推送
+部署.cmd bakup --check     :: 先看会备份什么（不提交、不推、不打 tag）
+部署.cmd bakup             :: 提交并推送（会问要不要打 tag）
+部署.cmd bakup --tag v1.0.0 :: 顺手打个版本 tag 并推上去
 ```
 
-- 目标仓库 **`https://github.com/JinSuperOfficial/JinSuperKitBakup.git`**（空的备用仓库，
-  和发布用的 `JinSuper.github.io` 不是一个）。
+- 目标仓库 **`https://github.com/JinSuperOfficial/JinSuperKitBakup.git`**（和发布用的
+  `JinSuper.github.io` 不是同一个）。它和 `dist\.git` 是两份独立的仓库，别混。
 - 推的是**项目根**那份 `.git` 里的**源码全量**（约 1400 个文件 / 46 MB），
   遵守项目根 `.gitignore`：`node_modules`、`dist`、`.env`、`.deploy-logs`、各种缓存都不进。
+- **版本标记靠 tag**：`git push <远程> <分支>` 默认**不推 tag**，所以不打 tag 就没有，
+  GitHub 的「标签」页会一直是空的。要留可回滚的版本记号就用 `--tag`（TUI 里是
+  `版本 tag` 那一栏，默认 `v1.0.0`）；打的是附注 tag，推的时候单独 `git push --tags`。
+  重名不覆盖，只提醒换个名字。
 - **不进 `full` 管线**：`build\lib\pipeline.mjs` 里没有它，`JOB_PIPELINES`（控制台白名单）里也没有，
   所以备份失败不会影响部署，部署也不会顺手把源码推出去。
   实现上是 `build\backup-github.mjs` + `build\lib\git-backup.mjs`，
@@ -304,6 +309,9 @@ node console\test\console.test.mjs     （或 npm run console:test）
 - 自带 `.git` 的子目录（`dist\`、`.agents\skills\theme-plus\`）会被**跳过并提醒**：
   直接 `git add -A` 只会把它们记成一个 commit 号（空壳），源码等于没备份。
   要让它们真的进备份，得删掉里面的 `.git` 或声明成正经的 submodule。
+
+**回滚**：备份仓库里每个 tag / 提交都是完整快照，要退回去就在那儿 `git checkout <tag>`
+（或 `git switch -c 旧版本 <tag>`），比在本地凭记忆改安全。
 
 ---
 

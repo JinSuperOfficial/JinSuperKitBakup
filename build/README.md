@@ -448,18 +448,26 @@ git -C dist remote set-url origin https://<TOKEN>@github.com/JinSuperOfficial/Ji
 `https://github.com/JinSuperOfficial/JinSuperKitBakup.git`：
 
 ```bat
-部署.cmd bakup                 :: 提交并推送
-部署.cmd bakup --check         :: 只看会备份什么（不提交、不推）
-部署.cmd bakup -m "说明"       :: 自定义提交信息
-npm run bakup / bakup:check    :: 同上的 npm 写法
+部署.cmd bakup                      :: 提交并推送（会问要不要打 tag）
+部署.cmd bakup --check              :: 只看会备份什么（不提交、不推、不打 tag）
+部署.cmd bakup -m "说明"            :: 自定义提交信息
+部署.cmd bakup --tag v1.0.0         :: 顺手打个版本 tag 并推上去
+部署.cmd bakup --tag                :: tag 名用时间戳（bakup-20261004-0842）
+部署.cmd bakup --tag v1.0.0 --tag-message "第一个可回滚的版本"
+npm run bakup / bakup:check         :: 同上的 npm 写法
 ```
+
+**为什么要显式打 tag**：`git push <远程> <分支>` 默认**不带 tag**，
+所以光备份分支的话 GitHub 的「标签」页永远是空的。要留版本记号，
+就用 `--tag`（或在 TUI 里的 `版本 tag` 那一栏填名字，默认 `v1.0.0`）。
+打的是**附注 tag**（带说明、作者、日期），推的时候单独 `git push --tags` 一次。
 
 它和 `push-github.mjs` 是**两条完全独立的线**，故意不共用代码：
 
 | | 工作目录 | 内容 | 目标仓库 |
 |:--|:--|:--|:--|
 | `push-github.mjs` | `dist/`（自己那份 `.git`） | 发布出去的网页产物 | `JinSuper.github.io` |
-| `backup-github.mjs` | 项目根（`.git`） | 源码全量 | `JinSuperKitBakup` |
+| `backup-github.mjs` | 项目根（`.git`） | 源码全量 + 版本 tag | `JinSuperKitBakup` |
 
 - **不进任何部署管线**（`full` 里没有它），失败也不影响部署；反过来部署也不会顺手推源码。
   所以「部署包括什么」这件事没有因为多了备份而变化。
@@ -472,8 +480,10 @@ npm run bakup / bakup:check    :: 同上的 npm 写法
 - 单文件超过 95 MB 会提前停下报错（GitHub 硬线 100 MB），不会等传一半才失败。
 - 本地领先远程时会先 `fetch` + 合并，避免「非快进」被拒；
   远程分叉到自己解决不了时会明确告诉你怎么手动合。
+- tag 名交给 `git check-ref-format` 判合法性（不自己写正则）；重名不覆盖，只提醒。
 - 认证 / 代理失败的原因会分开提示（`push-github.mjs` 是同一套逻辑）。
   带 token 的 URL 会先被抹掉再打印，免得把密钥写进日志。
+- tag 没推成功**不算整体失败**：本地 tag 还在，重跑一次 `部署.cmd bakup --tag <同名>` 会补推。
 
 ### 部署细节
 

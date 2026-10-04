@@ -54,18 +54,42 @@ export function Menu({ items, cursor }) {
   `;
 }
 
-/** 计划页：步骤可以逐条开关（这就是「分步向导」的那一步） */
-export function PlanList({ plan, cursor }) {
+/**
+ * 计划页：步骤可以逐条开关（这就是「分步向导」的那一步）。
+ * 有的步骤还需要填点东西（比如备份时给提交打 tag），那就跟在它下面显示成
+ * 一行可编辑的输入框 —— cursor / formCursor / editing 三个状态由调用方给。
+ */
+export function PlanList({ plan, cursor, form, formCursor, editing, hint }) {
+  const fields = (plan && plan.formFields) || [];
   return html`
     <${Box} flexDirection="column">
       ${plan.steps.map((s, i) => html`
         <${Box} key=${s.id}>
-          <${Text} key="l" color=${i === cursor ? 'cyan' : undefined}>
-            ${i === cursor ? '❯ ' : '  '}${s.on ? '[x]' : '[ ]'} ${s.label}
+          <${Text} key="l" color=${editing ? undefined : (i === cursor ? 'cyan' : undefined)}>
+            ${!editing && i === cursor ? '❯ ' : '  '}${s.on ? '[x]' : '[ ]'} ${s.label}
           <//>
           ${s.soft ? html`<${Text} key="k" dimColor>  （长驻：Ctrl+C 停）</${Text}>` : null}
+          ${!s.on && fields.length ? html`<${Text} key="off" dimColor>  （关掉后下面的选项不生效）</${Text}>` : null}
         <//>
       `)}
+      ${fields.length && plan.steps[0].on ? html`
+        <${Box} key="fields" flexDirection="column" marginTop=${1}>
+          ${fields.map((f, i) => {
+            const val = form[f.key] || '';
+            const active = editing && i === formCursor;
+            return html`
+              <${Box} key=${f.key}>
+                <${Text} key="p" color=${active ? 'cyan' : undefined}>
+                  ${active ? '›' : ' '} ${f.label.padEnd(10, ' ')}
+                <//>
+                <${Text} key="v" color=${active ? 'cyan' : 'blue'}>${val || f.placeholder || ''}</${Text}>
+                ${active ? html`<${Text} key="c" color="cyan">_</${Text}>` : null}
+              <//>
+            `;
+          })}
+          <${Text} key="h" dimColor>  ${editing ? '输入后 Enter 回到选项 · Esc 取消编辑' : (hint || 'Tab / ↓ 进输入框，Enter 开始')}</${Text}>
+        <//>
+      ` : null}
     <//>
   `;
 }

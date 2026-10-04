@@ -303,12 +303,16 @@ function printInfo() {
   if (!i.srcRepo) {
     line('源码备份', yellow('! 项目根还没有 .git，第一次跑「备份源码」时会自动建'));
   } else {
+    const tagN = (capture('git', ['tag', '-l'], projectRoot) || '').split(/\r?\n/).filter(Boolean).length;
     const bits = [
       i.srcCommits ? `${i.srcCommits} 个提交` : '还没有提交',
       i.srcDirty ? yellow(`${i.srcDirty} 个改动待提交`) : '无待提交改动',
+      tagN ? `${tagN} 个 tag` : yellow('还没有 tag'),
     ];
     line('源码备份', `${green('✓')} ${i.srcBranch || 'main'} · ${bits.join(' · ')}`);
     note(i.srcOrigin ? '→ ' + i.srcOrigin : '! 还没配远程（跑一次「备份源码」会自动加上）');
+    /* git push 默认不推 tag，所以「标签页空着」这件事得在这里点一句 */
+    if (!tagN) note('想留版本记号：部署.cmd bakup --tag v1.0.0（不带 tag 就不会有标签页）');
   }
 }
 
@@ -382,11 +386,12 @@ function doGithubWithPrep() {
  * 所以它不放进任何部署管线（full 里没有它），也不碰 dist/、不碰 DENO_DIR。
  *
  * ⚠ 只想试跑、不想真推：加 --check，只看会备份什么。 */
-function doBakup() {
+function doBakup(extra = []) {
   const args = [path.join(buildDir, 'backup-github.mjs')];
   if (has('--check') || has('--dry-run')) args.push('--check');
   const msg = valueOf('--message') || valueOf('-m');
   if (msg) args.push('--message', msg);
+  args.push(...extra);
   return run(has('--check') || has('--dry-run') ? '备份源码（只看，不推）' : '备份源码', args);
 }
 
@@ -397,6 +402,51 @@ function valueOf(name) {
   const i = process.argv.indexOf(name);
   const v = i >= 0 ? process.argv[i + 1] : null;
   return v && !v.startsWith('-') ? v : null;
+}
+
+/**
+ * 问要不要给这次备份打 tag。
+ *
+ * 命令行直接给了 `--tag` 就照抄（值可以是名字，也可以只有开关 → 用时间戳名），
+ * 没给就在交互里问一句 —— 因为「什么时候算一个版本」只有人知道，
+ * 而且 tag 不推的话 GitHub 标签页永远是空的（git push 默认不带 tag）。
+ *
+ * @returns {string[]} 追加给 backup-github.mjs 的参数
+ */
+async function askTag() {
+  const direct = process.argv.find((a) => a === '--tag' || a.startsWith('--tag='));
+  if (direct) {
+    const val = direct.startsWith('--tag=') ? direct.slice(6) : null;
+    const extra = ['--tag'];
+    if (val) extra.push(val);
+    const tm = valueOf('--tag-message');
+    if (tm) extra.push('--tag-message', tm);
+    return extra;
+  }
+
+  /* 已经有 tag 的话给个「下一个版本号」的默认值：v1.0.0 → v1.0.1 */
+  const existing = (capture('git', ['tag', '-l'], projectRoot) || '').split(/\r?\n/).filter(Boolean);
+  const lastV = existing.filter((t) => /^v\d+\.\d+\.\d+$/.test(t)).pop();
+  const suggest = lastV
+    ? lastV.replace(/(\d+)$/, (n) => String(Number(n) + 1))
+    : 'v1.0.0';
+
+  console.log('');
+  const a = await ask('  给这次提交打个 tag 吗？' + dim(`（回车跳过 / 输入名称，默认可直接用 ${suggest}） `));
+  if (a === null) {
+    warn('读不到输入，跳过 tag');
+    return [];
+  }
+  if (!a) {
+    note('不打 tag（GitHub 标签页不会多东西，但备份照常）');
+    return [];
+  }
+  const name = a === 'y' || a === 'yes' ? suggest : a;
+
+  const b = await ask('  tag 说明' + dim('（可选，写清这是什么版本）') + ' > ');
+  const extra = ['--tag', name];
+  if (b) extra.push('--tag-message', b);
+  return extra;
 }
 
 /** 备份前先让你看清推的是什么、推到哪儿，再确认一次 */
@@ -414,7 +464,9 @@ async function cmdBakup() {
 
   if (has('--check') || has('--dry-run')) return doBakup();
   if (!(await confirm('确认备份并推送到上面这个仓库？'))) return 0;
-  return doBakup();
+
+  const tagArgs = await askTag();
+  return doBakup(tagArgs);
 }
 
 function doDiff() {
@@ -691,6 +743,23 @@ const ADHOC_DIFF = PIPELINES.diff[0];
 /** 「备份源码」也不走部署管线（它跟发布无关），TUI 里给它一个独立步骤 */
 const ADHOC_BAKUP = { id: 'bakup', label: '备份整个项目源码 → JinSuperKitBakup', script: 'backup-github.mjs' };
 
+/** 备份时可填的字段：给这次提交打个版本 tag（GitHub 标签页靠它） */
+const BAKUP_FIELDS = [
+  { key: 'tag', label: '版本 tag', def: 'v1.0.0', placeholder: '（留空则不生效）' },
+  { key: 'tagMessage', label: 'tag 说明', def: '', placeholder: '（可选，写清这是什么版本）' },
+];
+
+/** 计划页填的字段 → 命令行参数（TUI 不该知道脚本细节，所以这张映射留在这儿） */
+function planArgsOf(step, form = {}) {
+  if (step.script !== 'backup-github.mjs') return [];
+  const tag = String(form.tag || '').trim();
+  if (!tag) return [];
+  const args = ['--tag', tag];
+  const msg = String(form.tagMessage || '').trim();
+  if (msg) args.push('--tag-message', msg);
+  return args;
+}
+
 /**
  * 某条计划的步骤表：**完整步骤**都在，命令行里被关掉的预先置为 off，
  * 这样进了 TUI 还能把它重新打开（比"看不见"友好）。
@@ -705,7 +774,10 @@ function tuiPlans() {
   const out = [];
   for (const [, cmd, name, desc] of MENU) {
     if (cmd === 'diff') { out.push({ id: 'diff', name, desc, steps: [ADHOC_DIFF] }); continue; }
-    if (cmd === 'bakup') { out.push({ id: 'bakup', name, desc, steps: [ADHOC_BAKUP] }); continue; }
+    if (cmd === 'bakup') {
+      out.push({ id: 'bakup', name, desc, steps: [ADHOC_BAKUP], formFields: BAKUP_FIELDS });
+      continue;
+    }
     if (cmd === 'status') { out.push({ id: 'status', name, desc, special: 'status', steps: [] }); continue; }
     out.push({ id: cmd, name, desc, steps: planStepsFor(cmd) });
   }
@@ -752,6 +824,7 @@ async function tryTui(initialId) {
       },
       logDir: path.join(projectRoot, '.deploy-logs'),
       projectRoot,
+      planArgsOf,
       initialId: initialId && MENU.some((m) => m[1] === initialId) ? initialId : null,    });
     return true;
   } catch (e) {
@@ -855,10 +928,14 @@ function usage() {
   console.log(dim('    推到 ' + 'https://github.com/JinSuperOfficial/JinSuperKitBakup.git'));
   console.log(dim('    和上面的部署互不影响，也不在 full 里。'));
   for (const [a, d] of [
-    ['部署.cmd bakup', '备份源码并推送'],
-    ['部署.cmd bakup --check', '只看会备份什么（不提交、不推）'],
+    ['部署.cmd bakup', '备份源码并推送（会问要不要打 tag）'],
+    ['部署.cmd bakup --check', '只看会备份什么（不提交、不推、不打 tag）'],
     ['部署.cmd bakup -m "说明"', '自定义提交信息'],
-  ]) console.log(`    ${pad(a, 30)}${dim(d)}`);
+    ['部署.cmd bakup --tag v1.0.0', '顺手打个版本 tag 并推上去（GitHub 标签页靠它）'],
+    ['部署.cmd bakup --tag', 'tag 名用时间戳（bakup-20261004-0842）'],
+    ['部署.cmd bakup --tag v1.0.0 --tag-message "说明"', 'tag 带说明'],
+  ]) console.log(`    ${pad(a, 50)}${dim(d)}`);
+  console.log(dim('    注意：git push 默认不推 tag，所以不打 tag 就没有标签。'));
   console.log('');
 }
 
