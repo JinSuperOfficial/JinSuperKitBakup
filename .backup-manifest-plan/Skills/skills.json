@@ -1,0 +1,71 @@
+{
+	"items": [
+		{
+			"file": "../811/index.html",
+			"title": "811 工具箱",
+			"desc": "八年(11)班的工具中枢：作业、课程表都在这里，以后新做的 811 玩意也往这儿放",
+			"kind": "page",
+			"icon": "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><rect x='3.5' y='3.5' width='7' height='7' rx='1.5'/><rect x='13.5' y='3.5' width='7' height='7' rx='1.5'/><rect x='3.5' y='13.5' width='7' height='7' rx='1.5'/><rect x='13.5' y='13.5' width='7' height='7' rx='1.5'/></svg>"
+		},
+		{
+			"file": "../811/homework.html",
+			"title": "美味的作业",
+			"desc": "读 811/data/homework.json 渲染每日清单，勾一下自动保存，全部勾完有惊喜",
+			"kind": "tool"
+		},
+		{
+			"file": "../811/classtable.html",
+			"title": "课程表",
+			"desc": "811 课表：基础版 / 缩略版两套，可切完整课表与今日课程，认得出现在上哪节",
+			"kind": "demo"
+		},
+		{
+			"file": "docs/docs.html",
+			"title": "文档站",
+			"desc": "查看文档",
+			"kind": "doc"
+		},
+		{
+			"file": "standalone/function.html",
+			"title": "函数显示器",
+			"desc": "画函数、隐式、极坐标、参数方程，两点定直线画笔，网格吸附，六套配色，全套 JSON 导入导出",
+			"kind": "canvas"
+		},
+		{
+			"file": "idea/moont.html",
+			"title": "月相演示器",
+			"desc": "三个视角看懂月球的阴影变化：太阳系、地球视角、地面观察",
+			"kind": "canvas"
+		},
+		{
+			"file": "docs/docs-static.html",
+			"title": "文档站（静态）",
+			"desc": "同样能读文档，但不依赖云函数，纯静态也能跑",
+			"kind": "doc"
+		},
+		{
+			"file": "docs/blog.html",
+			"title": "BLOG",
+			"desc": "那些奇妙的文章",
+			"kind": "doc"
+		},
+		{
+			"file": "tools/htmlview.html",
+			"title": "HTML 在线运行",
+			"desc": "三栏编辑器，HTML / CSS / JS 分标签编写，实时预览，带控制台和错误提示，支持导入导出 HTML",
+			"kind": "tool"
+		},
+		{
+			"file": "tools/speedtest.html",
+			"title": "服务器性能",
+			"desc": "测试你的性能与网络浏览",
+			"kind": "tool"
+		},
+		{
+			"file": "tools/test_html_20260919_d04d4f.html",
+			"title": "单摆计算",
+			"desc": "单摆周期与角度的计算演示",
+			"kind": "tool"
+		}
+	]
+}

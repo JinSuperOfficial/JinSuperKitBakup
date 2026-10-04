@@ -1,0 +1,39 @@
+{
+  "name": "jinsuper-docs-build",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "description": "把 Markdown 预渲染成静态 HTML，并把渲染器依赖本地化打包（不引任何 CDN）",
+  "scripts": {
+    "build": "node build.mjs",
+    "check": "node test-render.mjs && node verify.mjs && node test-dom.mjs",
+    "all": "node build.mjs && node test-render.mjs && node verify.mjs && node test-dom.mjs",
+    "serve": "node .serve.mjs 8788"
+  },
+  "dependencies": {
+    "@mdit/plugin-tab": "^2.0.2",
+    "highlight.js": "^11.12.0",
+    "katex": "^0.18.9",
+    "markdown-it": "^15.0.2",
+    "markdown-it-abbr": "^2.0.0",
+    "markdown-it-anchor": "^10.0.0",
+    "markdown-it-attrs": "^5.0.1",
+    "markdown-it-container": "^4.0.0",
+    "markdown-it-deflist": "^4.0.0",
+    "markdown-it-emoji": "^3.1.0",
+    "markdown-it-footnote": "^4.0.0",
+    "markdown-it-ins": "^4.0.0",
+    "markdown-it-mark": "^4.0.0",
+    "markdown-it-sub": "^2.0.0",
+    "markdown-it-sup": "^2.0.0",
+    "markdown-it-task-lists": "^2.1.1",
+    "markdown-it-texmath": "^1.0.0",
+    "tlds": "^1.261.0"
+  },
+  "devDependencies": {
+    "htm": "^3.1.1",
+    "ink": "^7.1.1",
+    "jsdom": "^29.1.1",
+    "react": "^19.3.0"
+  }
+}

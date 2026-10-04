@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="../../favicon.svg">
+<link rel="apple-touch-icon" href="../../apple-touch-icon.svg">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>月相演示器 — 三个视角看懂月球阴影</title>
+<style>
+  :root {
+    /* 水墨网页配色（color-theme.md 传统·文化系） */
+    --bg: #1A1A1A;
+    --surface: #222222;
+    --surface-2: #151513;
+    --text: #F0F0E8;        /* 月白 */
+    --text-muted: #8A8578;  /* 石灰 */
+    --accent: #D97757;      /* Claude 橙 */
+    --moon-lit: #F5F0E8;
+    --moon-dark: #1C1C1A;
+    --focus: #D97757;
+    --line: rgba(240, 240, 232, 0.08);
+
+    /* 动效令牌（功能.md 第十二节） */
+    --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+    --dur-fast: 150ms;
+    --dur-base: 300ms;
+    --dur-slow: 600ms;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { font-size: 16px; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+    /* 噪点纹理：避免大面积纯色 */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+  }
+
+  /* ---------- 顶栏 ---------- */
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding: 1.25rem 2rem 1rem;
+    border-bottom: 1px solid var(--line);
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .topbar h1 {
+    font-size: 1.15rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+  }
+
+  .topbar h1 span {
+    color: var(--text-muted);
+    font-weight: 400;
+    font-size: 0.82rem;
+    display: block;
+    margin-top: 0.25rem;
+    max-width: 52ch;
+    line-height: 1.5;
+  }
+
+  .btn-play {
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    border-radius: 6px;
+    padding: 0.6rem 1.4rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background var(--dur-fast) ease, transform var(--dur-fast) ease;
+    white-space: nowrap;
+    font-family: inherit;
+    min-height: 40px;
+  }
+  .btn-play:hover { background: #E08A6E; transform: translateY(-1px); }
+  .btn-play:active { transform: scale(0.97); }
+  .btn-play:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+  .btn-play.playing {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid rgba(240, 240, 232, 0.18);
+  }
+  .btn-play.playing:hover { background: #2A2A28; }
+
+  /* ---------- 主内容 ---------- */
+  .main {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+  }
+
+  .view-section {
+    position: relative;
+    padding: 1.25rem 2rem;
+  }
+
+  .view-label {
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .view-label .num {
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 0.78rem;
+  }
+
+  .view-1 { border-bottom: 1px solid var(--line); }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .two-col .view-section:first-child {
+    border-right: 1px solid var(--line);
+  }
+
+  /* ---------- SVG 容器 ---------- */
+  .svg-wrap {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  #svgSolar { width: 100%; max-width: 100%; height: auto; display: block; }
+  #svgEarthMoon { width: 100%; max-width: 380px; height: auto; display: block; }
+  #svgMoon {
+    width: 100%;
+    max-width: 240px;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+    filter: drop-shadow(0 0 30px rgba(245, 240, 232, 0.05));
+  }
+
+  /* ---------- 月球视角信息 ---------- */
+  .moon-info {
+    margin-top: 1rem;
+    text-align: center;
+  }
+
+  .phase-name {
+    font-size: 1.6rem;
+    font-weight: 600;
+    color: var(--accent);
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+  }
+
+  .phase-lunar {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-top: 0.2rem;
+    letter-spacing: 0.03em;
+  }
+
+  .phase-divider {
+    width: 32px;
+    height: 2px;
+    background: var(--accent);
+    margin: 0.75rem auto;
+  }
+
+  .phase-desc {
+    font-size: 0.88rem;
+    line-height: 1.7;
+    color: var(--text);
+    max-width: 34ch;
+    margin: 0 auto;
+  }
+
+  .phase-note {
+    margin-top: 0.75rem;
+    font-size: 0.76rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+    font-style: italic;
+    max-width: 34ch;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* ---------- 底部阶段条 ---------- */
+  .phase-bar {
+    display: flex;
+    justify-content: center;
+    padding: 1rem 1rem 1.5rem;
+    flex-wrap: wrap;
+    gap: 0;
+  }
+
+  .phase-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.5rem 0.65rem;
+    cursor: pointer;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 0.72rem;
+    transition: color var(--dur-fast) ease;
+    min-width: 48px;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .phase-node:hover { color: var(--text); }
+  .phase-node:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; border-radius: 4px; }
+
+  .phase-node .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    transition: background var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
+  }
+
+  .phase-node.active .dot {
+    background: var(--accent);
+    transform: scale(1.7);
+  }
+
+  .phase-node.active {
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  /* ---------- 进入动效（功能.md 第一节） ---------- */
+  @keyframes rise-in {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .reveal {
+    opacity: 0;
+    animation: rise-in var(--dur-slow) var(--ease-out) forwards;
+    animation-delay: calc(var(--i, 0) * 80ms);
+  }
+
+  /* ---------- 响应式 ---------- */
+  @media (max-width: 820px) {
+    .two-col { grid-template-columns: 1fr; }
+    .two-col .view-section:first-child {
+      border-right: none;
+      border-bottom: 1px solid var(--line);
+    }
+    .topbar { padding: 1rem 1.25rem; flex-direction: column; align-items: flex-start; }
+    .view-section { padding: 1rem 1.25rem; }
+    .phase-name { font-size: 1.35rem; }
+    .phase-bar { padding: 0.75rem 0.5rem 1.25rem; }
+    .phase-node { font-size: 0.65rem; padding: 0.4rem 0.45rem; min-width: 42px; }
+  }
+
+  /* ---------- reduced-motion（功能.md 第七节） ---------- */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+    .reveal { opacity: 1; animation: none; }
+  }
+
+  .not-to-scale {
+    font-size: 0.66rem;
+    color: rgba(138, 133, 120, 0.7);
+    text-align: center;
+    margin-top: 0.5rem;
+    font-style: italic;
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <h1>月相演示器
+    <span>月球其实一直是个圆球。你看到的形状变化，只是光打在上面的角度在变。</span>
+  </h1>
+  <button class="btn-play" id="playBtn" aria-label="开始或暂停月相动画">开始运动</button>
+</header>
+
+<main class="main">
+
+  <!-- ========== 视角 1：太阳系 ========== -->
+  <section class="view-section view-1 reveal" style="--i:0">
+    <div class="view-label"><span class="num">①</span> 太阳系视角 — 光从哪来，谁在绕谁</div>
+    <div class="svg-wrap">
+      <svg id="svgSolar" viewBox="0 0 900 200" role="img" aria-label="太阳系示意图：太阳在左，地球在右，月球绕地球运行">
+        <defs>
+          <radialGradient id="sunGlow">
+            <stop offset="0%" stop-color="#E8A55C" stop-opacity="0.35"/>
+            <stop offset="60%" stop-color="#D97757" stop-opacity="0.08"/>
+            <stop offset="100%" stop-color="#D97757" stop-opacity="0"/>
+          </radialGradient>
+          <radialGradient id="sunBody">
+            <stop offset="0%" stop-color="#FFE8A3"/>
+            <stop offset="100%" stop-color="#E8A55C"/>
+          </radialGradient>
+          <radialGradient id="earthGrad1">
+            <stop offset="0%" stop-color="#6B8FAE"/>
+            <stop offset="100%" stop-color="#3D5A73"/>
+          </radialGradient>
+        </defs>
+
+        <circle cx="60" cy="100" r="150" fill="url(#sunGlow)"/>
+        <circle cx="60" cy="100" r="58" fill="url(#sunBody)"/>
+        <text x="60" y="178" text-anchor="middle" fill="#8A8578" font-size="11" font-family="Segoe UI, sans-serif">太阳</text>
+
+        <g stroke="#D97757" stroke-width="0.8" opacity="0.18">
+          <line x1="118" y1="52" x2="880" y2="52"/>
+          <line x1="118" y1="76" x2="880" y2="76"/>
+          <line x1="118" y1="100" x2="880" y2="100"/>
+          <line x1="118" y1="124" x2="880" y2="124"/>
+          <line x1="118" y1="148" x2="880" y2="148"/>
+        </g>
+
+        <path d="M 750 20 A 100 100 0 0 1 750 180" fill="none" stroke="rgba(240,240,232,0.06)" stroke-width="0.8" stroke-dasharray="2 6"/>
+
+        <circle cx="750" cy="100" r="18" fill="url(#earthGrad1)"/>
+        <circle cx="750" cy="100" r="18" fill="none" stroke="rgba(240,240,232,0.15)" stroke-width="0.5"/>
+        <text x="750" y="140" text-anchor="middle" fill="#8A8578" font-size="11" font-family="Segoe UI, sans-serif">地球</text>
+
+        <circle cx="750" cy="100" r="58" fill="none" stroke="rgba(240,240,232,0.1)" stroke-width="0.8" stroke-dasharray="2 5"/>
+
+        <g id="moonGroup1">
+          <circle cx="0" cy="0" r="7" fill="#1C1C1A"/>
+          <path id="moonLit1" d="" fill="#F5F0E8"/>
+          <circle cx="0" cy="0" r="7" fill="none" stroke="rgba(245,240,232,0.15)" stroke-width="0.4"/>
+        </g>
+
+        <line id="earthMoonLine1" x1="750" y1="100" x2="750" y2="100" stroke="rgba(215,119,87,0.25)" stroke-width="0.6" stroke-dasharray="2 4"/>
+      </svg>
+    </div>
+    <div class="not-to-scale">示意图，太阳、地球、月球的大小与距离不按真实比例</div>
+  </section>
+
+  <!-- ========== 视角 2 + 3 ========== -->
+  <div class="two-col">
+
+    <section class="view-section reveal" style="--i:1">
+      <div class="view-label"><span class="num">②</span> 地月系视角 — 月球在哪，光怎么打</div>
+      <div class="svg-wrap">
+        <svg id="svgEarthMoon" viewBox="0 0 420 420" role="img" aria-label="地月系统俯视图：地球居中，月球绕地球运行">
+          <defs>
+            <radialGradient id="earthGrad2">
+              <stop offset="0%" stop-color="#6B8FAE"/>
+              <stop offset="100%" stop-color="#3D5A73"/>
+            </radialGradient>
+            <radialGradient id="earthShadow">
+              <stop offset="0%" stop-color="rgba(0,0,0,0)"/>
+              <stop offset="100%" stop-color="rgba(0,0,0,0.4)"/>
+            </radialGradient>
+          </defs>
+
+          <g stroke="#D97757" stroke-width="1.2" opacity="0.35" fill="#D97757">
+            <line x1="8" y1="80" x2="60" y2="80"/>
+            <polygon points="60,76 68,80 60,84"/>
+            <line x1="8" y1="160" x2="60" y2="160"/>
+            <polygon points="60,156 68,160 60,164"/>
+            <line x1="8" y1="240" x2="60" y2="240"/>
+            <polygon points="60,236 68,240 60,244"/>
+            <line x1="8" y1="320" x2="60" y2="320"/>
+            <polygon points="60,316 68,320 60,324"/>
+          </g>
+          <text x="30" y="370" fill="#8A8578" font-size="10" font-family="Segoe UI, sans-serif">阳光 →</text>
+
+          <circle cx="210" cy="210" r="148" fill="none" stroke="rgba(240,240,232,0.1)" stroke-width="0.8" stroke-dasharray="3 6"/>
+
+          <line id="sightLine2" x1="210" y1="210" x2="210" y2="210" stroke="rgba(215,119,87,0.35)" stroke-width="0.8" stroke-dasharray="3 5"/>
+
+          <circle cx="210" cy="210" r="26" fill="url(#earthGrad2)"/>
+          <circle cx="210" cy="210" r="26" fill="url(#earthShadow)" opacity="0.5"/>
+          <circle cx="210" cy="210" r="26" fill="none" stroke="rgba(240,240,232,0.18)" stroke-width="0.6"/>
+          <path d="M 210,184 A 26,26 0 0 0 210,236 Z" fill="#8AB4D4" opacity="0.35"/>
+          <text x="210" y="258" text-anchor="middle" fill="#8A8578" font-size="10" font-family="Segoe UI, sans-serif">地球</text>
+
+          <g id="moonGroup2">
+            <circle cx="0" cy="0" r="16" fill="#1C1C1A"/>
+            <path id="moonLit2" d="" fill="#F5F0E8"/>
+            <circle cx="0" cy="0" r="16" fill="none" stroke="rgba(245,240,232,0.12)" stroke-width="0.5"/>
+          </g>
+
+          <text id="angleLabel2" x="210" y="30" text-anchor="middle" fill="#8A8578" font-size="10" font-family="Segoe UI, sans-serif">轨道角 180°</text>
+        </svg>
+      </div>
+    </section>
+
+    <section class="view-section reveal" style="--i:2">
+      <div class="view-label"><span class="num">③</span> 月球视角 — 从地球上看到的月亮</div>
+      <div class="svg-wrap">
+        <svg id="svgMoon" viewBox="0 0 320 320" role="img" aria-label="从地球看到的月球月相">
+          <defs>
+            <filter id="moonNoise">
+              <feTurbulence type="fractalNoise" baseFrequency="1.4" numOctaves="3" result="noise"/>
+              <feColorMatrix type="saturate" values="0" in="noise" result="grayNoise"/>
+              <feComposite in="grayNoise" in2="SourceGraphic" operator="in" result="textured"/>
+              <feMerge>
+                <feMergeNode in="SourceGraphic"/>
+                <feMergeNode in="textured"/>
+              </feMerge>
+            </filter>
+            <radialGradient id="moonGlow">
+              <stop offset="70%" stop-color="rgba(245,240,232,0)"/>
+              <stop offset="100%" stop-color="rgba(245,240,232,0.06)"/>
+            </radialGradient>
+          </defs>
+
+          <circle cx="160" cy="160" r="150" fill="url(#moonGlow)"/>
+          <circle cx="160" cy="160" r="118" fill="#1C1C1A"/>
+          <circle cx="160" cy="160" r="118" fill="none" stroke="rgba(245,240,232,0.1)" stroke-width="0.5"/>
+          <path id="moonLitPath" d="" fill="#F5F0E8" filter="url(#moonNoise)"/>
+        </svg>
+      </div>
+
+      <div class="moon-info">
+        <div class="phase-name" id="phaseName">朔月</div>
+        <div class="phase-lunar" id="phaseLunar">农历初一 · New Moon</div>
+        <div class="phase-divider"></div>
+        <p class="phase-desc" id="phaseDesc">
+          月球跑到了地球和太阳中间。被太阳照亮的那一面完全背对着你，所以你什么都看不到。
+        </p>
+        <p class="phase-note" id="phaseNote">
+          新月不是“刚出来的月亮”——是“看不见的月亮”。
+        </p>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<nav class="phase-bar" id="phaseBar" role="tablist" aria-label="月相阶段选择">
+  <button class="phase-node active" data-index="0" role="tab" aria-selected="true"><span class="dot"></span>朔</button>
+  <button class="phase-node" data-index="1" role="tab" aria-selected="false"><span class="dot"></span>蛾眉月</button>
+  <button class="phase-node" data-index="2" role="tab" aria-selected="false"><span class="dot"></span>上弦月</button>
+  <button class="phase-node" data-index="3" role="tab" aria-selected="false"><span class="dot"></span>盈凸月</button>
+  <button class="phase-node" data-index="4" role="tab" aria-selected="false"><span class="dot"></span>望</button>
+  <button class="phase-node" data-index="5" role="tab" aria-selected="false"><span class="dot"></span>亏凸月</button>
+  <button class="phase-node" data-index="6" role="tab" aria-selected="false"><span class="dot"></span>下弦月</button>
+  <button class="phase-node" data-index="7" role="tab" aria-selected="false"><span class="dot"></span>残月</button>
+</nav>
+
+<script>
+(function(){
+  'use strict';
+
+  var PHASES = [
+    { name:'朔月', lunar:'农历初一 · New Moon', p: 0.00,
+      desc:'月球跑到了地球和太阳中间。被太阳照亮的那一面完全背对着你，所以你什么都看不到。',
+      note:'新月不是“刚出来的月亮”——是“看不见的月亮”。' },
+    { name:'蛾眉月', lunar:'农历初三、初四 · Waxing Crescent', p: 0.125,
+      desc:'傍晚的西方天空能瞥见一弯细线。月球正在往东走，被照亮的那一小块开始朝你转过来了。',
+      note:'这种月相出现的时间很短，太阳落山后最多一两个小时就沉下去了。' },
+    { name:'上弦月', lunar:'农历初七、初八 · First Quarter', p: 0.25,
+      desc:'农历初七初八的傍晚，抬头往南看。月球的右半边被太阳照得正好——它在地球和太阳连线的 90° 方向上。',
+      note:'“上弦”的“上”指的是它出现在上半夜，不是“上面”。' },
+    { name:'盈凸月', lunar:'农历十一、十二 · Waxing Gibbous', p: 0.375,
+      desc:'快圆了，但还差一点。月球的亮面继续扩大，到农历十五左右会变成完整的圆。',
+      note:'这时候月球的亮度已经足够让你在地上看到淡淡的影子。' },
+    { name:'望月', lunar:'农历十五、十六 · Full Moon', p: 0.50,
+      desc:'月球跑到了地球的背阳面。整个被太阳照亮的半球正对着你，又大又圆。它整夜都在天上。',
+      note:'满月其实是个“透视图骗局”——你看到的正面全亮，背面全黑。' },
+    { name:'亏凸月', lunar:'农历十七至二十二 · Waning Gibbous', p: 0.625,
+      desc:'亮面开始从右侧缩回去。月球继续公转，被照亮的区域慢慢转离你的视线。',
+      note:'如果你起得够早，凌晨的西南天空还能看到它。' },
+    { name:'下弦月', lunar:'农历二十三、二十四 · Last Quarter', p: 0.75,
+      desc:'左半边亮着。和上弦月刚好相反——这次出现在下半夜，天亮前挂在南边。',
+      note:'“下弦”的“下”指下半夜可见，不是“下面亮”。' },
+    { name:'残月', lunar:'农历二十五至二十九 · Waning Crescent', p: 0.875,
+      desc:'只剩左边一条细线了。月球快要绕回太阳的方向，马上又要“消失”在晨光里。',
+      note:'接下来就是新一轮的朔月——故事从头再来一遍。' }
+  ];
+
+  var p = 0, currentIndex = 0;
+  var isPlaying = false, animFrame = null, lastTime = 0;
+  var ROTATION_SECONDS = 30;
+
+  var playBtn       = document.getElementById('playBtn');
+  var phaseName     = document.getElementById('phaseName');
+  var phaseLunar    = document.getElementById('phaseLunar');
+  var phaseDesc     = document.getElementById('phaseDesc');
+  var phaseNote     = document.getElementById('phaseNote');
+  var nodes         = document.querySelectorAll('.phase-node');
+
+  var moonGroup1    = document.getElementById('moonGroup1');
+  var moonLit1      = document.getElementById('moonLit1');
+  var earthMoonLine1= document.getElementById('earthMoonLine1');
+  var moonGroup2    = document.getElementById('moonGroup2');
+  var moonLit2      = document.getElementById('moonLit2');
+  var sightLine2    = document.getElementById('sightLine2');
+  var angleLabel2   = document.getElementById('angleLabel2');
+  var moonLitPath   = document.getElementById('moonLitPath');
+
+  function normP(v) { v = v % 1; if (v < 0) v += 1; return v; }
+
+  function closestPhaseIndex(v) {
+    v = normP(v);
+    var best = 0, bestDist = 999;
+    for (var i = 0; i < PHASES.length; i++) {
+      var d = Math.abs(v - PHASES[i].p);
+      d = Math.min(d, 1 - d);
+      if (d < bestDist) { bestDist = d; best = i; }
+    }
+    return best;
+  }
+
+  function getMoonLitPath(cx, cy, R, v) {
+    v = normP(v);
+    if (v < 0.004 || v > 0.996) return '';
+    if (Math.abs(v - 0.5) < 0.004) {
+      return 'M ' + (cx - R) + ',' + cy +
+             ' A ' + R + ',' + R + ' 0 1 1 ' + (cx + R) + ',' + cy +
+             ' A ' + R + ',' + R + ' 0 1 1 ' + (cx - R) + ',' + cy + ' Z';
+    }
+    var alpha = 2 * Math.PI * v;
+    var rx = R * Math.abs(Math.cos(alpha));
+    if (rx < 0.5) rx = 0.5;
+    var d;
+    if (v < 0.5) {
+      var sweepR = (v < 0.25) ? 0 : 1;
+      d = 'M ' + cx + ',' + (cy - R) +
+          ' A ' + R + ',' + R + ' 0 0 1 ' + cx + ',' + (cy + R) +
+          ' A ' + rx + ',' + R + ' 0 0 ' + sweepR + ' ' + cx + ',' + (cy - R) + ' Z';
+    } else {
+      var sweepL = (v < 0.75) ? 0 : 1;
+      d = 'M ' + cx + ',' + (cy - R) +
+          ' A ' + R + ',' + R + ' 0 0 0 ' + cx + ',' + (cy + R) +
+          ' A ' + rx + ',' + R + ' 0 0 ' + sweepL + ' ' + cx + ',' + (cy - R) + ' Z';
+    }
+    return d;
+  }
+
+  function getOrbitPos(cx, cy, orbitR, v) {
+    var phi = Math.PI - 2 * Math.PI * v;
+    return {
+      x: cx + orbitR * Math.cos(phi),
+      y: cy + orbitR * Math.sin(phi)
+    };
+  }
+
+  function getLeftLitPath(r) {
+    return 'M 0,' + (-r) + ' A ' + r + ',' + r + ' 0 0 0 0,' + r + ' Z';
+  }
+
+  function render(v) {
+    v = normP(v);
+
+    var pos1 = getOrbitPos(750, 100, 58, v);
+    moonGroup1.setAttribute('transform', 'translate(' + pos1.x + ',' + pos1.y + ')');
+    moonLit1.setAttribute('d', getLeftLitPath(7));
+    earthMoonLine1.setAttribute('x2', pos1.x);
+    earthMoonLine1.setAttribute('y2', pos1.y);
+
+    var pos2 = getOrbitPos(210, 210, 148, v);
+    moonGroup2.setAttribute('transform', 'translate(' + pos2.x + ',' + pos2.y + ')');
+    moonLit2.setAttribute('d', getLeftLitPath(16));
+    sightLine2.setAttribute('x2', pos2.x);
+    sightLine2.setAttribute('y2', pos2.y);
+    angleLabel2.textContent = '轨道角 ' + Math.round(360 * v) + '°';
+
+    moonLitPath.setAttribute('d', getMoonLitPath(160, 160, 118, v));
+
+    var idx = closestPhaseIndex(v);
+    if (idx !== currentIndex) {
+      currentIndex = idx;
+      updateInfo(idx);
+    }
+  }
+
+  function updateInfo(index) {
+    var ph = PHASES[index];
+    phaseName.textContent = ph.name;
+    phaseLunar.textContent = ph.lunar;
+    phaseDesc.textContent = ph.desc;
+    phaseNote.textContent = ph.note;
+    nodes.forEach(function(n, i) {
+      var active = (i === index);
+      n.classList.toggle('active', active);
+      n.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+  }
+
+  function goToPhase(index) {
+    currentIndex = index;
+    p = PHASES[index].p;
+    render(p);
+    updateInfo(index);
+  }
+
+  function animate(timestamp) {
+    if (!lastTime) lastTime = timestamp;
+    var dt = (timestamp - lastTime) / 1000;
+    lastTime = timestamp;
+    if (dt > 0.1) dt = 0.1;  // 防止切后台回来跳变
+    p += dt / ROTATION_SECONDS;
+    if (p >= 1) p -= 1;
+    render(p);
+    animFrame = requestAnimationFrame(animate);
+  }
+
+  function togglePlay() {
+    isPlaying = !isPlaying;
+    if (isPlaying) {
+      playBtn.textContent = '暂停';
+      playBtn.classList.add('playing');
+      lastTime = 0;
+      animFrame = requestAnimationFrame(animate);
+    } else {
+      playBtn.textContent = '开始运动';
+      playBtn.classList.remove('playing');
+      if (animFrame) { cancelAnimationFrame(animFrame); animFrame = null; }
+    }
+  }
+
+  playBtn.addEventListener('click', togglePlay);
+
+  nodes.forEach(function(node) {
+    node.addEventListener('click', function() {
+      if (isPlaying) togglePlay();
+      goToPhase(parseInt(this.getAttribute('data-index'), 10));
+    });
+    node.addEventListener('keydown', function(e) {
+      var idx = parseInt(this.getAttribute('data-index'), 10);
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        e.preventDefault(); nodes[(idx + 1) % 8].focus();
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault(); nodes[(idx - 1 + 8) % 8].focus();
+      } else if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        if (isPlaying) togglePlay();
+        goToPhase(idx);
+      }
+    });
+  });
+
+  goToPhase(0);
+
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    isPlaying = false;
+    playBtn.textContent = '开始运动';
+  }
+})();
+</script>
+</body>
+</html>

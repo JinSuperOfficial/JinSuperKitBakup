@@ -1,0 +1,70 @@
+{
+  "collection": "skills",
+  "title": "工具站",
+  "root": "/Skills/",
+  "items": [
+    {
+      "id": "docs",
+      "title": "文档站",
+      "desc": "查看文档",
+      "href": "/Skills/docs/docs.html",
+      "icon": "file",
+      "kind": "doc",
+      "order": 10
+    },
+    {
+      "id": "moont",
+      "title": "月相演示器",
+      "desc": "三个视角看懂月球的阴影变化：太阳系、地球视角、地面观察",
+      "href": "/Skills/idea/moont.html",
+      "icon": "curve",
+      "kind": "canvas",
+      "order": 30
+    },
+    {
+      "id": "docs-static",
+      "title": "文档站（静态）",
+      "desc": "同样能读文档，但不依赖云函数，纯静态也能跑",
+      "href": "/Skills/docs/docs-static.html",
+      "icon": "file",
+      "kind": "doc",
+      "order": 40
+    },
+    {
+      "id": "blog",
+      "title": "BLOG",
+      "desc": "那些奇妙的文章",
+      "href": "/Skills/docs/blog.html",
+      "icon": "file",
+      "kind": "doc",
+      "order": 50
+    },
+    {
+      "id": "htmlview",
+      "title": "HTML 在线运行",
+      "desc": "三栏编辑器，HTML / CSS / JS 分标签编写，实时预览，带控制台和错误提示，支持导入导出 HTML",
+      "href": "/Skills/tools/htmlview.html",
+      "icon": "wrench",
+      "kind": "tool",
+      "order": 60
+    },
+    {
+      "id": "speedtest",
+      "title": "服务器性能",
+      "desc": "测试你的性能与网络浏览",
+      "href": "/Skills/tools/speedtest.html",
+      "icon": "wrench",
+      "kind": "tool",
+      "order": 70
+    },
+    {
+      "id": "pendulum",
+      "title": "单摆计算",
+      "desc": "单摆周期与角度的计算演示",
+      "href": "/Skills/tools/test_html_20260919_d04d4f.html",
+      "icon": "wrench",
+      "kind": "tool",
+      "order": 80
+    }
+  ]
+}

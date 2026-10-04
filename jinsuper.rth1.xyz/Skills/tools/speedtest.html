@@ -1,0 +1,1295 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<link rel="icon" type="image/svg+xml" href="../../favicon.svg">
+<link rel="apple-touch-icon" href="../../apple-touch-icon.svg">
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>服务器性能测试 · 本机跑分 + 网络测速</title>
+<style>
+  :root{
+    /* 暖调·大地系 —— 纸白 / 墨黑 / Claude 橙 */
+    --paper:#FAF8F5;
+    --paper-2:#F2EFE9;
+    --ink:#141414;
+    --ink-2:#4A4A48;
+    --ink-3:#8C8A85;
+    --line:#E4E0D8;
+    --line-2:#D4CFC4;
+    --accent:#D97757;
+    --accent-deep:#B5522F;
+    --olive:#8E9867;
+    --clay:#E1937D;
+    --oak:#8D6959;
+    --good:#5B8C5A;
+    --warn:#C89B3C;
+    --bad:#C0503C;
+    --mono:ui-monospace,"Cascadia Code","SF Mono",Menlo,Consolas,monospace;
+    --sans:"Segoe UI Variable Display","Segoe UI",-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{min-height:100%}
+  body{
+    font-family:var(--sans);
+    color:var(--ink);
+    background-color:var(--paper);
+    background-image:
+      radial-gradient(1100px 560px at 0% -12%, rgba(217,119,87,.07), transparent 62%),
+      radial-gradient(900px 520px at 100% -6%, rgba(142,152,103,.06), transparent 58%),
+      radial-gradient(rgba(20,20,20,.026) 1px, transparent 1px);
+    background-size:auto,auto,22px 22px;
+    background-attachment:fixed;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+  }
+  ::selection{background:rgba(217,119,87,.22);color:var(--ink)}
+
+  .shell{max-width:1180px;margin:0 auto;padding:0 28px 80px}
+
+  /* ============ 顶栏 ============ */
+  .bar{
+    position:sticky;top:0;z-index:60;
+    margin:0 -28px 0;
+    padding:14px 28px;
+    display:flex;align-items:center;justify-content:space-between;gap:24px;
+    background:rgba(250,248,245,.86);
+    backdrop-filter:saturate(170%) blur(16px);
+    -webkit-backdrop-filter:saturate(170%) blur(16px);
+    border-bottom:1px solid var(--line);
+  }
+  .brand{display:flex;align-items:center;gap:11px;min-width:0}
+  .brand-mark{
+    width:26px;height:26px;flex:0 0 26px;
+    color:var(--accent);
+  }
+  .brand-text{display:flex;flex-direction:column;gap:1px;min-width:0}
+  .brand-text strong{font-size:14px;font-weight:700;letter-spacing:-.1px;white-space:nowrap}
+  .brand-text span{font-size:11px;color:var(--ink-3);white-space:nowrap}
+
+  .tabs{display:flex;gap:26px;flex:0 0 auto}
+  .tab{
+    appearance:none;background:none;border:0;cursor:pointer;
+    font-family:inherit;font-size:13px;font-weight:600;
+    color:var(--ink-3);padding:4px 0;
+    position:relative;transition:color .2s;
+    white-space:nowrap;
+  }
+  .tab::after{
+    content:'';position:absolute;left:0;right:0;bottom:-3px;height:2px;
+    background:var(--accent);transform:scaleX(0);transform-origin:left;
+    transition:transform .28s cubic-bezier(.22,1,.36,1);
+  }
+  .tab:hover{color:var(--ink-2)}
+  .tab.active{color:var(--ink)}
+  .tab.active::after{transform:scaleX(1)}
+
+  /* ============ 面板 ============ */
+  .panel{display:none}
+  .panel.active{display:block;animation:fadeUp .4s cubic-bezier(.22,1,.36,1)}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  .split{
+    display:grid;
+    grid-template-columns:336px 1fr;
+    align-items:start;
+  }
+  .rail{
+    position:sticky;top:82px;
+    padding:44px 36px 44px 0;
+    border-right:1px solid var(--line);
+    display:flex;flex-direction:column;gap:22px;
+  }
+  .content{
+    padding:44px 0 0 44px;
+    min-width:0;
+  }
+
+  .eyebrow{
+    display:inline-block;
+    font-family:var(--mono);
+    font-size:10.5px;font-weight:700;
+    letter-spacing:.16em;text-transform:uppercase;
+    color:var(--accent);
+    padding-bottom:14px;
+  }
+  .rail h2{
+    font-size:24px;font-weight:700;letter-spacing:-.6px;
+    line-height:1.25;margin-bottom:10px;
+  }
+  .rail p{
+    font-size:12.5px;color:var(--ink-2);line-height:1.75;
+  }
+
+  /* 大分数 */
+  .score-block{
+    padding-top:6px;
+    border-top:1px solid var(--line);
+    margin-top:4px;
+  }
+  .score-num{
+    font-family:var(--mono);
+    font-size:58px;font-weight:700;letter-spacing:-3px;
+    line-height:1;padding-top:20px;
+    font-variant-numeric:tabular-nums;
+    color:var(--ink);
+    transition:color .4s;
+  }
+  .timer-num{
+    font-family:var(--mono);
+    font-size:58px;font-weight:700;letter-spacing:-3px;
+    line-height:1;padding-top:20px;
+    font-variant-numeric:tabular-nums;
+    color:var(--ink);
+    transition:color .4s;
+  }
+  .score-cap{
+    font-family:var(--mono);
+    font-size:10.5px;letter-spacing:.1em;
+    color:var(--ink-3);margin-top:9px;text-transform:uppercase;
+  }
+
+  .track{height:3px;background:var(--line);overflow:hidden;margin-top:2px}
+  .track > i{
+    display:block;height:100%;width:0%;background:var(--accent);
+    transition:width .4s cubic-bezier(.22,1,.36,1);
+  }
+
+  /* 强调按钮：唯一一个，胶囊形 */
+  .btn-primary{
+    appearance:none;border:0;cursor:pointer;
+    font-family:inherit;font-size:14px;font-weight:700;letter-spacing:.01em;
+    color:var(--paper);
+    background:var(--ink);
+    padding:15px 30px;
+    border-radius:999px;
+    width:100%;
+    transition:background .22s,transform .16s cubic-bezier(.4,0,.2,1),box-shadow .22s;
+    box-shadow:0 1px 2px rgba(20,20,20,.14);
+  }
+  .btn-primary:hover:not(:disabled){
+    background:var(--accent);
+    transform:translateY(-1px);
+    box-shadow:0 8px 20px -8px rgba(217,119,87,.7);
+  }
+  .btn-primary:active:not(:disabled){transform:translateY(0)}
+  .btn-primary:disabled{
+    background:var(--line-2);color:var(--ink-3);
+    cursor:not-allowed;box-shadow:none;
+  }
+
+  .status{
+    font-family:var(--mono);
+    font-size:11.5px;color:var(--ink-3);line-height:1.7;
+    font-variant-numeric:tabular-nums;
+  }
+  .live{
+    font-family:var(--mono);
+    font-size:11.5px;color:var(--oak);
+    font-variant-numeric:tabular-nums;
+    padding-top:2px;
+    border-top:1px solid var(--line);
+    margin-top:2px;
+  }
+
+  /* ============ 测试行列表 ============ */
+  .list-head{
+    display:flex;align-items:baseline;justify-content:space-between;
+    gap:16px;padding-bottom:12px;
+  }
+  .list-head strong{
+    font-family:var(--mono);font-size:10.5px;font-weight:700;
+    letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);
+  }
+  .list-head em{
+    font-style:normal;font-family:var(--mono);font-size:10.5px;
+    letter-spacing:.08em;color:var(--ink-3);
+  }
+
+  .test-list{
+    list-style:none;
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(290px,1fr));
+    column-gap:44px;
+    border-top:1px solid var(--line);
+  }
+  .test-row{
+    display:grid;
+    grid-template-columns:24px 20px 1fr;
+    gap:12px;
+    padding:17px 0 15px;
+    border-bottom:1px solid var(--line);
+    align-items:start;
+    transition:opacity .3s;
+  }
+  .test-row.skipped{opacity:.45}
+  .row-idx{
+    font-family:var(--mono);font-size:10.5px;
+    color:var(--ink-3);padding-top:3px;
+    font-variant-numeric:tabular-nums;
+  }
+  .row-icon{color:var(--line-2);padding-top:1px;transition:color .35s}
+  .test-row.done .row-icon{color:var(--accent)}
+  .row-body{min-width:0;display:flex;flex-direction:column;gap:9px}
+  .row-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+  .row-name{font-size:13.5px;font-weight:600;color:var(--ink);letter-spacing:-.1px}
+  .row-score{
+    font-family:var(--mono);font-size:12.5px;font-weight:700;
+    color:var(--ink-3);font-variant-numeric:tabular-nums;
+    transition:color .35s;
+  }
+  .row-bar{height:2px;background:var(--line);overflow:hidden}
+  .row-bar i{
+    display:block;height:100%;width:0%;background:var(--accent);
+    transition:width .85s cubic-bezier(.22,1,.36,1),background .35s;
+  }
+  .row-meta{
+    display:flex;align-items:baseline;justify-content:space-between;
+    gap:14px;flex-wrap:wrap;
+  }
+  .row-value{
+    font-family:var(--mono);font-size:15px;font-weight:700;
+    color:var(--ink);font-variant-numeric:tabular-nums;
+    white-space:nowrap;
+  }
+  .row-value small{
+    font-size:10.5px;font-weight:500;color:var(--ink-3);
+    margin-left:3px;letter-spacing:0;
+  }
+  .row-detail{
+    font-size:11px;color:var(--ink-3);line-height:1.5;
+    text-align:right;flex:1;min-width:0;
+  }
+
+  /* ============ 日志 ============ */
+  .log-box{margin-top:38px}
+  .log-head{
+    font-family:var(--mono);font-size:10.5px;font-weight:700;
+    letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);
+    padding-bottom:11px;border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:9px;
+  }
+  .log-head::before{
+    content:'';width:5px;height:5px;border-radius:50%;
+    background:var(--accent);
+  }
+  .log{
+    margin-top:14px;height:176px;overflow-y:auto;
+    font-family:var(--mono);font-size:11.5px;line-height:2;
+    color:var(--ink-2);padding-right:10px;
+  }
+  .log-line{display:flex;gap:14px;white-space:pre-wrap;word-break:break-word}
+  .log-t{color:var(--line-2);flex:0 0 auto;font-variant-numeric:tabular-nums}
+  .log-line.ok span:last-child{color:var(--good)}
+  .log-line.warn span:last-child{color:var(--warn)}
+  .log-line.err span:last-child{color:var(--bad)}
+  .log::-webkit-scrollbar{width:6px}
+  .log::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:99px}
+  .log::-webkit-scrollbar-thumb:hover{background:var(--ink-3)}
+  .log::-webkit-scrollbar-track{background:transparent}
+
+  /* ============ 页脚 ============ */
+  .foot{
+    max-width:1180px;margin:0 auto;
+    padding:34px 28px 0;
+    border-top:1px solid var(--line);
+    font-size:11.5px;color:var(--ink-3);line-height:1.9;
+    display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;
+  }
+  .foot b{color:var(--ink-2);font-weight:600}
+  .foot .mono{font-family:var(--mono);font-size:11px}
+
+  .dom-host{position:absolute;left:-99999px;top:0;width:1px;height:1px;overflow:hidden;pointer-events:none}
+  .bench-node{font:12px monospace;color:#333}
+
+  /* ============ 响应式 ============ */
+  @media (max-width:940px){
+    .split{grid-template-columns:1fr}
+    .rail{
+      position:static;border-right:0;
+      border-bottom:1px solid var(--line);
+      padding:34px 0 32px;
+    }
+    .content{padding:34px 0 0}
+  }
+  @media (max-width:640px){
+    .shell{padding:0 18px 60px}
+    .bar{margin:0 -18px;padding:12px 18px;gap:14px}
+    .brand-text span{display:none}
+    .brand-text strong{font-size:13px}
+    .tabs{gap:18px}
+    .tab{font-size:12.5px}
+    .rail h2{font-size:20px}
+    .score-num,.timer-num{font-size:46px;letter-spacing:-2.5px}
+    .test-list{grid-template-columns:1fr;column-gap:0}
+    .row-detail{text-align:left}
+    .foot{padding:28px 18px 0;flex-direction:column;gap:8px}
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- ============ 顶栏 ============ -->
+  <header class="bar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M13 2.5L4.5 14H11l-1 7.5L19.5 10H13l0-7.5z"/>
+      </svg>
+      <div class="brand-text">
+        <strong>服务器性能测试</strong>
+        <span>本机跑分 · 网络测速</span>
+      </div>
+    </div>
+    <nav class="tabs" id="tabs">
+      <button class="tab active" data-tab="local">本机跑分</button>
+      <button class="tab" data-tab="network">网络测速</button>
+    </nav>
+  </header>
+
+  <!-- ============================================================
+       面板一：本机跑分
+       ============================================================ -->
+  <section class="panel active" id="panel-local">
+    <div class="split">
+
+      <aside class="rail">
+        <div>
+          <span class="eyebrow">Local Bench</span>
+          <h2>这台机器<br/>到底几斤几两</h2>
+          <p>10 项测试全在浏览器里跑完。CPU 单核、内存带宽、画布绘制、多线程并发，一项一项过。所有数字都在你本机算，不上传。</p>
+        </div>
+
+        <div class="score-block">
+          <div class="score-num" id="totalScore">--</div>
+          <div class="score-cap">综合得分 / 100</div>
+        </div>
+
+        <div class="track"><i id="bar"></i></div>
+
+        <button class="btn-primary" id="startBtn">开始跑分</button>
+
+        <div class="status" id="status">待机 · 大概 5 秒跑完</div>
+      </aside>
+
+      <div class="content">
+        <div class="list-head">
+          <strong>测试项目</strong>
+          <em>得分 / 原始数据</em>
+        </div>
+        <ol class="test-list" id="results"></ol>
+
+        <div class="log-box">
+          <div class="log-head">跑分记录</div>
+          <div class="log" id="log"></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============================================================
+       面板二：网络测速
+       ============================================================ -->
+  <section class="panel" id="panel-network">
+    <div class="split">
+
+      <aside class="rail">
+        <div>
+          <span class="eyebrow">Network Speed</span>
+          <h2>网速到底<br/>行不行</h2>
+          <p>固定跑满 60 秒。前 6 秒探延迟，中间 32 秒压下载，最后 20 秒塞上传。节点走 Cloudflare 的公开接口。</p>
+        </div>
+
+        <div class="score-block">
+          <div class="timer-num" id="netCount">60.0</div>
+          <div class="score-cap">剩余秒数</div>
+        </div>
+
+        <div class="track"><i id="netBar"></i></div>
+
+        <button class="btn-primary" id="netBtn">开始测速</button>
+
+        <div class="status" id="netPhase">待机 · 预计 60 秒</div>
+        <div class="live" id="netLive">实时速率 -- Mbps</div>
+      </aside>
+
+      <div class="content">
+        <div class="list-head">
+          <strong>测速结果</strong>
+          <em>得分 / 原始数据</em>
+        </div>
+        <ol class="test-list" id="netCards"></ol>
+
+        <div class="log-box">
+          <div class="log-head">测速记录</div>
+          <div class="log" id="netLog"></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+</div>
+
+<footer class="foot">
+  <div>所有测试都在浏览器本地跑。除了网络测速会连 Cloudflare 的公开节点，其余数据一律不出本机。</div>
+  <div class="mono">speed.cloudflare.com</div>
+</footer>
+
+<div id="domHost" class="dom-host"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* =========================================================
+     工具
+     ========================================================= */
+  function $(id) { return document.getElementById(id); }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function waitUntil(t) { var d = t - performance.now(); return d > 0 ? sleep(d) : Promise.resolve(); }
+  function clampScore(v) { return Math.max(1, Math.min(100, Math.round(v))); }
+  function scoreColor(s) {
+    if (s >= 80) return '#5B8C5A';
+    if (s >= 60) return '#D97757';
+    if (s >= 40) return '#C89B3C';
+    return '#C0503C';
+  }
+  function fmtNum(v) {
+    if (!isFinite(v)) return '--';
+    if (v >= 1000) return Math.round(v).toLocaleString('en-US');
+    if (v >= 100) return v.toFixed(0);
+    if (v >= 10) return v.toFixed(1);
+    return v.toFixed(2);
+  }
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  function logTo(el, msg, cls) {
+    var line = document.createElement('div');
+    line.className = 'log-line' + (cls ? ' ' + cls : '');
+    var t = document.createElement('span');
+    t.className = 'log-t';
+    t.textContent = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+    var b = document.createElement('span');
+    b.textContent = msg;
+    line.appendChild(t);
+    line.appendChild(b);
+    el.appendChild(line);
+    el.scrollTop = el.scrollHeight;
+  }
+
+  var startBtn = $('startBtn');
+  var netBtn   = $('netBtn');
+
+  /* =========================================================
+     标签切换
+     ========================================================= */
+  (function tabs() {
+    var btns = document.querySelectorAll('#tabs .tab');
+    var panels = document.querySelectorAll('.panel');
+    Array.prototype.forEach.call(btns, function (btn) {
+      btn.addEventListener('click', function () {
+        var target = btn.getAttribute('data-tab');
+        Array.prototype.forEach.call(btns, function (b) {
+          b.classList.toggle('active', b === btn);
+        });
+        Array.prototype.forEach.call(panels, function (p) {
+          p.classList.toggle('active', p.id === 'panel-' + target);
+        });
+      });
+    });
+  })();
+
+  /* =========================================================
+     SVG 图标（不用 Emoji）
+     ========================================================= */
+  var SVG_OPEN = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
+
+  var ICONS = {
+    int:    SVG_OPEN + '<rect x="3" y="3" width="7.5" height="7.5" rx="1.2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.2"/><path d="M13.5 17.2h7.5M17.2 13.5v7.5"/></svg>',
+    float:  SVG_OPEN + '<path d="M2.5 14.5c1.8-7 3.6-7 5.4 0s3.6 7 5.4 0 3.6-7 5.4 0"/><circle cx="20.5" cy="6.5" r="1.1"/></svg>',
+    str:    SVG_OPEN + '<path d="M3.5 6.5h17M3.5 12h11.5M3.5 17.5h7"/></svg>',
+    json:   SVG_OPEN + '<path d="M9 3.5c-1.6 0-2.2 1-2.2 2.6v2.1c0 1.6-1 2.8-2.8 3.3 1.8.5 2.8 1.7 2.8 3.3v2.1c0 1.6.6 2.6 2.2 2.6"/><path d="M15 3.5c1.6 0 2.2 1 2.2 2.6v2.1c0 1.6 1 2.8 2.8 3.3-1.8.5-2.8 1.7-2.8 3.3v2.1c0 1.6-.6 2.6-2.2 2.6"/></svg>',
+    sort:   SVG_OPEN + '<rect x="3" y="13.5" width="4.4" height="7.5" rx="1"/><rect x="9.8" y="8.5" width="4.4" height="12.5" rx="1"/><rect x="16.6" y="3.5" width="4.4" height="17.5" rx="1"/></svg>',
+    mem:    SVG_OPEN + '<rect x="6.5" y="6.5" width="11" height="11" rx="1.6"/><path d="M9.5 3v3.5M14.5 3v3.5M9.5 17.5V21M14.5 17.5V21M3 9.5h3.5M3 14.5h3.5M17.5 9.5H21M17.5 14.5H21"/></svg>',
+    canvas: SVG_OPEN + '<rect x="3" y="4.5" width="18" height="15" rx="1.6"/><circle cx="8.6" cy="9.8" r="1.7"/><path d="M3 16.5l4.8-3.8 4.2 3.2 4.1-4.6L21 16.8"/></svg>',
+    dom:    SVG_OPEN + '<rect x="9" y="3" width="6" height="4.6" rx="1"/><rect x="2.5" y="16.4" width="6" height="4.6" rx="1"/><rect x="15.5" y="16.4" width="6" height="4.6" rx="1"/><path d="M12 7.6v4.2M5.5 16.4v-2.3h13v2.3"/></svg>',
+    crypto: SVG_OPEN + '<rect x="4.2" y="10.2" width="15.6" height="10.6" rx="2"/><path d="M8 10.2V7a4 4 0 0 1 8 0v3.2"/><circle cx="12" cy="15.5" r="1.3"/></svg>',
+    worker: SVG_OPEN + '<rect x="3.5" y="3.5" width="7.2" height="7.2" rx="1.4"/><rect x="13.3" y="3.5" width="7.2" height="7.2" rx="1.4"/><rect x="3.5" y="13.3" width="7.2" height="7.2" rx="1.4"/><rect x="13.3" y="13.3" width="7.2" height="7.2" rx="1.4"/></svg>',
+
+    ping:   SVG_OPEN + '<path d="M12 19.5v-5.2"/><path d="M8.4 13.6a5.1 5.1 0 0 1 7.2 0"/><path d="M5 10a10.2 10.2 0 0 1 14 0"/></svg>',
+    jitter: SVG_OPEN + '<path d="M2.5 12h2.6l1.9-6.2 2.9 12.4 2.7-8.6 2.4 5.6 2.1-3.2h4.4"/></svg>',
+    down:   SVG_OPEN + '<path d="M12 3.8v12.4m0 0l-4.8-4.8M12 16.2l4.8-4.8M4.6 20.2h14.8"/></svg>',
+    up:     SVG_OPEN + '<path d="M12 20.2V7.8m0 0L7.2 12.6M12 7.8l4.8 4.8M4.6 3.8h14.8"/></svg>',
+    score:  SVG_OPEN + '<path d="M6.2 21V3.4M6.2 3.4h11.6l-2.9 4 2.9 4H6.2"/></svg>'
+  };
+
+  /* =========================================================
+     第一部分：本机跑分
+     ========================================================= */
+  (function localBench() {
+    var listEl   = $('results');
+    var logEl    = $('log');
+    var barEl    = $('bar');
+    var statusEl = $('status');
+    var totalScoreEl = $('totalScore');
+    var domHost  = $('domHost');
+
+    var running = false;
+    var scores = [];
+    var __sink = 0;
+
+    function log(msg, cls) { logTo(logEl, msg, cls); }
+
+    var TESTS = [
+      { id:'int', icon:ICONS.int, name:'整数运算', unit:'M 次/秒', ref:500,
+        run: function () {
+          var N = 30e6, t0 = performance.now(), x = 0;
+          for (var i = 0; i < N; i++) x = (x + i * 3) % 1000003;
+          var dt = performance.now() - t0; __sink = x;
+          return { value: N / (dt * 1000), unit: this.unit,
+                   detail:'3000 万次循环 · ' + dt.toFixed(1) + ' ms' };
+        } },
+
+      { id:'float', icon:ICONS.float, name:'浮点运算', unit:'M 次/秒', ref:250,
+        run: function () {
+          var N = 20e6, t0 = performance.now(), s = 0;
+          for (var i = 0; i < N; i++) s += Math.sqrt(i) * 1.0000001 + (i % 7) * 0.5;
+          var dt = performance.now() - t0; __sink = s;
+          return { value: N / (dt * 1000), unit: this.unit,
+                   detail:'2000 万次浮点运算 · ' + dt.toFixed(1) + ' ms' };
+        } },
+
+      { id:'str', icon:ICONS.str, name:'字符串处理', unit:'M 字符/秒', ref:120,
+        run: function () {
+          var parts = [];
+          for (var i = 0; i < 60000; i++) parts.push('word' + (i % 997));
+          var base = parts.join(' '), re = /word/g, ROUNDS = 10, count = 0;
+          var t0 = performance.now();
+          for (var r = 0; r < ROUNDS; r++) {
+            re.lastIndex = 0;
+            while (re.exec(base) !== null) count++;
+          }
+          var dt = performance.now() - t0; __sink = count;
+          var chars = base.length * ROUNDS;
+          return { value: chars / (dt * 1000), unit: this.unit,
+                   detail:'正则扫描 ' + (chars / 1e6).toFixed(1) + ' M 字符 · ' + dt.toFixed(1) + ' ms' };
+        } },
+
+      { id:'json', icon:ICONS.json, name:'JSON 处理', unit:'MB/秒', ref:40,
+        run: function () {
+          var data = [];
+          for (var i = 0; i < 4000; i++) {
+            data.push({ id:i, name:'user' + i, active:i % 2 === 0,
+                        score:(i * 37) % 1000, tags:['alpha','beta','gamma'] });
+          }
+          var ROUNDS = 15, t0 = performance.now(), bytes = 0, n = 0;
+          for (var r = 0; r < ROUNDS; r++) {
+            var s = JSON.stringify(data);
+            bytes += s.length;
+            n += JSON.parse(s).length;
+          }
+          var dt = performance.now() - t0; __sink = n;
+          return { value: bytes / (dt * 1000), unit: this.unit,
+                   detail:'序列化 + 解析 ' + (bytes / 1e6).toFixed(1) + ' MB · ' + dt.toFixed(1) + ' ms' };
+        } },
+
+      { id:'sort', icon:ICONS.sort, name:'数组排序', unit:'M 元素/秒', ref:6,
+        run: function () {
+          var SIZE = 200000, ROUNDS = 4, arrays = [], seed = 12345;
+          for (var r = 0; r < ROUNDS; r++) {
+            var a = new Float64Array(SIZE);
+            for (var i = 0; i < SIZE; i++) {
+              seed = (seed * 48271) % 2147483647;
+              a[i] = seed;
+            }
+            arrays.push(a);
+          }
+          var t0 = performance.now(), chk = 0;
+          for (var k = 0; k < ROUNDS; k++) {
+            arrays[k].sort();
+            chk += arrays[k][0] + arrays[k][SIZE - 1];
+          }
+          var dt = performance.now() - t0; __sink = chk;
+          return { value:(SIZE * ROUNDS) / (dt * 1000), unit: this.unit,
+                   detail:'排序 ' + (SIZE * ROUNDS / 1e6).toFixed(1) + ' M 个元素 · ' + dt.toFixed(1) + ' ms' };
+        } },
+
+      { id:'mem', icon:ICONS.mem, name:'内存带宽', unit:'M 次访问/秒', ref:200,
+        run: function () {
+          var N = 8e6, t0 = performance.now();
+          var a = new Float64Array(N);
+          for (var i = 0; i < N; i++) a[i] = i * 0.5;
+          var sum = 0;
+          for (var j = 0; j < N; j++) sum += a[j];
+          var dt = performance.now() - t0; __sink = sum;
+          return { value:(N * 2) / (dt * 1000), unit: this.unit,
+                   detail:(N * 8 / 1048576).toFixed(0) + ' MB 数组读+写 · ' + dt.toFixed(1) + ' ms' };
+        } },
+
+      { id:'canvas', icon:ICONS.canvas, name:'Canvas 渲染', unit:'K 图形/秒', ref:250,
+        run: function () {
+          var c = document.createElement('canvas');
+          c.width = 640; c.height = 480;
+          var ctx = c.getContext('2d');
+          if (!ctx) return null;
+          var N = 20000;
+          ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 640, 480);
+          var t0 = performance.now();
+          for (var i = 0; i < N; i++) {
+            ctx.fillStyle = 'hsl(' + (i % 360) + ',70%,50%)';
+            ctx.beginPath();
+            ctx.arc((i * 37) % 640, (i * 53) % 480, 6, 0, 6.2832);
+            ctx.fill();
+          }
+          var dt = performance.now() - t0;
+          return { value: N / dt, unit: this.unit,
+                   detail:'绘制 ' + (N / 1000) + 'K 个圆形 · ' + dt.toFixed(1) + ' ms' };
+        } },
+
+      { id:'dom', icon:ICONS.dom, name:'DOM 操作', unit:'K 节点/秒', ref:120,
+        run: function () {
+          var N = 3000;
+          domHost.textContent = '';
+          var t0 = performance.now();
+          var frag = document.createDocumentFragment();
+          for (var i = 0; i < N; i++) {
+            var d = document.createElement('div');
+            d.className = 'bench-node';
+            d.textContent = 'node-' + i;
+            frag.appendChild(d);
+          }
+          domHost.appendChild(frag);
+          var h = domHost.offsetHeight;
+          domHost.textContent = '';
+          var dt = performance.now() - t0; __sink = h;
+          return { value: N / dt, unit: this.unit,
+                   detail:'创建 / 插入 / 布局 ' + N + ' 个节点 · ' + dt.toFixed(1) + ' ms' };
+        } },
+
+      { id:'crypto', icon:ICONS.crypto, name:'加密哈希', unit:'K 次/秒', ref:5,
+        run: function () {
+          var subtle = (window.crypto && window.crypto.subtle) ? window.crypto.subtle : null;
+          if (!subtle || !subtle.digest || typeof TextEncoder === 'undefined') return null;
+          var data = new TextEncoder().encode('server-benchmark-payload-0123456789'.repeat(4));
+          var N = 300;
+          return subtle.digest('SHA-256', data).then(function () {
+            var t0 = performance.now(), chain = Promise.resolve();
+            for (var i = 0; i < N; i++) {
+              chain = chain.then(function () { return subtle.digest('SHA-256', data); });
+            }
+            return chain.then(function () {
+              var dt = performance.now() - t0;
+              return { value: N / dt, unit:'K 次/秒',
+                       detail:'SHA-256 × ' + N + ' · ' + dt.toFixed(1) + ' ms' };
+            });
+          });
+        } },
+
+      { id:'worker', icon:ICONS.worker, name:'多线程并发', unit:'M 次/秒', ref:400,
+        run: function () {
+          if (typeof Worker === 'undefined' || typeof Blob === 'undefined') return null;
+          var cores = navigator.hardwareConcurrency || 4;
+          var n = Math.max(1, Math.min(cores, 8));
+          var PER = 20e6;
+          var src = 'self.onmessage=function(e){var N=e.data;var t0=performance.now();' +
+                    'var x=0;for(var i=0;i<N;i++){x=(x+i*3)%1000003;}' +
+                    'self.postMessage({x:x,ms:performance.now()-t0});};';
+          var url;
+          try { url = URL.createObjectURL(new Blob([src], { type:'application/javascript' })); }
+          catch (e) { return null; }
+
+          var t0 = performance.now(), jobs = [];
+          for (var i = 0; i < n; i++) {
+            jobs.push(new Promise(function (resolve) {
+              var w;
+              try { w = new Worker(url); } catch (e) { resolve(null); return; }
+              var settled = false;
+              function done(v) {
+                if (settled) return;
+                settled = true;
+                try { w.terminate(); } catch (e) {}
+                resolve(v);
+              }
+              w.onmessage = function (ev) { done(ev.data); };
+              w.onerror = function () { done(null); };
+              try { w.postMessage(PER); } catch (e) { done(null); }
+            }));
+          }
+          return Promise.all(jobs).then(function (results) {
+            var dt = performance.now() - t0;
+            try { URL.revokeObjectURL(url); } catch (e) {}
+            if (results.some(function (r) { return r === null; })) return null;
+            return { value:(n * PER) / (dt * 1000), unit:'M 次/秒',
+                     detail:n + ' 线程（检测到 ' + cores + ' 核）· 总耗时 ' + dt.toFixed(0) + ' ms' };
+          });
+        } }
+    ];
+
+    /* ---- 渲染 ---- */
+    function buildList() {
+      listEl.innerHTML = '';
+      TESTS.forEach(function (t, i) {
+        var li = document.createElement('li');
+        li.className = 'test-row';
+        li.id = 'card-' + t.id;
+        li.innerHTML =
+          '<span class="row-idx">' + pad2(i + 1) + '</span>' +
+          '<span class="row-icon">' + t.icon + '</span>' +
+          '<div class="row-body">' +
+            '<div class="row-top">' +
+              '<span class="row-name">' + t.name + '</span>' +
+              '<span class="row-score">--</span>' +
+            '</div>' +
+            '<div class="row-bar"><i></i></div>' +
+            '<div class="row-meta">' +
+              '<span class="row-value">--</span>' +
+              '<span class="row-detail">等待测试</span>' +
+            '</div>' +
+          '</div>';
+        listEl.appendChild(li);
+      });
+    }
+
+    function resetRow(t) {
+      var row = $('card-' + t.id);
+      row.className = 'test-row';
+      var sc = row.querySelector('.row-score');
+      sc.textContent = '--'; sc.style.color = 'var(--ink-3)';
+      var bi = row.querySelector('.row-bar i');
+      bi.style.width = '0%'; bi.style.background = 'var(--accent)';
+      row.querySelector('.row-value').innerHTML = '--';
+      row.querySelector('.row-detail').textContent = '等待测试';
+    }
+
+    function updateRow(t, res, score) {
+      var row = $('card-' + t.id);
+      row.classList.add('done');
+      var color = scoreColor(score);
+      var sc = row.querySelector('.row-score');
+      sc.textContent = score; sc.style.color = color;
+      var bi = row.querySelector('.row-bar i');
+      bi.style.width = score + '%'; bi.style.background = color;
+      row.querySelector('.row-value').innerHTML =
+        fmtNum(res.value) + ' <small>' + res.unit + '</small>';
+      row.querySelector('.row-detail').textContent = res.detail || '';
+    }
+
+    function markSkip(t, err) {
+      var row = $('card-' + t.id);
+      row.classList.add('done', 'skipped');
+      row.querySelector('.row-score').textContent = '—';
+      row.querySelector('.row-value').textContent = '不可用';
+      row.querySelector('.row-detail').textContent =
+        err ? ('错误：' + (err.message || err)) : '当前环境不支持';
+    }
+
+    /* ---- 主流程 ---- */
+    async function runAll() {
+      if (running) return;
+      running = true;
+
+      startBtn.disabled = true;
+      netBtn.disabled = true;
+      startBtn.textContent = '正在跑…';
+      logEl.innerHTML = '';
+      scores = [];
+      totalScoreEl.textContent = '--';
+      totalScoreEl.style.color = 'var(--ink)';
+      barEl.style.width = '0%';
+      TESTS.forEach(resetRow);
+
+      log('跑分开始，共 ' + TESTS.length + ' 项');
+      log('UA: ' + navigator.userAgent);
+      if (navigator.hardwareConcurrency) log('逻辑核心数: ' + navigator.hardwareConcurrency);
+      if (navigator.deviceMemory) log('设备内存(约): ' + navigator.deviceMemory + ' GB');
+
+      var total = TESTS.length, done = 0;
+
+      for (var i = 0; i < TESTS.length; i++) {
+        var t = TESTS[i];
+        statusEl.textContent = '跑到第 ' + pad2(i + 1) + ' 项 · ' + t.name + ' …';
+        await sleep(30);
+
+        var res = null, err = null;
+        try { res = await t.run(); }
+        catch (e) { err = e; log(t.name + ' 执行失败：' + (e && e.message ? e.message : e), 'err'); }
+
+        if (!res || !isFinite(res.value) || res.value <= 0) {
+          markSkip(t, err);
+          log(t.name + '：跳过（环境不支持或执行失败）', 'warn');
+        } else {
+          var score = clampScore(res.value / t.ref * 100);
+          scores.push(score);
+          updateRow(t, res, score);
+          log(t.name + '：' + fmtNum(res.value) + ' ' + res.unit + ' → 得分 ' + score, 'ok');
+        }
+
+        done++;
+        barEl.style.width = (done / total * 100).toFixed(1) + '%';
+        await sleep(25);
+      }
+
+      var final = 0;
+      if (scores.length) {
+        var sum = 0;
+        for (var k = 0; k < scores.length; k++) sum += scores[k];
+        final = Math.round(sum / scores.length);
+      }
+
+      totalScoreEl.textContent = scores.length ? final : '--';
+      totalScoreEl.style.color = scores.length ? scoreColor(final) : 'var(--ink)';
+
+      var grade = final >= 90 ? '极速 · S'
+                : final >= 75 ? '优秀 · A'
+                : final >= 60 ? '良好 · B'
+                : final >= 40 ? '一般 · C'
+                : '偏慢 · D';
+
+      statusEl.textContent = '完事 · 综合 ' + final + ' 分（' + grade + '） · ' +
+                             scores.length + '/' + total + ' 项有效';
+
+      log('—— 跑分结束 ——');
+      log('综合得分：' + final + '（' + grade + '）', final >= 60 ? 'ok' : 'warn');
+
+      startBtn.disabled = false;
+      netBtn.disabled = false;
+      startBtn.textContent = '再跑一遍';
+      running = false;
+    }
+
+    startBtn.addEventListener('click', runAll);
+    buildList();
+    log('就绪。点「开始跑分」，大概 5 秒出结果。');
+  })();
+
+  /* =========================================================
+     第二部分：网络测速（固定 60 秒）
+     ========================================================= */
+  (function netBench() {
+
+    var NET_TOTAL = 60000;
+    var CF_DOWN = 'https://speed.cloudflare.com/__down?bytes=';
+    var CF_UP   = 'https://speed.cloudflare.com/__up';
+
+    var netCountEl = $('netCount');
+    var netBarEl   = $('netBar');
+    var netPhaseEl = $('netPhase');
+    var netLiveEl  = $('netLive');
+    var netCardsEl = $('netCards');
+    var netLogEl   = $('netLog');
+
+    var running = false;
+    var endTime = 0;
+    var rafId = 0;
+    var meter = null;
+    var liveUnit = 'Mbps';
+
+    var NET_METRICS = [
+      { id:'ping',   icon:ICONS.ping,   name:'延迟 Ping',   unit:'ms'   },
+      { id:'jitter', icon:ICONS.jitter, name:'抖动 Jitter', unit:'ms'   },
+      { id:'down',   icon:ICONS.down,   name:'下载速度',    unit:'Mbps' },
+      { id:'up',     icon:ICONS.up,     name:'上传速度',    unit:'Mbps' },
+      { id:'score',  icon:ICONS.score,  name:'网络评分',    unit:'分'   }
+    ];
+
+    function logNet(msg, cls) { logTo(netLogEl, msg, cls); }
+
+    function logScore(v, worst, best) {
+      if (!isFinite(v) || v <= 0) return 0;
+      if (v <= worst) return 0;
+      if (v >= best) return 100;
+      var t = (Math.log(v) - Math.log(worst)) / (Math.log(best) - Math.log(worst));
+      return Math.round(Math.max(0, Math.min(100, t * 100)));
+    }
+    function logScoreInv(v, best, worst) {
+      if (!isFinite(v) || v <= 0) return 0;
+      if (v <= best) return 100;
+      if (v >= worst) return 0;
+      var t = (Math.log(v) - Math.log(best)) / (Math.log(worst) - Math.log(best));
+      return Math.round(Math.max(0, Math.min(100, (1 - t) * 100)));
+    }
+
+    function createMeter(windowMs) {
+      var pts = [];
+      return {
+        add: function (bytes) {
+          var t = performance.now();
+          if (pts.length && bytes < pts[pts.length - 1].b) return;
+          pts.push({ t: t, b: bytes });
+          while (pts.length > 2 && t - pts[0].t > windowMs) pts.shift();
+        },
+        get bps() {
+          if (pts.length < 2) return 0;
+          var a = pts[0], b = pts[pts.length - 1];
+          var dt = b.t - a.t;
+          if (dt <= 0) return 0;
+          return (b.b - a.b) / dt * 1000;
+        }
+      };
+    }
+
+    /* ---- 渲染 ---- */
+    function buildNetList() {
+      netCardsEl.innerHTML = '';
+      NET_METRICS.forEach(function (m, i) {
+        var li = document.createElement('li');
+        li.className = 'test-row';
+        li.id = 'ncard-' + m.id;
+        li.innerHTML =
+          '<span class="row-idx">' + pad2(i + 1) + '</span>' +
+          '<span class="row-icon">' + m.icon + '</span>' +
+          '<div class="row-body">' +
+            '<div class="row-top">' +
+              '<span class="row-name">' + m.name + '</span>' +
+              '<span class="row-score">--</span>' +
+            '</div>' +
+            '<div class="row-bar"><i></i></div>' +
+            '<div class="row-meta">' +
+              '<span class="row-value">-- <small>' + m.unit + '</small></span>' +
+              '<span class="row-detail">等待测试</span>' +
+            '</div>' +
+          '</div>';
+        netCardsEl.appendChild(li);
+      });
+    }
+
+    function setNetRow(id, value, barPct, detail) {
+      var row = $('ncard-' + id);
+      if (!row) return;
+      var color = scoreColor(barPct);
+      var sc = row.querySelector('.row-score');
+      sc.textContent = Math.round(barPct);
+      sc.style.color = color;
+      var bi = row.querySelector('.row-bar i');
+      bi.style.width = Math.max(0, Math.min(100, barPct)) + '%';
+      bi.style.background = color;
+
+      var m = null;
+      for (var i = 0; i < NET_METRICS.length; i++) {
+        if (NET_METRICS[i].id === id) { m = NET_METRICS[i]; break; }
+      }
+      var valTxt = (m.unit === '分') ? Math.round(value) : value.toFixed(1);
+      row.querySelector('.row-value').innerHTML =
+        valTxt + ' <small>' + m.unit + '</small>';
+      row.querySelector('.row-detail').textContent = detail || '';
+      row.classList.add('done');
+    }
+
+    function markNetFail(id) {
+      var row = $('ncard-' + id);
+      if (!row) return;
+      row.classList.add('done', 'skipped');
+      row.querySelector('.row-score').textContent = '—';
+      row.querySelector('.row-value').textContent = '不可用';
+      row.querySelector('.row-detail').textContent = '节点连不上';
+    }
+
+    function resetNetRows() {
+      NET_METRICS.forEach(function (m) {
+        var row = $('ncard-' + m.id);
+        row.className = 'test-row';
+        var sc = row.querySelector('.row-score');
+        sc.textContent = '--'; sc.style.color = 'var(--ink-3)';
+        var bi = row.querySelector('.row-bar i');
+        bi.style.width = '0%'; bi.style.background = 'var(--accent)';
+        row.querySelector('.row-value').innerHTML = '-- <small>' + m.unit + '</small>';
+        row.querySelector('.row-detail').textContent = '等待测试';
+      });
+    }
+
+    /* ---- 倒计时 ---- */
+    function uiLoop() {
+      var now = performance.now();
+      var left = Math.max(0, endTime - now);
+      netCountEl.textContent = (left / 1000).toFixed(1);
+      netBarEl.style.width = (100 * (1 - left / NET_TOTAL)).toFixed(2) + '%';
+
+      if (meter) {
+        var mbps = meter.bps * 8 / 1e6;
+        netLiveEl.textContent = '实时速率 ' + (mbps > 0 ? mbps.toFixed(1) : '0.0') + ' ' + liveUnit;
+      }
+
+      if (left > 0 && running) {
+        rafId = requestAnimationFrame(uiLoop);
+      } else if (left <= 0) {
+        netCountEl.textContent = '0.0';
+        netBarEl.style.width = '100%';
+      }
+    }
+
+    function setPhase(txt) { netPhaseEl.textContent = txt; }
+
+    /* ---- 阶段 1：延迟 ---- */
+    async function phasePing(deadline) {
+      var raw = [];
+      var consecutiveFail = 0;
+      var base = CF_DOWN + '1&r=';
+
+      while (performance.now() < deadline) {
+        var t0 = performance.now();
+        try {
+          var ctrl = new AbortController();
+          var to = setTimeout(function () { ctrl.abort(); }, 2500);
+          var r = await fetch(base + Math.random().toString(36).slice(2),
+                              { cache:'no-store', signal: ctrl.signal });
+          clearTimeout(to);
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          try { await r.arrayBuffer(); } catch (e) {}
+          raw.push(performance.now() - t0);
+          consecutiveFail = 0;
+        } catch (e) {
+          consecutiveFail++;
+          if (consecutiveFail >= 3 && raw.length === 0) break;
+        }
+        await sleep(70);
+      }
+
+      if (raw.length < 2) throw new Error('连不上测速节点');
+
+      var sorted = raw.slice().sort(function (a, b) { return a - b; });
+      var min = sorted[0];
+      var med = sorted[Math.floor(sorted.length / 2)];
+
+      var jitter = 0;
+      for (var i = 1; i < raw.length; i++) jitter += Math.abs(raw[i] - raw[i - 1]);
+      jitter /= (raw.length - 1);
+
+      return { min: min, med: med, jitter: jitter, n: raw.length };
+    }
+
+    /* ---- 阶段 2：下载 ---- */
+    async function phaseDownload(deadline, m) {
+      var sizes = [1e6, 2e6, 5e6, 10e6, 25e6];
+      var idx = 0, total = 0;
+      var start = performance.now();
+
+      while (performance.now() < deadline - 150) {
+        var size = sizes[idx];
+        var url = CF_DOWN + size + '&r=' + Math.random().toString(36).slice(2);
+        var resp = await fetch(url, { cache:'no-store' });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+
+        var got = 0;
+        if (resp.body && resp.body.getReader) {
+          var reader = resp.body.getReader();
+          while (true) {
+            var chunk = await reader.read();
+            if (chunk.done) break;
+            got += chunk.value.length;
+            total += chunk.value.length;
+            m.add(total);
+            if (performance.now() >= deadline) {
+              try { await reader.cancel(); } catch (e) {}
+              break;
+            }
+          }
+        } else {
+          var buf = await resp.arrayBuffer();
+          got += buf.byteLength;
+          total += buf.byteLength;
+          m.add(total);
+        }
+
+        if (got >= size * 0.95) idx = Math.min(idx + 1, sizes.length - 1);
+      }
+
+      var ms = performance.now() - start;
+      if (total === 0) throw new Error('没收到数据');
+      return { bytes: total, ms: ms, mbps: total * 8 / (ms / 1000) / 1e6 };
+    }
+
+    /* ---- 阶段 3：上传 ---- */
+    function uploadChunk(data, onProgress, timeoutMs) {
+      return new Promise(function (resolve, reject) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', CF_UP, true);
+        xhr.timeout = Math.max(1200, Math.round(timeoutMs));
+        xhr.upload.onprogress = function (e) {
+          if (e.lengthComputable) onProgress(e.loaded);
+        };
+        xhr.onload = function () {
+          (xhr.status >= 200 && xhr.status < 400) ? resolve() : reject(new Error('HTTP ' + xhr.status));
+        };
+        xhr.onerror   = function () { reject(new Error('上传连接错误')); };
+        xhr.ontimeout = function () { reject(new Error('上传超时')); };
+        xhr.onabort   = function () { reject(new Error('上传中止')); };
+        try { xhr.send(data); } catch (e) { reject(e); }
+      });
+    }
+
+    async function phaseUpload(deadline, m) {
+      var CHUNK = 1 << 20;
+      var payload = new Uint8Array(CHUNK);
+      var s = 123456789;
+      for (var i = 0; i < CHUNK; i++) {
+        s = (s * 1103515245 + 12345) & 0x7fffffff;
+        payload[i] = s & 0xff;
+      }
+
+      var start = performance.now();
+      var total = 0, fails = 0;
+
+      while (performance.now() < deadline - 120) {
+        var remain = deadline - performance.now();
+        var lastLoaded = 0;
+        try {
+          await uploadChunk(payload, function (loaded) {
+            lastLoaded = loaded;
+            m.add(total + loaded);
+          }, remain);
+          total += CHUNK;
+          m.add(total);
+          fails = 0;
+        } catch (e) {
+          total += lastLoaded;
+          m.add(total);
+          var msg = e && e.message ? e.message : '';
+          if (msg.indexOf('超时') >= 0 || msg.indexOf('中止') >= 0) break;
+          fails++;
+          if (fails >= 2) break;
+        }
+      }
+
+      var ms = performance.now() - start;
+      if (total === 0) throw new Error('没传出去');
+      return { bytes: total, ms: ms, mbps: total * 8 / (ms / 1000) / 1e6 };
+    }
+
+    /* ---- 主流程 ---- */
+    async function runNetworkTest() {
+      if (running) return;
+      running = true;
+
+      netBtn.disabled = true;
+      startBtn.disabled = true;
+      netBtn.textContent = '正在测…';
+      netLogEl.innerHTML = '';
+      resetNetRows();
+      netLiveEl.textContent = '实时速率 -- Mbps';
+
+      var t0 = performance.now();
+      endTime = t0 + NET_TOTAL;
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(uiLoop);
+
+      var T_PING = t0 + 6000;
+      var T_DOWN = t0 + 38000;
+      var T_UP   = t0 + 58000;
+      var T_END  = t0 + 60000;
+
+      logNet('==== 测速开始，总时长 60 秒 ====');
+      logNet('节点：speed.cloudflare.com');
+
+      /* 1. 延迟 */
+      setPhase('① 探延迟 · 约 6 秒');
+      liveUnit = 'ms';
+      meter = null;
+      netLiveEl.textContent = '正在采样往返延迟…';
+
+      var ping = null;
+      try {
+        ping = await phasePing(T_PING);
+        setNetRow('ping', ping.min, logScoreInv(ping.min, 10, 500),
+          '最小 ' + ping.min.toFixed(1) + ' ms · 中位 ' + ping.med.toFixed(1) +
+          ' ms · ' + ping.n + ' 次采样');
+        setNetRow('jitter', ping.jitter, logScoreInv(ping.jitter, 2, 200),
+          '连续 ' + ping.n + ' 次采样的平均偏差');
+        logNet('延迟：最小 ' + ping.min.toFixed(1) + ' ms，中位 ' + ping.med.toFixed(1) +
+               ' ms，抖动 ' + ping.jitter.toFixed(1) + ' ms', 'ok');
+      } catch (e) {
+        logNet('延迟测试失败：' + (e.message || e), 'err');
+        markNetFail('ping');
+        markNetFail('jitter');
+      }
+      await waitUntil(T_PING);
+
+      /* 2. 下载 */
+      setPhase('② 压下载 · 约 32 秒');
+      liveUnit = 'Mbps';
+      meter = createMeter(2500);
+      var downMbps = 0;
+
+      try {
+        var dr = await phaseDownload(T_DOWN, meter);
+        downMbps = dr.mbps;
+        setNetRow('down', downMbps, logScore(downMbps, 1, 500),
+          '共下载 ' + (dr.bytes / 1048576).toFixed(1) + ' MB · 用时 ' +
+          (dr.ms / 1000).toFixed(1) + ' s');
+        logNet('下载：' + downMbps.toFixed(2) + ' Mbps（' +
+               (dr.bytes / 1048576).toFixed(1) + ' MB）', 'ok');
+      } catch (e) {
+        logNet('下载测试失败：' + (e.message || e), 'err');
+        markNetFail('down');
+      }
+      await waitUntil(T_DOWN);
+
+      /* 3. 上传 */
+      setPhase('③ 塞上传 · 约 20 秒');
+      liveUnit = 'Mbps';
+      meter = createMeter(2500);
+      var upMbps = 0;
+
+      try {
+        var ur = await phaseUpload(T_UP, meter);
+        upMbps = ur.mbps;
+        setNetRow('up', upMbps, logScore(upMbps, 0.5, 200),
+          '共上传 ' + (ur.bytes / 1048576).toFixed(1) + ' MB · 用时 ' +
+          (ur.ms / 1000).toFixed(1) + ' s');
+        logNet('上传：' + upMbps.toFixed(2) + ' Mbps（' +
+               (ur.bytes / 1048576).toFixed(1) + ' MB）', 'ok');
+      } catch (e) {
+        logNet('上传测试失败：' + (e.message || e), 'err');
+        markNetFail('up');
+      }
+      await waitUntil(T_UP);
+
+      /* 4. 综合评分 */
+      setPhase('④ 算总分…');
+      netLiveEl.textContent = '实时速率 -- Mbps';
+
+      var acc = 0, weight = 0;
+      if (ping) {
+        acc += logScoreInv(ping.min, 10, 500) * 0.20;
+        acc += logScoreInv(ping.jitter, 2, 200) * 0.10;
+        weight += 0.30;
+      }
+      if (downMbps > 0) { acc += logScore(downMbps, 1, 500) * 0.40; weight += 0.40; }
+      if (upMbps > 0)   { acc += logScore(upMbps, 0.5, 200) * 0.30; weight += 0.30; }
+
+      var netScore = weight > 0 ? Math.round(acc / weight) : 0;
+      var gradeTxt = netScore >= 85 ? '极佳'
+                   : netScore >= 70 ? '优秀'
+                   : netScore >= 50 ? '良好'
+                   : netScore >= 30 ? '一般'
+                   : '较差';
+
+      setNetRow('score', netScore, netScore, '网络质量' + gradeTxt);
+      logNet('综合网络评分：' + netScore + ' 分（' + gradeTxt + '）',
+             netScore >= 50 ? 'ok' : 'warn');
+
+      await waitUntil(T_END);
+
+      running = false;
+      meter = null;
+      setPhase('完事 · 正好跑了 60 秒');
+      netCountEl.textContent = '0.0';
+      netBarEl.style.width = '100%';
+
+      logNet('==== 测速结束 ====');
+
+      netBtn.disabled = false;
+      startBtn.disabled = false;
+      netBtn.textContent = '重新测';
+    }
+
+    netBtn.addEventListener('click', runNetworkTest);
+    buildNetList();
+    logNet('就绪。点「开始测速」，60 秒后见分晓。');
+  })();
+
+})();
+</script>
+</body>
+</html>

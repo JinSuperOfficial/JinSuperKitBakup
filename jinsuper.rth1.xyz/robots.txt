@@ -1,0 +1,13 @@
+User-agent: GPTBot
+Allow: /p/
+Allow: /public
+
+User-agent: ClaudeBot
+Allow: /p/
+Allow: /public
+
+User-agent: *
+Allow: /
+Allow: /public
+
+Sitemap: https://jinsuper{$rthSuffix}/sitemap.xml

@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="obsidian">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="../../favicon.svg">
+<link rel="apple-touch-icon" href="../../apple-touch-icon.svg">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="测试文档 · 归档预渲染稿">
+<title>测试文档 · JinSuper</title>
+<!-- 由发布控制台预渲染：源 Markdown 在项目根 para\ 留底，这里是成品 -->
+<link rel="stylesheet" href="../../docs-md.css">
+<style>
+  /* 独立打开时的最小外壳：阅读器内联这份片段时用不到这些规则 */
+  html,body{margin:0;background:#0E1214;color:#DCE0DE}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+  .doc-wrap{max-width:820px;margin:0 auto;padding:40px 24px 96px}
+  .doc-foot{margin-top:56px;padding-top:16px;border-top:1px solid #232C31;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:#869298}
+  .doc-foot a{color:#D97757}
+</style>
+</head>
+<body>
+<div class="doc-wrap">
+<div class="md">
+<h1 id="全功能-markdown-测试文档">全功能 Markdown 测试文档<a class="anchor" href="#全功能-markdown-测试文档" aria-label="锚点链接">#</a></h1>
+<blockquote>
+<p>本文档用于测试 Markdown 解析器对 CommonMark、GFM 及常见社区扩展的支持。<br>
+部分语法为扩展功能，实际渲染效果取决于解析器与插件。</p>
+</blockquote>
+<h2 id="目录">目录<a class="anchor" href="#目录" aria-label="锚点链接">#</a></h2>
+<nav class="md-toc" aria-label="本页目录"><p class="md-toc-title">本页目录</p><a class="md-toc-lv1" href="#全功能-markdown-测试文档">全功能 Markdown 测试文档</a><a class="md-toc-lv2" href="#目录">目录</a><a class="md-toc-lv2" href="#1-核心语法-commonmark">1. 核心语法 (CommonMark)</a><a class="md-toc-lv3" href="#11-标题">1.1 标题</a><a class="md-toc-lv1" href="#h1-标题">H1 标题</a><a class="md-toc-lv2" href="#h2-标题">H2 标题</a><a class="md-toc-lv3" href="#h3-标题">H3 标题</a><a class="md-toc-lv1" href="#一级标题">一级标题</a><a class="md-toc-lv2" href="#二级标题">二级标题</a><a class="md-toc-lv3" href="#12-段落与换行">1.2 段落与换行</a><a class="md-toc-lv3" href="#13-强调">1.3 强调</a><a class="md-toc-lv3" href="#14-列表">1.4 列表</a><a class="md-toc-lv3" href="#15-代码">1.5 代码</a><a class="md-toc-lv3" href="#16-链接与图片">1.6 链接与图片</a><a class="md-toc-lv3" href="#17-引用">1.7 引用</a><a class="md-toc-lv3" href="#18-分隔线">1.8 分隔线</a><a class="md-toc-lv2" href="#2-gfm-扩展">2. GFM 扩展</a><a class="md-toc-lv3" href="#21-表格">2.1 表格</a><a class="md-toc-lv3" href="#22-任务列表">2.2 任务列表</a><a class="md-toc-lv3" href="#23-删除线">2.3 删除线</a><a class="md-toc-lv3" href="#24-自动链接">2.4 自动链接</a><a class="md-toc-lv3" href="#25-脚注">2.5 脚注</a><a class="md-toc-lv3" href="#26-告示github-alerts">2.6 告示（GitHub Alerts）</a><a class="md-toc-lv3" href="#27-提示框容器语法">2.7 提示框（容器语法）</a><a class="md-toc-lv2" href="#3-内容增强">3. 内容增强</a><a class="md-toc-lv3" href="#31-emoji">3.1 Emoji</a><a class="md-toc-lv3" href="#32-上下标">3.2 上下标</a><a class="md-toc-lv3" href="#33-高亮标记">3.3 高亮/标记</a><a class="md-toc-lv3" href="#34-缩写词">3.4 缩写词</a><a class="md-toc-lv3" href="#35-定义列表">3.5 定义列表</a><a class="md-toc-lv3" href="#36-插入与删除">3.6 插入与删除</a><a class="md-toc-lv3" href="#37-ruby-注音">3.7 Ruby 注音</a><a class="md-toc-lv3" href="#38-剧透">3.8 剧透</a><a class="md-toc-lv3" href="#39-图标行内-svg">3.9 图标（行内 SVG）</a><a class="md-toc-lv2" href="#4-学术与技术">4. 学术与技术</a><a class="md-toc-lv3" href="#41-数学公式-katex">4.1 数学公式 (KaTeX)</a><a class="md-toc-lv3" href="#42-mathjax">4.2 MathJax</a><a class="md-toc-lv3" href="#43-代码高亮">4.3 代码高亮</a><a class="md-toc-lv3" href="#44-高亮指定行">4.4 高亮指定行</a><a class="md-toc-lv3" href="#45-显示行号">4.5 显示行号</a><a class="md-toc-lv2" href="#5-图表与可视化未启用">5. 图表与可视化（未启用）</a><a class="md-toc-lv3" href="#51-mermaid">5.1 Mermaid</a><a class="md-toc-lv3" href="#52-plantuml">5.2 PlantUML</a><a class="md-toc-lv3" href="#53-echarts">5.3 ECharts</a><a class="md-toc-lv3" href="#54-flowchart">5.4 Flowchart</a><a class="md-toc-lv2" href="#6-文档导航与结构">6. 文档导航与结构</a><a class="md-toc-lv3" href="#61-标题锚点">6.1 标题锚点</a><a class="md-toc-lv2" href="#custom-heading">带自定义 ID 的标题</a><a class="md-toc-lv3" href="#62-目录">6.2 目录</a><a class="md-toc-lv3" href="#63-属性">6.3 属性</a><a class="md-toc-lv1" href="#id">标题</a><a class="md-toc-lv3" href="#64-自定义容器">6.4 自定义容器</a><a class="md-toc-lv3" href="#65-选项卡-tabs">6.5 选项卡 tabs</a><a class="md-toc-lv3" href="#66-布局未启用">6.6 布局（未启用）</a><a class="md-toc-lv2" href="#7-其他实用功能">7. 其他实用功能</a><a class="md-toc-lv3" href="#71-图片尺寸">7.1 图片尺寸</a><a class="md-toc-lv3" href="#72-图片懒加载">7.2 图片懒加载</a><a class="md-toc-lv3" href="#73-图片预览">7.3 图片预览</a><a class="md-toc-lv3" href="#74-主题标记">7.4 主题标记</a><a class="md-toc-lv3" href="#75-包含文件未启用">7.5 包含文件（未启用）</a><a class="md-toc-lv3" href="#76-导入代码片段未启用">7.6 导入代码片段（未启用）</a><a class="md-toc-lv3" href="#77-自定义嵌入未启用">7.7 自定义嵌入（未启用）</a><a class="md-toc-lv3" href="#78-内容对齐未启用">7.8 内容对齐（未启用）</a><a class="md-toc-lv3" href="#79-行内剧透">7.9 行内剧透</a><a class="md-toc-lv2" href="#8-站点扩展语法">8. 站点扩展语法</a><a class="md-toc-lv3" href="#81-卡片-card">8.1 卡片 card</a><a class="md-toc-lv3" href="#82-代码组-code-group">8.2 代码组 code-group</a><a class="md-toc-lv2" href="#9-速查支持-不支持">9. 速查：支持 / 不支持</a></nav>
+<h2 id="1-核心语法-commonmark">1. 核心语法 (CommonMark)<a class="anchor" href="#1-核心语法-commonmark" aria-label="锚点链接">#</a></h2>
+<h3 id="11-标题">1.1 标题<a class="anchor" href="#11-标题" aria-label="锚点链接">#</a></h3>
+<h1 id="h1-标题">H1 标题<a class="anchor" href="#h1-标题" aria-label="锚点链接">#</a></h1>
+<h2 id="h2-标题">H2 标题<a class="anchor" href="#h2-标题" aria-label="锚点链接">#</a></h2>
+<h3 id="h3-标题">H3 标题<a class="anchor" href="#h3-标题" aria-label="锚点链接">#</a></h3>
+<h4 id="h4-标题">H4 标题<a class="anchor" href="#h4-标题" aria-label="锚点链接">#</a></h4>
+<h5 id="h5-标题">H5 标题<a class="anchor" href="#h5-标题" aria-label="锚点链接">#</a></h5>
+<h6 id="h6-标题">H6 标题<a class="anchor" href="#h6-标题" aria-label="锚点链接">#</a></h6>
+<p>Setext 风格：</p>
+<h1 id="一级标题">一级标题<a class="anchor" href="#一级标题" aria-label="锚点链接">#</a></h1>
+<h2 id="二级标题">二级标题<a class="anchor" href="#二级标题" aria-label="锚点链接">#</a></h2>
+<h3 id="12-段落与换行">1.2 段落与换行<a class="anchor" href="#12-段落与换行" aria-label="锚点链接">#</a></h3>
+<p>这是一个普通段落。</p>
+<p>这是另一个段落，中间有空行。</p>
+<p>这是同一段落内的换行，<br>
+行尾有两个空格实现硬换行。</p>
+<p>这是使用反斜杠的硬换行<br>
+下一行。</p>
+<h3 id="13-强调">1.3 强调<a class="anchor" href="#13-强调" aria-label="锚点链接">#</a></h3>
+<p><em>斜体</em> 或 <em>斜体</em></p>
+<p><strong>粗体</strong> 或 <strong>粗体</strong></p>
+<p><em><strong>粗斜体</strong></em> 或 <em><strong>粗斜体</strong></em></p>
+<h3 id="14-列表">1.4 列表<a class="anchor" href="#14-列表" aria-label="锚点链接">#</a></h3>
+<p>无序列表：</p>
+<ul>
+<li>项目 A</li>
+<li>项目 B
+<ul>
+<li>嵌套项目 B1</li>
+<li>嵌套项目 B2</li>
+</ul>
+</li>
+<li>项目 C</li>
+</ul>
+<p>有序列表：</p>
+<ol>
+<li>第一项</li>
+<li>第二项
+<ol>
+<li>嵌套有序 2.1</li>
+<li>嵌套有序 2.2</li>
+</ol>
+</li>
+<li>第三项</li>
+</ol>
+<p>混合列表：</p>
+<ul>
+<li>项目
+<ol>
+<li>有序子项</li>
+<li>有序子项</li>
+</ol>
+</li>
+<li>项目</li>
+</ul>
+<h3 id="15-代码">1.5 代码<a class="anchor" href="#15-代码" aria-label="锚点链接">#</a></h3>
+<p>行内代码：<code>const a = 1;</code></p>
+<p>围栏代码块：</p>
+<pre><code class="hljs language-javascript"><span class="hljs-keyword">function</span> <span class="hljs-title function_">hello</span>(<span class="hljs-params"></span>) {
+  <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">&#x27;Hello, Markdown!&#x27;</span>)
+}
+</code></pre>
+<p>缩进代码块：</p>
+<pre><code>indented code block
+line 2
+</code></pre>
+<h3 id="16-链接与图片">1.6 链接与图片<a class="anchor" href="#16-链接与图片" aria-label="锚点链接">#</a></h3>
+<p><a href="https://example.com">普通链接</a></p>
+<p><a href="https://example.com" title="示例网站">带标题的链接</a></p>
+<p><a href="https://example.com">https://example.com</a></p>
+<p><img src="https://via.placeholder.com/150" alt="替代文本" title="图片标题" loading="lazy" decoding="async"></p>
+<p><a href="https://example.com"><img src="https://via.placeholder.com/100" alt="图片链接" loading="lazy" decoding="async"></a></p>
+<h3 id="17-引用">1.7 引用<a class="anchor" href="#17-引用" aria-label="锚点链接">#</a></h3>
+<blockquote>
+<p>这是一级引用。</p>
+<blockquote>
+<p>这是嵌套引用。</p>
+</blockquote>
+<p>回到一级引用。</p>
+</blockquote>
+<h3 id="18-分隔线">1.8 分隔线<a class="anchor" href="#18-分隔线" aria-label="锚点链接">#</a></h3>
+<hr>
+<hr>
+<hr>
+<h2 id="2-gfm-扩展">2. GFM 扩展<a class="anchor" href="#2-gfm-扩展" aria-label="锚点链接">#</a></h2>
+<h3 id="21-表格">2.1 表格<a class="anchor" href="#21-表格" aria-label="锚点链接">#</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">左对齐</th>
+<th style="text-align:center">居中对齐</th>
+<th style="text-align:right">右对齐</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">单元格</td>
+<td style="text-align:center">单元格</td>
+<td style="text-align:right">单元格</td>
+</tr>
+<tr>
+<td style="text-align:left">内容</td>
+<td style="text-align:center">内容</td>
+<td style="text-align:right">内容</td>
+</tr>
+</tbody>
+</table>
+<h3 id="22-任务列表">2.2 任务列表<a class="anchor" href="#22-任务列表" aria-label="锚点链接">#</a></h3>
+<ul class="contains-task-list">
+<li class="task-list-item enabled"><input class="task-list-item-checkbox" checked=""type="checkbox" id="task-item-1"><label class="task-list-item-label" for="task-item-1"> 已完成任务</label></li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"type="checkbox" id="task-item-2"><label class="task-list-item-label" for="task-item-2"> 未完成任务</label></li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"type="checkbox" id="task-item-3"><label class="task-list-item-label" for="task-item-3"> 待办事项</label></li>
+</ul>
+<h3 id="23-删除线">2.3 删除线<a class="anchor" href="#23-删除线" aria-label="锚点链接">#</a></h3>
+<p><s>删除线文本</s></p>
+<h3 id="24-自动链接">2.4 自动链接<a class="anchor" href="#24-自动链接" aria-label="锚点链接">#</a></h3>
+<p><a href="https://example.com">https://example.com</a></p>
+<p>www.example.com</p>
+<p><a href="mailto:user@example.com">user@example.com</a></p>
+<h3 id="25-脚注">2.5 脚注<a class="anchor" href="#25-脚注" aria-label="锚点链接">#</a></h3>
+<p>这是一个脚注引用<sup class="footnote-ref"><a href="#fn1" id="fnref1">[1]</a></sup>，还有另一个<sup class="footnote-ref"><a href="#fn2" id="fnref2">[2]</a></sup>。</p>
+<h3 id="26-告示github-alerts">2.6 告示（GitHub Alerts）<a class="anchor" href="#26-告示github-alerts" aria-label="锚点链接">#</a></h3>
+<p><strong>不写名字</strong>：只有内容 + 左侧色条，不再强制塞「注意」这种默认标题：</p>
+<div class="markdown-alert markdown-alert-note" role="note" aria-label="注意" data-untitled="true"><p>这是没写名字的告示。类型靠左侧色条和 aria-label 表达，读屏能识别。</p>
+</div>
+<p>五种类型（都不写名字）：</p>
+<div class="markdown-alert markdown-alert-note" role="note" aria-label="注意" data-untitled="true"><p>提示信息。</p>
+</div>
+<div class="markdown-alert markdown-alert-tip" role="note" aria-label="提示" data-untitled="true"><p>技巧信息。</p>
+</div>
+<div class="markdown-alert markdown-alert-important" role="note" aria-label="重要" data-untitled="true"><p>重要信息。</p>
+</div>
+<div class="markdown-alert markdown-alert-warning" role="note" aria-label="警告" data-untitled="true"><p>警告信息。</p>
+</div>
+<div class="markdown-alert markdown-alert-caution" role="note" aria-label="小心" data-untitled="true"><p>注意事项。</p>
+</div>
+<p><strong>写了名字就用你写的</strong>（这才是重点，不会被默认标题盖掉）：</p>
+<div class="markdown-alert markdown-alert-note" role="note" aria-label="注意" ><p class="markdown-alert-title"><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="currentColor"><path d="M8 1.2A6.8 6.8 0 1 0 8 14.8 6.8 6.8 0 0 0 8 1.2Zm0 1.6a5.2 5.2 0 1 1 0 10.4A5.2 5.2 0 0 1 8 2.8Zm0 2.1a1 1 0 1 1 0 2 1 1 0 0 1 0-2Zm-.85 3.3h1.7v4.6h-1.7Z"/></svg>部署前须知</p><p>名字完全按你写的来。</p>
+</div>
+<div class="markdown-alert markdown-alert-warning" role="note" aria-label="警告" ><p class="markdown-alert-title"><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="currentColor"><path d="M8 1.4 15 14H1L8 1.4Zm0 3.2a.9.9 0 0 0-.9.9v2.8a.9.9 0 0 0 1.8 0V5.5A.9.9 0 0 0 8 4.6Zm0 5.6a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z"/></svg>改这个文件前先备份</p><p>中文名字、长句子都行。</p>
+</div>
+<div class="markdown-alert markdown-alert-tip" role="note" aria-label="提示" ><p class="markdown-alert-title"><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="currentColor"><path d="M8 1.2c-2.4 0-4.2 1.8-4.2 4 0 1 .5 1.8 1.1 2.5.6.7 1 1.2 1.1 2h4c.1-.8.5-1.3 1.1-2 .6-.7 1.1-1.5 1.1-2.5 0-2.2-1.8-4-4.2-4Zm-1.7 10h3.4v1.2H6.3Zm.6 2.1h2.2l-.3 1.2H7.2Z"/></svg>小技巧：用 <code>rg</code> 比 <code>grep</code> 快</p><p>名字里允许行内代码。</p>
+</div>
+<h3 id="27-提示框容器语法">2.7 提示框（容器语法）<a class="anchor" href="#27-提示框容器语法" aria-label="锚点链接">#</a></h3>
+<p>用 <code>:::</code> 写，也可以自定义名字：</p>
+<div class="md-box md-box-note"><p class="md-box-title">注意</p>
+<p>默认名字的提示框。</p>
+</div>
+<div class="md-box md-box-warning"><p class="md-box-title">自定义标题的警告框</p>
+<p>名字写在类型后面就是标题。</p>
+</div>
+<div class="md-box md-box-tip"><p class="md-box-title">用 <code>npm run build</code> 构建</p>
+<p>标题里也能放<strong>加粗</strong>、行内代码这些行内语法。</p>
+</div>
+<div class="md-box md-box-tip"><p class="md-box-title">提示</p>
+<p>提示框。</p>
+</div>
+<div class="md-box md-box-details"><p class="md-box-title">详情</p>
+<p>详情容器，默认标题是「详情」。</p>
+</div>
+<div class="md-box md-box-danger"><p class="md-box-title">危险操作</p>
+<p>删除前请三思。</p>
+</div>
+<div class="md-box md-box-success"><p class="md-box-title">完成</p>
+<p>这一步做完了。</p>
+</div>
+<div class="md-box md-box-question"><p class="md-box-title">疑问</p>
+<p>这里没想明白。</p>
+</div>
+<div class="md-box md-box-info"><p class="md-box-title">信息</p>
+<p>补充说明。</p>
+</div>
+<h2 id="3-内容增强">3. 内容增强<a class="anchor" href="#3-内容增强" aria-label="锚点链接">#</a></h2>
+<h3 id="31-emoji">3.1 Emoji<a class="anchor" href="#31-emoji" aria-label="锚点链接">#</a></h3>
+<p>😄 ❤️ 👍 🚀</p>
+<h3 id="32-上下标">3.2 上下标<a class="anchor" href="#32-上下标" aria-label="锚点链接">#</a></h3>
+<p>H<sub>2</sub>O</p>
+<p>x<sup>2</sup> + y<sup>2</sup> = z<sup>2</sup></p>
+<h3 id="33-高亮标记">3.3 高亮/标记<a class="anchor" href="#33-高亮标记" aria-label="锚点链接">#</a></h3>
+<p><mark>高亮文本</mark></p>
+<h3 id="34-缩写词">3.4 缩写词<a class="anchor" href="#34-缩写词" aria-label="锚点链接">#</a></h3>
+<p><abbr title="超文本标记语言">HTML</abbr> 和 <abbr title="层叠样式表">CSS</abbr> 是网页基础。</p>
+<h3 id="35-定义列表">3.5 定义列表<a class="anchor" href="#35-定义列表" aria-label="锚点链接">#</a></h3>
+<dl>
+<dt>术语 1</dt>
+<dd>定义 1</dd>
+<dt>术语 2</dt>
+<dd>定义 2</dd>
+<dd>另一个定义</dd>
+</dl>
+<h3 id="36-插入与删除">3.6 插入与删除<a class="anchor" href="#36-插入与删除" aria-label="锚点链接">#</a></h3>
+<p><ins>插入文本</ins></p>
+<p><del>删除文本</del></p>
+<h3 id="37-ruby-注音">3.7 Ruby 注音<a class="anchor" href="#37-ruby-注音" aria-label="锚点链接">#</a></h3>
+<p><ruby>漢字<rp>(</rp><rt>かんじ</rt><rp>)</rp></ruby></p>
+<h3 id="38-剧透">3.8 剧透<a class="anchor" href="#38-剧透" aria-label="锚点链接">#</a></h3>
+<div class="md-spoiler"><button class="md-spoiler-head" type="button" aria-expanded="false"><span class="md-spoiler-mark" aria-hidden="true">!</span><span class="md-spoiler-label">剧透 · 点击展开</span></button><div class="md-spoiler-body"><p>这是剧透内容，点击显示。</p>
+</div></div>
+<h3 id="39-图标行内-svg">3.9 图标（行内 SVG）<a class="anchor" href="#39-图标行内-svg" aria-label="锚点链接">#</a></h3>
+<p>站点图标一律用内联 SVG，不用 emoji / 图标字体（emoji 在部分系统上会画出彩色方块）：</p>
+<p><svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 1.2 15 14H1L8 1.2Zm0 3.2a.9.9 0 0 0-.9.9v2.8a.9.9 0 0 0 1.8 0V5.5A.9.9 0 0 0 8 4.6Zm0 5.6a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z"/></svg> 行内 SVG 会跟随文字颜色，也能正常缩放。</p>
+<h2 id="4-学术与技术">4. 学术与技术<a class="anchor" href="#4-学术与技术" aria-label="锚点链接">#</a></h2>
+<h3 id="41-数学公式-katex">4.1 数学公式 (KaTeX)<a class="anchor" href="#41-数学公式-katex" aria-label="锚点链接">#</a></h3>
+<p>行内公式：<eq><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>E</mi><mo>=</mo><mi>m</mi><msup><mi>c</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">E = mc^2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.0576em;">E</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.8141em;"></span><span class="mord mathnormal">m</span><span class="mord"><span class="mord mathnormal">c</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span></span></span></eq></p>
+<p>块级公式：</p>
+<section><eqn><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msubsup><mo>∫</mo><mrow><mo>−</mo><mi mathvariant="normal">∞</mi></mrow><mi mathvariant="normal">∞</mi></msubsup><msup><mi>e</mi><mrow><mo>−</mo><msup><mi>x</mi><mn>2</mn></msup></mrow></msup><mi>d</mi><mi>x</mi><mo>=</mo><msqrt><mi>π</mi></msqrt></mrow><annotation encoding="application/x-tex">
+\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}
+</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:2.3846em;vertical-align:-0.9703em;"></span><span class="mop"><span class="mop op-symbol large-op" style="margin-right:0.4445em;position:relative;top:-0.0011em;">∫</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.4143em;"><span style="top:-1.7881em;margin-left:-0.4445em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">−</span><span class="mord mtight">∞</span></span></span></span><span style="top:-3.8129em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">∞</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.9703em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal">e</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:1.0369em;"><span style="top:-3.113em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">−</span><span class="mord mtight"><span class="mord mathnormal mtight">x</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8913em;"><span style="top:-2.931em;margin-right:0.0714em;"><span class="pstrut" style="height:2.5em;"></span><span class="katex-sizing reset-size3 size1 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span class="mord mathnormal">d</span><span class="mord mathnormal">x</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:1.04em;vertical-align:-0.1908em;"></span><span class="mord sqrt"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.8492em;"><span class="svg-align" style="top:-3em;"><span class="pstrut" style="height:3em;"></span><span class="mord" style="padding-left:0.833em;"><span class="mord mathnormal" style="margin-right:0.0359em;">π</span></span></span><span style="top:-2.8092em;"><span class="pstrut" style="height:3em;"></span><span class="hide-tail" style="min-width:0.853em;height:1.08em;"><svg xmlns="http://www.w3.org/2000/svg" width="400em" height="1.08em" viewBox="0 0 400000 1080" preserveAspectRatio="xMinYMin slice"><path d="M95,702
+c-2.7,0,-7.17,-2.7,-13.5,-8c-5.8,-5.3,-9.5,-10,-9.5,-14
+c0,-2,0.3,-3.3,1,-4c1.3,-2.7,23.83,-20.7,67.5,-54
+c44.2,-33.3,65.8,-50.3,66.5,-51c1.3,-1.3,3,-2,5,-2c4.7,0,8.7,3.3,12,10
+s173,378,173,378c0.7,0,35.3,-71,104,-213c68.7,-142,137.5,-285,206.5,-429
+c69,-144,104.5,-217.7,106.5,-221
+l0 -0
+c5.3,-9.3,12,-14,20,-14
+H400000v40H845.2724
+s-225.272,467,-225.272,467s-235,486,-235,486c-2.7,4.7,-9,7,-19,7
+c-6,0,-10,-1,-12,-3s-194,-422,-194,-422s-65,47,-65,47z
+M834 80h400000v40h-400000z"/></svg></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.1908em;"><span></span></span></span></span></span></span></span></span></span></eqn></section><h3 id="42-mathjax">4.2 MathJax<a class="anchor" href="#42-mathjax" aria-label="锚点链接">#</a></h3>
+<p>行内：<eq><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>a</mi><mn>2</mn></msup><mo>+</mo><msup><mi>b</mi><mn>2</mn></msup><mo>=</mo><msup><mi>c</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">a^2 + b^2 = c^2</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.8974em;vertical-align:-0.0833em;"></span><span class="mord"><span class="mord mathnormal">a</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.8141em;"></span><span class="mord"><span class="mord mathnormal">b</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:0.8141em;"></span><span class="mord"><span class="mord mathnormal">c</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8141em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span></span></span></eq></p>
+<p>块级：</p>
+<section><eqn><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mfrac><mi mathvariant="normal">∂</mi><mrow><mi mathvariant="normal">∂</mi><mi>t</mi></mrow></mfrac><mi mathvariant="normal">Ψ</mi><mo>=</mo><mi>i</mi><mi mathvariant="normal">ℏ</mi><mfrac><mi mathvariant="normal">∂</mi><mrow><mi mathvariant="normal">∂</mi><mi>t</mi></mrow></mfrac><mi mathvariant="normal">Ψ</mi></mrow><annotation encoding="application/x-tex">\frac{\partial}{\partial t} \Psi = i\hbar \frac{\partial}{\partial t} \Psi</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:2.0574em;vertical-align:-0.686em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.3714em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord" style="margin-right:0.0556em;">∂</span><span class="mord mathnormal">t</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord" style="margin-right:0.0556em;">∂</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mord">Ψ</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="katex-base"><span class="katex-strut" style="height:2.0574em;vertical-align:-0.686em;"></span><span class="mord mathnormal">i</span><span class="mord">ℏ</span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:1.3714em;"><span style="top:-2.314em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord" style="margin-right:0.0556em;">∂</span><span class="mord mathnormal">t</span></span></span><span style="top:-3.23em;"><span class="pstrut" style="height:3em;"></span><span class="frac-line" style="border-bottom-width:0.04em;"></span></span><span style="top:-3.677em;"><span class="pstrut" style="height:3em;"></span><span class="mord"><span class="mord" style="margin-right:0.0556em;">∂</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.686em;"><span></span></span></span></span></span><span class="mclose nulldelimiter"></span></span><span class="mord">Ψ</span></span></span></span></span></eqn></section><h3 id="43-代码高亮">4.3 代码高亮<a class="anchor" href="#43-代码高亮" aria-label="锚点链接">#</a></h3>
+<pre><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title function_">greet</span>(<span class="hljs-params">name</span>):
+    <span class="hljs-keyword">return</span> <span class="hljs-string">f&quot;Hello, <span class="hljs-subst">{name}</span>!&quot;</span>
+</code></pre>
+<h3 id="44-高亮指定行">4.4 高亮指定行<a class="anchor" href="#44-高亮指定行" aria-label="锚点链接">#</a></h3>
+<p>在语言后面写 <code>{1,3-5}</code>，被点名的行会加上高亮底色（<strong>不显示行号</strong>）：</p>
+<pre class="with-lines"><code class="hljs language-javascript with-lines"><span class="cl hl"><span class="hljs-comment">// 第 1 行高亮</span></span>
+<span class="cl"><span class="hljs-keyword">const</span> a = <span class="hljs-number">1</span></span>
+<span class="cl hl"><span class="hljs-keyword">const</span> b = <span class="hljs-number">2</span></span>
+<span class="cl hl"><span class="hljs-comment">// 第 4 行</span></span>
+<span class="cl hl"><span class="hljs-comment">// 第 5 行</span></span>
+<span class="cl"><span class="hljs-keyword">const</span> c = <span class="hljs-number">3</span></span></code></pre>
+<h3 id="45-显示行号">4.5 显示行号<a class="anchor" href="#45-显示行号" aria-label="锚点链接">#</a></h3>
+<p>在语言后面写 <code>:line-numbers</code>，左侧会出现行号栏：</p>
+<pre class="with-lines"><code class="hljs language-javascript with-lines show-lines"><span class="cl"><span class="hljs-keyword">const</span> a = <span class="hljs-number">1</span></span>
+<span class="cl"><span class="hljs-keyword">const</span> b = <span class="hljs-number">2</span></span>
+<span class="cl"><span class="hljs-keyword">const</span> c = <span class="hljs-number">3</span></span></code></pre>
+<p>两者可以叠加，用空格分隔：</p>
+<pre class="with-lines"><code class="hljs language-javascript with-lines show-lines"><span class="cl"><span class="hljs-keyword">const</span> a = <span class="hljs-number">1</span></span>
+<span class="cl hl"><span class="hljs-keyword">const</span> b = <span class="hljs-number">2</span></span>
+<span class="cl"><span class="hljs-keyword">const</span> c = <span class="hljs-number">3</span></span></code></pre>
+<h2 id="5-图表与可视化未启用">5. 图表与可视化（未启用）<a class="anchor" href="#5-图表与可视化未启用" aria-label="锚点链接">#</a></h2>
+<p>本站<strong>没有</strong>接 Mermaid / PlantUML / ECharts / Flowchart 的渲染器，<br>
+下面几段会按普通代码块原样显示。保留它们是为了确认降级后不会报错、不会吃掉内容。</p>
+<h3 id="51-mermaid">5.1 Mermaid<a class="anchor" href="#51-mermaid" aria-label="锚点链接">#</a></h3>
+<pre><code class="hljs language-mermaid">graph TD
+  A[开始] --&gt; B{判断}
+  B --&gt;|是| C[执行操作]
+  B --&gt;|否| D[结束]
+</code></pre>
+<h3 id="52-plantuml">5.2 PlantUML<a class="anchor" href="#52-plantuml" aria-label="锚点链接">#</a></h3>
+<pre><code class="hljs language-plantuml">@startuml
+Alice -&gt; Bob: Hello
+Bob --&gt; Alice: Hi
+@enduml
+</code></pre>
+<h3 id="53-echarts">5.3 ECharts<a class="anchor" href="#53-echarts" aria-label="锚点链接">#</a></h3>
+<pre><code class="hljs language-echarts">{
+  &quot;title&quot;: { &quot;text&quot;: &quot;示例图表&quot; },
+  &quot;xAxis&quot;: { &quot;type&quot;: &quot;category&quot;, &quot;data&quot;: [&quot;A&quot;, &quot;B&quot;, &quot;C&quot;] },
+  &quot;yAxis&quot;: { &quot;type&quot;: &quot;value&quot; },
+  &quot;series&quot;: [{ &quot;data&quot;: [10, 20, 30], &quot;type&quot;: &quot;bar&quot; }]
+}
+</code></pre>
+<h3 id="54-flowchart">5.4 Flowchart<a class="anchor" href="#54-flowchart" aria-label="锚点链接">#</a></h3>
+<pre><code class="hljs language-flow">st=&gt;start: 开始
+op=&gt;operation: 操作
+cond=&gt;condition: 判断?
+e=&gt;end: 结束
+
+st-&gt;op-&gt;cond
+cond(yes)-&gt;e
+cond(no)-&gt;op
+</code></pre>
+<h2 id="6-文档导航与结构">6. 文档导航与结构<a class="anchor" href="#6-文档导航与结构" aria-label="锚点链接">#</a></h2>
+<h3 id="61-标题锚点">6.1 标题锚点<a class="anchor" href="#61-标题锚点" aria-label="锚点链接">#</a></h3>
+<h2 id="custom-heading">带自定义 ID 的标题<a class="anchor" href="#custom-heading" aria-label="锚点链接">#</a></h2>
+<p><a href="#custom-heading">跳转到自定义标题</a></p>
+<h3 id="62-目录">6.2 目录<a class="anchor" href="#62-目录" aria-label="锚点链接">#</a></h3>
+<p>[[toc]]</p>
+<h3 id="63-属性">6.3 属性<a class="anchor" href="#63-属性" aria-label="锚点链接">#</a></h3>
+<h1 id="id" class="class" style="color: red">标题<a class="anchor" href="#id" aria-label="锚点链接">#</a></h1>
+<p class="highlight">段落文本</p>
+<h3 id="64-自定义容器">6.4 自定义容器<a class="anchor" href="#64-自定义容器" aria-label="锚点链接">#</a></h3>
+<p>就是 §2.7 那套 <code>:::</code>，八个类型任选；再写一遍是为了放在导航章节里对照。</p>
+<div class="md-box md-box-warning"><p class="md-box-title">警告</p>
+<p>这是一个警告容器。</p>
+</div>
+<div class="md-box md-box-tip"><p class="md-box-title">提示</p>
+<p>这是一个提示容器。</p>
+</div>
+<h3 id="65-选项卡-tabs">6.5 选项卡 tabs<a class="anchor" href="#65-选项卡-tabs" aria-label="锚点链接">#</a></h3>
+<p>由 <code>@mdit/plugin-tab</code> 提供。容器写 <code>::: tabs</code>，每个页签用 <code>@tab 标题</code> 起头：</p>
+<div class="tabs-tabs-wrapper">
+  <div class="tabs-tabs-header" role="tablist">
+    <button type="button" class="tabs-tab-button active" role="tab" aria-selected="true" tabindex="0" data-tab="0" data-active>标签 1</button>
+    <button type="button" class="tabs-tab-button" role="tab" aria-selected="false" tabindex="-1" data-tab="1">标签 2</button>
+  </div>
+  <div class="tabs-tabs-container">
+<div class="tabs-tab-content active" role="tabpanel" data-index="0" data-active="">
+<p>第一个页签的内容。</p>
+</div>
+<div class="tabs-tab-content" role="tabpanel" data-index="1">
+<p>第二个页签的内容。</p>
+</div>
+  </div>
+</div>
+<p><strong>默认选中第一个</strong>。想默认展开别的页签，把那个写成 <code>@tab:active</code>：</p>
+<div class="tabs-tabs-wrapper">
+  <div class="tabs-tabs-header" role="tablist">
+    <button type="button" class="tabs-tab-button" role="tab" aria-selected="false" tabindex="-1" data-tab="0">第一个</button>
+    <button type="button" class="tabs-tab-button active" role="tab" aria-selected="true" tabindex="0" data-tab="1" data-active>第二个</button>
+  </div>
+  <div class="tabs-tabs-container">
+<div class="tabs-tab-content" role="tabpanel" data-index="0">
+<p>默认不选它。</p>
+</div>
+<div class="tabs-tab-content active" role="tabpanel" data-index="1" data-active="">
+<p>这个才是默认展开的。</p>
+</div>
+  </div>
+</div>
+<p>标题支持行内 Markdown，代码块、公式、列表也都能放进页签里：</p>
+<div class="tabs-tabs-wrapper">
+  <div class="tabs-tabs-header" role="tablist">
+    <button type="button" class="tabs-tab-button active" role="tab" aria-selected="true" tabindex="0" data-tab="0" data-active>用 <code>npm</code> 安装</button>
+    <button type="button" class="tabs-tab-button" role="tab" aria-selected="false" tabindex="-1" data-tab="1">手动下载</button>
+  </div>
+  <div class="tabs-tabs-container">
+<div class="tabs-tab-content active" role="tabpanel" data-index="0" data-active="">
+<pre><code class="hljs language-bash">npm i @mdit/plugin-tab
+</code></pre>
+</div>
+<div class="tabs-tab-content" role="tabpanel" data-index="1">
+<p>直接引 <code>dist/cdn.umd.js</code>，它自带依赖，不依赖 CDN。</p>
+</div>
+  </div>
+</div>
+<p>给页签和容器起 <code>#id</code> 可以做<strong>跨容器联动</strong>（点一个，同 id 的另一个跟着切）：</p>
+<div class="tabs-tabs-wrapper" data-id="demo-group">
+  <div class="tabs-tabs-header" role="tablist">
+    <button type="button" class="tabs-tab-button active" role="tab" aria-selected="true" tabindex="0" data-tab="0" data-id="tab-a" data-active>甲</button>
+    <button type="button" class="tabs-tab-button" role="tab" aria-selected="false" tabindex="-1" data-tab="1" data-id="tab-b">乙</button>
+  </div>
+  <div class="tabs-tabs-container">
+<div class="tabs-tab-content active" role="tabpanel" data-index="0" data-id="tab-a" data-active="">
+<p>联动组里的 A。</p>
+</div>
+<div class="tabs-tab-content" role="tabpanel" data-index="1" data-id="tab-b">
+<p>联动组里的 B。</p>
+</div>
+  </div>
+</div>
+<div class="tabs-tabs-wrapper" data-id="demo-group">
+  <div class="tabs-tabs-header" role="tablist">
+    <button type="button" class="tabs-tab-button active" role="tab" aria-selected="true" tabindex="0" data-tab="0" data-id="tab-a" data-active>甲</button>
+    <button type="button" class="tabs-tab-button" role="tab" aria-selected="false" tabindex="-1" data-tab="1" data-id="tab-b">乙</button>
+  </div>
+  <div class="tabs-tabs-container">
+<div class="tabs-tab-content active" role="tabpanel" data-index="0" data-id="tab-a" data-active="">
+<p>这是第二个容器，跟着一起切。</p>
+</div>
+<div class="tabs-tab-content" role="tabpanel" data-index="1" data-id="tab-b">
+<p>同上。</p>
+</div>
+  </div>
+</div>
+<p>只有一个页签时，标签行会自动隐藏（写了也没意义）：</p>
+<div class="tabs-tabs-wrapper" data-single="true">
+  <div class="tabs-tabs-header" role="tablist">
+    <button type="button" class="tabs-tab-button active" role="tab" aria-selected="true" tabindex="0" data-tab="0" data-active>唯一</button>
+  </div>
+  <div class="tabs-tabs-container">
+<div class="tabs-tab-content active" role="tabpanel" data-index="0" data-active="">
+<p>孤零零一个页签。</p>
+</div>
+  </div>
+</div>
+<p>两个注意点：</p>
+<ul>
+<li><strong>外层围栏要加长才能嵌套。</strong> <code>::: tabs</code> 放进 <code>::: warning</code> 里的话，<br>
+外层第一个 <code>:::</code> 会被当成它的结束符，把标签页截断。把外层写成四个冒号<br>
+（<code>:::: warning</code> … <code>::::</code>）就没问题 —— <code>:::</code> 比它短，不会被误认成结束符。</li>
+<li>写了 <code>::: tabs</code> 却一个 <code>@tab</code> 都没有时，整块会被丢掉（什么都不输出），<br>
+而不是留下一个空的边框盒子。</li>
+</ul>
+<h3 id="66-布局未启用">6.6 布局（未启用）<a class="anchor" href="#66-布局未启用" aria-label="锚点链接">#</a></h3>
+<p><code>::: layout</code> / <code>::: col</code> <strong>没有实现</strong>，会原样显示：</p>
+<p>::: layout<br>
+::: col<br>
+左列内容<br>
+:::<br>
+::: col<br>
+右列内容<br>
+:::<br>
+:::</p>
+<h2 id="7-其他实用功能">7. 其他实用功能<a class="anchor" href="#7-其他实用功能" aria-label="锚点链接">#</a></h2>
+<h3 id="71-图片尺寸">7.1 图片尺寸<a class="anchor" href="#71-图片尺寸" aria-label="锚点链接">#</a></h3>
+<p><img src="https://via.placeholder.com/150" alt="替代文本" width="100" height="100" loading="lazy" decoding="async"></p>
+<h3 id="72-图片懒加载">7.2 图片懒加载<a class="anchor" href="#72-图片懒加载" aria-label="锚点链接">#</a></h3>
+<p><img src="https://via.placeholder.com/150" alt="懒加载图片" loading="lazy" decoding="async"></p>
+<h3 id="73-图片预览">7.3 图片预览<a class="anchor" href="#73-图片预览" aria-label="锚点链接">#</a></h3>
+<p><a href="https://via.placeholder.com/800"><img src="https://via.placeholder.com/100" alt="可预览图片" loading="lazy" decoding="async"></a></p>
+<h3 id="74-主题标记">7.4 主题标记<a class="anchor" href="#74-主题标记" aria-label="锚点链接">#</a></h3>
+<p><img src="https://via.placeholder.com/150" alt="浅色模式" data-mode="lightmode-only" loading="lazy" decoding="async"><br>
+<img src="https://via.placeholder.com/150" alt="深色模式" data-mode="darkmode-only" loading="lazy" decoding="async"></p>
+<h3 id="75-包含文件未启用">7.5 包含文件（未启用）<a class="anchor" href="#75-包含文件未启用" aria-label="锚点链接">#</a></h3>
+<p><code>@include</code> <strong>没有实现</strong>，会原样显示：</p>
+<p>@include &quot;other.md&quot;</p>
+<h3 id="76-导入代码片段未启用">7.6 导入代码片段（未启用）<a class="anchor" href="#76-导入代码片段未启用" aria-label="锚点链接">#</a></h3>
+<p><code>@snippet</code> <strong>没有实现</strong>，会原样显示：</p>
+<p>@snippet &quot;file.js&quot;#section</p>
+<h3 id="77-自定义嵌入未启用">7.7 自定义嵌入（未启用）<a class="anchor" href="#77-自定义嵌入未启用" aria-label="锚点链接">#</a></h3>
+<p><code>@embed</code> <strong>没有实现</strong>，会原样显示：</p>
+<p>@embed &quot;component&quot;</p>
+<h3 id="78-内容对齐未启用">7.8 内容对齐（未启用）<a class="anchor" href="#78-内容对齐未启用" aria-label="锚点链接">#</a></h3>
+<p><code>-&gt;…&lt;-</code> 这套箭头语法 <strong>没有实现</strong>，会原样显示：</p>
+<p>-&gt;居中内容&lt;-</p>
+<p>-&gt;右对齐内容-&gt;</p>
+<p>&lt;-左对齐内容&lt;-</p>
+<h3 id="79-行内剧透">7.9 行内剧透<a class="anchor" href="#79-行内剧透" aria-label="锚点链接">#</a></h3>
+<p>用 <code>!!</code> 包起来，默认被遮住，点一下才显示：</p>
+<p>这句话里藏了一个 <span class="spoiler" tabindex="-1">隐藏答案</span> ，点开才看得到。</p>
+<p>注意：<code>!!</code> 里面不能出现 <code>!</code>，也不能跨行。</p>
+<h2 id="8-站点扩展语法">8. 站点扩展语法<a class="anchor" href="#8-站点扩展语法" aria-label="锚点链接">#</a></h2>
+<h3 id="81-卡片-card">8.1 卡片 card<a class="anchor" href="#81-卡片-card" aria-label="锚点链接">#</a></h3>
+<p>单张卡片，只有标题：</p>
+<p><a href="/p/docs.html#idea%2F1.%E5%BD%92%E9%80%94%E4%B8%94%E6%85%A2.md" class="card">
+  <span class="card-title">归途，且慢</span>
+</a></p>
+<p>带日期的卡片：</p>
+<p><a href="/p/docs.html#idea%2F1.%E5%BD%92%E9%80%94%E4%B8%94%E6%85%A2.md" class="card">
+  <span class="card-title">归途，且慢</span>
+  <span class="card-date">2026.9.27</span>
+</a></p>
+<p>一行里放两张，彼此独立：<a href="/p/docs.html#a.md" class="card">
+  <span class="card-title">甲</span>
+</a><a href="/p/docs.html#b.md" class="card">
+  <span class="card-title">乙</span>
+  <span class="card-date">9.27</span>
+</a></p>
+<p>外链卡片原样跳转：<a href="https://example.com/?a=1&amp;b=2" class="card">
+  <span class="card-title">外链卡片</span>
+</a></p>
+<p>没写 link 的应当原样保留：<card>这张不该变成卡片</card></p>
+<h3 id="82-代码组-code-group">8.2 代码组 code-group<a class="anchor" href="#82-代码组-code-group" aria-label="锚点链接">#</a></h3>
+<p>两个语言切换：</p>
+<div class="code-group"><div class="cg-tabs" role="tablist"></div><div class="cg-body"><div class="cg-panel" data-label="JavaScript"><pre><code class="hljs language-js"><span class="hljs-keyword">const</span> a = <span class="hljs-number">1</span>;
+<span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(a);
+</code></pre>
+</div><div class="cg-panel" data-label="Python"><pre><code class="hljs language-python">a = <span class="hljs-number">1</span>
+<span class="hljs-built_in">print</span>(a)
+</code></pre>
+</div></div></div>
+<p>用 <code>[标签]</code> 指定标签文字，而不是用语言名：</p>
+<div class="code-group"><div class="cg-tabs" role="tablist"></div><div class="cg-body"><div class="cg-panel" data-label="配置文件"><pre><code class="hljs language-js"><span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> {
+  <span class="hljs-attr">name</span>: <span class="hljs-string">&#x27;demo&#x27;</span>,
+};
+</code></pre>
+</div><div class="cg-panel" data-label="JSON"><pre><code class="hljs language-json"><span class="hljs-punctuation">{</span> <span class="hljs-attr">&quot;name&quot;</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&quot;demo&quot;</span> <span class="hljs-punctuation">}</span>
+</code></pre>
+</div></div></div>
+<p>单个代码块的代码组（标签行没有意义，应当隐藏）：</p>
+<div class="code-group"><div class="cg-tabs" role="tablist"></div><div class="cg-body"><div class="cg-panel" data-label="Bash"><pre><code class="hljs language-bash">npm run build
+</code></pre>
+</div></div></div>
+<p>代码组外面还是普通代码块：</p>
+<pre><code class="hljs language-js"><span class="hljs-keyword">const</span> outside = <span class="hljs-literal">true</span>;
+</code></pre>
+<h2 id="9-速查支持-不支持">9. 速查：支持 / 不支持<a class="anchor" href="#9-速查支持-不支持" aria-label="锚点链接">#</a></h2>
+<p><strong>已支持</strong>（本站渲染器真的会处理）：</p>
+<table>
+<thead>
+<tr>
+<th>语法</th>
+<th>写法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>告示</td>
+<td><code>&gt; [!NOTE]</code> / <code>[!TIP]</code> / <code>[!IMPORTANT]</code> / <code>[!WARNING]</code> / <code>[!CAUTION]</code></td>
+</tr>
+<tr>
+<td>告示自定义名字</td>
+<td><code>&gt; [!NOTE] 你的名字</code>（不写就用左侧色条 + 读屏标签，不硬塞默认标题）</td>
+</tr>
+<tr>
+<td>提示框</td>
+<td><code>::: note</code> / <code>tip</code> / <code>info</code> / <code>warning</code> / <code>danger</code> / <code>success</code> / <code>question</code> / <code>details</code></td>
+</tr>
+<tr>
+<td>提示框自定义名字</td>
+<td><code>::: warning 你的名字</code></td>
+</tr>
+<tr>
+<td>标题行内语法</td>
+<td>告示和提示框的标题里可以写 <code>`代码`</code>、<code>**加粗**</code></td>
+</tr>
+<tr>
+<td>块级剧透</td>
+<td><code>&gt;! 内容</code></td>
+</tr>
+<tr>
+<td>行内剧透</td>
+<td><code>!!内容!!</code></td>
+</tr>
+<tr>
+<td>注音</td>
+<td><code>{漢字|かんじ}</code></td>
+</tr>
+<tr>
+<td>目录</td>
+<td><code>[[toc]]</code></td>
+</tr>
+<tr>
+<td>标题锚点</td>
+<td><code>## 标题 {#自定义id}</code></td>
+</tr>
+<tr>
+<td>属性</td>
+<td><code>段落 {.class}</code></td>
+</tr>
+<tr>
+<td>数学公式</td>
+<td><code>$行内$</code>、<code>$$块级$$</code>、<code>\(行内\)</code>、<code>\[块级\]</code></td>
+</tr>
+<tr>
+<td>代码高亮</td>
+<td>三反引号围栏 + 语言名（<code>js</code>、<code>python</code>…）</td>
+</tr>
+<tr>
+<td>高亮指定行</td>
+<td>围栏语言后加 <code>{1,3-5}</code></td>
+</tr>
+<tr>
+<td>显示行号</td>
+<td>围栏语言后加 <code>:line-numbers</code></td>
+</tr>
+<tr>
+<td>行号 + 高亮</td>
+<td>围栏语言后加 <code>:line-numbers {2}</code></td>
+</tr>
+<tr>
+<td>代码组</td>
+<td><code>::: code-group</code>，面板用围栏 + <code>[标签]</code></td>
+</tr>
+<tr>
+<td>选项卡</td>
+<td><code>::: tabs</code> + <code>@tab 标题</code>（<code>@mdit/plugin-tab</code>）；<code>@tab:active 标题</code> 指定默认展开</td>
+</tr>
+<tr>
+<td>选项卡联动</td>
+<td><code>@tab 标题 #id</code> 写在多个容器里，点一个同 id 的一起切</td>
+</tr>
+<tr>
+<td>卡片</td>
+<td><code>&lt;card link=&quot;…&quot; date=&quot;…&quot;&gt;标题&lt;/card&gt;</code></td>
+</tr>
+<tr>
+<td>图片尺寸</td>
+<td><code>![alt](url){width=100 height=100}</code></td>
+</tr>
+<tr>
+<td>图片主题</td>
+<td><code>![alt](url#dark)</code> / <code>#light</code></td>
+</tr>
+<tr>
+<td>其余</td>
+<td>表格、任务列表、脚注、定义列表、上下标、<code>==高亮==</code>、缩写、插入删除、Emoji、懒加载</td>
+</tr>
+</tbody>
+</table>
+<p><strong>未支持</strong>（写了会原样显示，不会报错）：Mermaid、PlantUML、ECharts、Flowchart、<br>
+<code>::: layout</code>、<code>@include</code>、<code>@snippet</code>、<code>@embed</code>、<code>-&gt;对齐&lt;-</code>。</p>
+<hr>
+<p><em>测试文档结束。</em></p>
+<hr class="footnotes-sep">
+<section class="footnotes">
+<ol class="footnotes-list">
+<li id="fn1" class="footnote-item"><p>这是脚注内容。 <a href="#fnref1" class="footnote-backref">↩︎</a></p>
+</li>
+<li id="fn2" class="footnote-item"><p>这是命名脚注。 <a href="#fnref2" class="footnote-backref">↩︎</a></p>
+</li>
+</ol>
+</section>
+
+</div>
+<div class="doc-foot">这是归档预渲染稿 · 原文留底在项目工作空间 · <a href="../../p/docs.html">回到文档站</a></div>
+</div>
+<script src="../../p/docs-card.js"></script>
+<script src="../../p/docs-md.js"></script>
+</body>
+</html>

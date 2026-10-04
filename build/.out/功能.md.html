@@ -1,0 +1,811 @@
+<h1 id="skillmd风格统一版">SKILL.md（风格统一版）<a class="anchor" href="#skillmd风格统一版" aria-label="锚点链接">#</a></h1>
+<pre><code class="hljs language-markdown">---
+
+name: better-interaction
+
+description: &gt;
+为网页前端增加“有灵魂”的交互与动效：滚动驱动、指针响应、微交互、
+页面过渡、组件交互状态。配合 better-theme 使用，让静态页面真正活起来。
+Use when the user asks to add animations, interactions, motion, scroll effects,
+micro-interactions, hover states, page transitions, &quot;让页面动起来&quot;,
+&quot;加点动效&quot;, &quot;交互优化&quot;, &quot;make it feel alive&quot;, or after a better-theme
+page has been built and needs motion / interaction layer.
+
+---
+
+<span class="hljs-quote">&gt; 姊妹 Skill：`better-theme`（配色 / 布局 / 文案）</span>
+<span class="hljs-quote">&gt; 本 Skill 只负责“动起来 + 交互反馈”，不负责选色和布局。</span>
+
+<span class="hljs-section">## About Better Interaction</span>
+
+<span class="hljs-code">`better-theme`</span> 决定了页面<span class="hljs-strong">**长什么样**</span>，本 Skill 决定页面<span class="hljs-strong">**怎么回应人**</span>。
+
+目标不是“加一堆动画”，而是：
+
+<span class="hljs-bullet">-</span> 用户滚动时，内容<span class="hljs-strong">**按节奏出现**</span>，而不是一次性砸脸上
+<span class="hljs-bullet">-</span> 鼠标移动时，界面<span class="hljs-strong">**有轻微反馈**</span>，而不是一块死板的图
+<span class="hljs-bullet">-</span> 点击按钮时，<span class="hljs-strong">**0.1 秒内**</span>给出物理感回应
+<span class="hljs-bullet">-</span> 切页 / 打开面板时，<span class="hljs-strong">**空间连续**</span>，不闪不跳
+<span class="hljs-bullet">-</span> 一切动效<span class="hljs-strong">**服从可访问性**</span>：<span class="hljs-code">`prefers-reduced-motion`</span> 必须被尊重
+
+<span class="hljs-section">## When To Use</span>
+
+<span class="hljs-bullet">-</span> 已完成静态页面，用户觉得“太干”“太死”“没有高级感”
+<span class="hljs-bullet">-</span> 需要落地页 / 品牌页的“惊艳感”
+<span class="hljs-bullet">-</span> 需要 Dashboard / 工具页的“反馈感”与“状态感”
+<span class="hljs-bullet">-</span> 需要移动端的手势与触感反馈
+
+<span class="hljs-strong">**不要用**</span>：
+
+<span class="hljs-bullet">-</span> 纯文档站（Markdown 渲染页、API reference）
+<span class="hljs-bullet">-</span> 用户明确说“不要动效 / 保持朴素”
+<span class="hljs-bullet">-</span> 数据表格密集型后台（动效会干扰读数）
+
+<span class="hljs-section">## 执行流程</span>
+
+<span class="hljs-bullet">1.</span> <span class="hljs-strong">**先扫一眼现有页面**</span>：它是 brand 型、product 型、还是 dashboard 型？
+<span class="hljs-bullet">   -</span> brand：动效可以更戏剧化（视差、滚动叙事、光标跟随）
+<span class="hljs-bullet">   -</span> product：动效克制，主要用进入动画 + 悬停反馈
+<span class="hljs-bullet">   -</span> dashboard：只做数字变化动画 + 状态过渡，不加装饰性动效
+<span class="hljs-bullet">2.</span> <span class="hljs-strong">**确定动效预算**</span>：单页不要超过 3 类动效同时存在，否则视觉噪音爆炸。
+<span class="hljs-bullet">3.</span> <span class="hljs-strong">**选技术栈**</span>（按项目实际情况，优先级从高到低）：
+<span class="hljs-bullet">   -</span> 纯 CSS（<span class="hljs-code">`transition`</span> / <span class="hljs-code">`@keyframes`</span> / <span class="hljs-code">`animation-timeline`</span>）
+<span class="hljs-bullet">   -</span> Intersection Observer + CSS
+<span class="hljs-bullet">   -</span> 轻量库：<span class="hljs-code">`motion`</span>、<span class="hljs-code">`@formkit/auto-animate`</span>、<span class="hljs-code">`lenis`</span>
+<span class="hljs-bullet">   -</span> 重型：GSAP + ScrollTrigger（只在叙事型落地页才引入）
+<span class="hljs-bullet">4.</span> <span class="hljs-strong">**实现顺序**</span>：进入 → 悬停 → 点击 → 滚动 → 页面过渡。<span class="hljs-strong">**从简到繁，不要反过来。**</span>
+<span class="hljs-bullet">5.</span> <span class="hljs-strong">**测试三件事**</span>：低端机是否掉帧、键盘导航是否可用、<span class="hljs-code">`prefers-reduced-motion`</span> 下是否退化为静态。
+
+---
+
+<span class="hljs-section">## 一、进入动效（Entry）</span>
+
+<span class="hljs-strong">**原则**</span>：内容进入视口时<span class="hljs-strong">**分批次**</span>出现，节奏感来自<span class="hljs-strong">**时间差**</span>，不是时长。
+
+<span class="hljs-section">### 推荐做法</span>
+
+<span class="hljs-code">```css
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.reveal {
+  opacity: 0;
+  animation: rise-in 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+  animation-delay: calc(var(--i, 0) * 80ms);
+}
+```</span>
+</code></pre>
+<pre><code class="hljs language-html"><span class="hljs-tag">&lt;<span class="hljs-name">div</span> <span class="hljs-attr">class</span>=<span class="hljs-string">&quot;reveal&quot;</span> <span class="hljs-attr">style</span>=<span class="hljs-string">&quot;--i:0&quot;</span>&gt;</span>...<span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span>
+<span class="hljs-tag">&lt;<span class="hljs-name">div</span> <span class="hljs-attr">class</span>=<span class="hljs-string">&quot;reveal&quot;</span> <span class="hljs-attr">style</span>=<span class="hljs-string">&quot;--i:1&quot;</span>&gt;</span>...<span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span>
+<span class="hljs-tag">&lt;<span class="hljs-name">div</span> <span class="hljs-attr">class</span>=<span class="hljs-string">&quot;reveal&quot;</span> <span class="hljs-attr">style</span>=<span class="hljs-string">&quot;--i:2&quot;</span>&gt;</span>...<span class="hljs-tag">&lt;/<span class="hljs-name">div</span>&gt;</span>
+</code></pre>
+<pre><code class="hljs language-js"><span class="hljs-keyword">const</span> io = <span class="hljs-keyword">new</span> <span class="hljs-title class_">IntersectionObserver</span>(
+  <span class="hljs-function">(<span class="hljs-params">entries</span>) =&gt;</span> {
+    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">const</span> e <span class="hljs-keyword">of</span> entries) {
+      <span class="hljs-keyword">if</span> (e.<span class="hljs-property">isIntersecting</span>) {
+        e.<span class="hljs-property">target</span>.<span class="hljs-property">classList</span>.<span class="hljs-title function_">add</span>(<span class="hljs-string">&quot;is-in&quot;</span>);
+        io.<span class="hljs-title function_">unobserve</span>(e.<span class="hljs-property">target</span>);
+      }
+    }
+  },
+  { <span class="hljs-attr">rootMargin</span>: <span class="hljs-string">&quot;0px 0px -10% 0px&quot;</span>, <span class="hljs-attr">threshold</span>: <span class="hljs-number">0.1</span> },
+);
+
+<span class="hljs-variable language_">document</span>.<span class="hljs-title function_">querySelectorAll</span>(<span class="hljs-string">&quot;.reveal&quot;</span>).<span class="hljs-title function_">forEach</span>(<span class="hljs-function">(<span class="hljs-params">el</span>) =&gt;</span> io.<span class="hljs-title function_">observe</span>(el));
+</code></pre>
+<blockquote>
+<p><code>.reveal</code> 的隐藏样式写在样式表里，不要等 JS 注入——否则会先看到元素再闪一下。</p>
+</blockquote>
+<h3 id="硬规则">硬规则<a class="anchor" href="#硬规则" aria-label="锚点链接">#</a></h3>
+<ul>
+<li>同一屏内 stagger 元素不超过 6 个，人会等到烦</li>
+<li><strong>不要</strong>用 <code>ease-in</code> 做进入，用 <code>ease-out</code> 或 <code>cubic-bezier(.2,.7,.2,1)</code></li>
+<li>时长 400–700ms，超过 800ms 就是“表演”而不是“反馈”</li>
+<li>首屏 Hero 的进入动画<strong>必须在 1s 内结束</strong></li>
+<li>超过 20 个元素时只对<strong>视口内</strong>的做动画，stagger 间隔 ≤ 30ms</li>
+</ul>
+<hr>
+<h2 id="二悬停与指针hover-pointer">二、悬停与指针（Hover &amp; Pointer）<a class="anchor" href="#二悬停与指针hover-pointer" aria-label="锚点链接">#</a></h2>
+<p><strong>原则</strong>：鼠标是最精准的输入设备，但<strong>不要依赖它传递信息</strong>（触屏没有）。</p>
+<h3 id="按钮">按钮<a class="anchor" href="#按钮" aria-label="锚点链接">#</a></h3>
+<pre><code class="hljs language-css"><span class="hljs-selector-class">.btn</span> {
+  <span class="hljs-attribute">transition</span>:
+    transform <span class="hljs-number">0.15s</span> ease,
+    background <span class="hljs-number">0.2s</span> ease,
+    box-shadow <span class="hljs-number">0.2s</span> ease;
+}
+<span class="hljs-selector-class">.btn</span><span class="hljs-selector-pseudo">:hover</span> {
+  <span class="hljs-attribute">transform</span>: <span class="hljs-built_in">translateY</span>(-<span class="hljs-number">1px</span>);
+}
+<span class="hljs-selector-class">.btn</span><span class="hljs-selector-pseudo">:active</span> {
+  <span class="hljs-attribute">transform</span>: <span class="hljs-built_in">translateY</span>(<span class="hljs-number">0</span>) <span class="hljs-built_in">scale</span>(<span class="hljs-number">0.98</span>);
+}
+</code></pre>
+<p>要点：</p>
+<ul>
+<li>悬停位移<strong>不超过 2px</strong>，否则廉价</li>
+<li><code>:active</code> 一定要有，给出“按下去”的物理感</li>
+<li>交互反馈必须 ≤ 100ms 才算“即时”</li>
+<li>强调按钮（椭圆 CTA）可以有轻微光晕变化，但<strong>不要发光</strong></li>
+</ul>
+<h3 id="卡片-图文块">卡片 / 图文块<a class="anchor" href="#卡片-图文块" aria-label="锚点链接">#</a></h3>
+<pre><code class="hljs language-css"><span class="hljs-selector-class">.card</span> {
+  <span class="hljs-attribute">transition</span>:
+    transform <span class="hljs-number">0.3s</span> <span class="hljs-built_in">cubic-bezier</span>(<span class="hljs-number">0.2</span>, <span class="hljs-number">0.7</span>, <span class="hljs-number">0.2</span>, <span class="hljs-number">1</span>),
+    box-shadow <span class="hljs-number">0.3s</span> ease;
+}
+<span class="hljs-selector-class">.card</span><span class="hljs-selector-pseudo">:hover</span> {
+  <span class="hljs-attribute">transform</span>: <span class="hljs-built_in">translateY</span>(-<span class="hljs-number">4px</span>);
+  <span class="hljs-attribute">box-shadow</span>: <span class="hljs-number">0</span> <span class="hljs-number">12px</span> <span class="hljs-number">32px</span> -<span class="hljs-number">12px</span> <span class="hljs-built_in">rgb</span>(<span class="hljs-number">0</span> <span class="hljs-number">0</span> <span class="hljs-number">0</span> / <span class="hljs-number">0.18</span>);
+}
+</code></pre>
+<h3 id="光标跟随仅-brand-页">光标跟随（仅 brand 页）<a class="anchor" href="#光标跟随仅-brand-页" aria-label="锚点链接">#</a></h3>
+<pre><code class="hljs language-js"><span class="hljs-keyword">if</span> (<span class="hljs-title function_">matchMedia</span>(<span class="hljs-string">&quot;(hover: hover) and (pointer: fine)&quot;</span>).<span class="hljs-property">matches</span>) {
+  <span class="hljs-keyword">const</span> glow = <span class="hljs-variable language_">document</span>.<span class="hljs-title function_">querySelector</span>(<span class="hljs-string">&quot;.cursor-glow&quot;</span>);
+  <span class="hljs-keyword">let</span> x = innerWidth / <span class="hljs-number">2</span>,
+    y = innerHeight / <span class="hljs-number">2</span>,
+    tx = x,
+    ty = y;
+  <span class="hljs-title function_">addEventListener</span>(<span class="hljs-string">&quot;pointermove&quot;</span>, <span class="hljs-function">(<span class="hljs-params">e</span>) =&gt;</span> {
+    tx = e.<span class="hljs-property">clientX</span>;
+    ty = e.<span class="hljs-property">clientY</span>;
+  });
+  (<span class="hljs-keyword">function</span> <span class="hljs-title function_">loop</span>(<span class="hljs-params"></span>) {
+    x += (tx - x) * <span class="hljs-number">0.12</span>;
+    y += (ty - y) * <span class="hljs-number">0.12</span>;
+    glow.<span class="hljs-property">style</span>.<span class="hljs-property">transform</span> = <span class="hljs-string">`translate3d(<span class="hljs-subst">${x}</span>px, <span class="hljs-subst">${y}</span>px, 0)`</span>;
+    <span class="hljs-title function_">requestAnimationFrame</span>(loop);
+  })();
+}
+</code></pre>
+<p>要点：</p>
+<ul>
+<li>用 <code>requestAnimationFrame</code> + 阻尼，<strong>不要</strong>直接跟 <code>mousemove</code></li>
+<li>光晕直径 300–500px，<code>mix-blend-mode: soft-light</code> 或 <code>plus-lighter</code></li>
+<li>移动端直接关掉，别浪费电</li>
+</ul>
+<hr>
+<h2 id="三滚动驱动scroll">三、滚动驱动（Scroll）<a class="anchor" href="#三滚动驱动scroll" aria-label="锚点链接">#</a></h2>
+<p><strong>原则</strong>：滚动动效是“叙事工具”，不是“装饰工具”。用错地方会让页面像 PPT。</p>
+<h3 id="可以做的">可以做的<a class="anchor" href="#可以做的" aria-label="锚点链接">#</a></h3>
+<ul>
+<li><strong>视差</strong>：背景层比内容层慢，幅度 ≤ 20%</li>
+<li><strong>进度条 / 章节高亮</strong>：长文 / 文档页适合</li>
+<li><strong>粘性叙述</strong>：<code>position: sticky</code> + 滚动切换文案</li>
+<li><strong>图片显影</strong>：滚动到位置时从模糊 / 灰度到清晰</li>
+</ul>
+<h3 id="纯-css-现代方案推荐零-js">纯 CSS 现代方案（推荐，零 JS）<a class="anchor" href="#纯-css-现代方案推荐零-js" aria-label="锚点链接">#</a></h3>
+<pre><code class="hljs language-css"><span class="hljs-selector-class">.hero-img</span> {
+  <span class="hljs-attribute">animation</span>: scale-in linear both;
+  <span class="hljs-attribute">animation-timeline</span>: <span class="hljs-built_in">view</span>();
+  <span class="hljs-attribute">animation-range</span>: entry <span class="hljs-number">10%</span> cover <span class="hljs-number">40%</span>;
+}
+
+<span class="hljs-keyword">@keyframes</span> scale-in {
+  <span class="hljs-selector-tag">from</span> {
+    <span class="hljs-attribute">transform</span>: <span class="hljs-built_in">scale</span>(<span class="hljs-number">0.92</span>);
+    <span class="hljs-attribute">opacity</span>: <span class="hljs-number">0</span>;
+  }
+  <span class="hljs-selector-tag">to</span> {
+    <span class="hljs-attribute">transform</span>: <span class="hljs-built_in">scale</span>(<span class="hljs-number">1</span>);
+    <span class="hljs-attribute">opacity</span>: <span class="hljs-number">1</span>;
+  }
+}
+</code></pre>
+<blockquote>
+<p><code>animation-timeline</code> 跑在合成器线程上，零 JS。JS 滚动监听是移动端掉帧的主要元凶之一。Safari 需要 polyfill，其他浏览器基本可用。</p>
+</blockquote>
+<h3 id="硬规则-2">硬规则<a class="anchor" href="#硬规则-2" aria-label="锚点链接">#</a></h3>
+<ul>
+<li><strong>禁止</strong>劫持滚轮（<code>preventDefault</code> on wheel）——除非是横向叙事页，且必须提供退出方式</li>
+<li><strong>禁止</strong>整页 <code>scroll-behavior: smooth</code> 用于常规导航——会和键盘 / 屏读冲突</li>
+<li>视差元素用 <code>will-change: transform</code>，但<strong>用完要撤</strong>，不要全程挂着</li>
+<li>移动端视差降级为静态，或用 <code>prefers-reduced-motion</code> 关掉</li>
+</ul>
+<hr>
+<h2 id="四组件交互component-states">四、组件交互（Component States）<a class="anchor" href="#四组件交互component-states" aria-label="锚点链接">#</a></h2>
+<h3 id="必备状态">必备状态<a class="anchor" href="#必备状态" aria-label="锚点链接">#</a></h3>
+<p>每个可交互元素必须显式定义：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">状态</th>
+<th style="text-align:left">视觉要求</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">default</td>
+<td style="text-align:left">基础样式</td>
+</tr>
+<tr>
+<td style="text-align:left">hover</td>
+<td style="text-align:left">变化幅度小、有目的</td>
+</tr>
+<tr>
+<td style="text-align:left">focus-visible</td>
+<td style="text-align:left"><strong>必须可见</strong>，2px 外描边或等效对比</td>
+</tr>
+<tr>
+<td style="text-align:left">active</td>
+<td style="text-align:left">物理感（下沉 / 收缩）</td>
+</tr>
+<tr>
+<td style="text-align:left">disabled</td>
+<td style="text-align:left">降透明度 + <code>cursor: not-allowed</code>，不带 hover</td>
+</tr>
+<tr>
+<td style="text-align:left">loading</td>
+<td style="text-align:left">内容占位或 spinner，禁用点击</td>
+</tr>
+<tr>
+<td style="text-align:left">error</td>
+<td style="text-align:left">用色 + 图标，不只用颜色传递</td>
+</tr>
+</tbody>
+</table>
+<h3 id="手风琴-折叠面板">手风琴 / 折叠面板<a class="anchor" href="#手风琴-折叠面板" aria-label="锚点链接">#</a></h3>
+<pre><code class="hljs language-css"><span class="hljs-selector-class">.accordion-panel</span> {
+  <span class="hljs-attribute">display</span>: grid;
+  <span class="hljs-attribute">grid-template-rows</span>: <span class="hljs-number">0</span>fr;
+  <span class="hljs-attribute">transition</span>: grid-template-rows <span class="hljs-number">0.3s</span> <span class="hljs-built_in">cubic-bezier</span>(<span class="hljs-number">0.2</span>, <span class="hljs-number">0.7</span>, <span class="hljs-number">0.2</span>, <span class="hljs-number">1</span>);
+}
+<span class="hljs-selector-class">.accordion-panel</span><span class="hljs-selector-attr">[data-open=<span class="hljs-string">&quot;true&quot;</span>]</span> {
+  <span class="hljs-attribute">grid-template-rows</span>: <span class="hljs-number">1</span>fr;
+}
+<span class="hljs-selector-class">.accordion-panel</span> &gt; <span class="hljs-selector-tag">div</span> {
+  <span class="hljs-attribute">overflow</span>: hidden;
+}
+</code></pre>
+<p>要点：</p>
+<ul>
+<li>用 <code>grid-template-rows: 0fr → 1fr</code> 代替 <code>max-height</code> 黑魔法</li>
+<li>内容变高时不需要 JS 测量</li>
+</ul>
+<h3 id="模态-抽屉">模态 / 抽屉<a class="anchor" href="#模态-抽屉" aria-label="锚点链接">#</a></h3>
+<p>必须做到：</p>
+<ol>
+<li>打开时焦点移入，关闭时焦点归还触发按钮</li>
+<li><code>Esc</code> 关闭</li>
+<li>背景 <code>inert</code>（不是只有 <code>aria-hidden</code>）</li>
+<li>打开时锁 body 滚动，同时<strong>保留滚动条宽度</strong>避免抖动</li>
+</ol>
+<pre><code class="hljs language-js"><span class="hljs-variable language_">document</span>.<span class="hljs-property">body</span>.<span class="hljs-property">style</span>.<span class="hljs-property">overflow</span> = <span class="hljs-string">&quot;hidden&quot;</span>;
+<span class="hljs-variable language_">document</span>.<span class="hljs-property">body</span>.<span class="hljs-property">style</span>.<span class="hljs-property">paddingRight</span> =
+  innerWidth - <span class="hljs-variable language_">document</span>.<span class="hljs-property">documentElement</span>.<span class="hljs-property">clientWidth</span> + <span class="hljs-string">&quot;px&quot;</span>;
+</code></pre>
+<h3 id="数字滚动dashboard-用">数字滚动（Dashboard 用）<a class="anchor" href="#数字滚动dashboard-用" aria-label="锚点链接">#</a></h3>
+<pre><code class="hljs language-js"><span class="hljs-keyword">function</span> <span class="hljs-title function_">animateNumber</span>(<span class="hljs-params">el, to, duration = <span class="hljs-number">900</span></span>) {
+  <span class="hljs-keyword">const</span> <span class="hljs-keyword">from</span> = <span class="hljs-title class_">Number</span>(el.<span class="hljs-property">dataset</span>.<span class="hljs-property">from</span> || <span class="hljs-number">0</span>);
+  <span class="hljs-keyword">const</span> start = performance.<span class="hljs-title function_">now</span>();
+  <span class="hljs-keyword">function</span> <span class="hljs-title function_">tick</span>(<span class="hljs-params">now</span>) {
+    <span class="hljs-keyword">const</span> t = <span class="hljs-title class_">Math</span>.<span class="hljs-title function_">min</span>(<span class="hljs-number">1</span>, (now - start) / duration);
+    <span class="hljs-keyword">const</span> eased = <span class="hljs-number">1</span> - <span class="hljs-title class_">Math</span>.<span class="hljs-title function_">pow</span>(<span class="hljs-number">1</span> - t, <span class="hljs-number">3</span>);
+    el.<span class="hljs-property">textContent</span> = <span class="hljs-title class_">Math</span>.<span class="hljs-title function_">round</span>(<span class="hljs-keyword">from</span> + (to - <span class="hljs-keyword">from</span>) * eased).<span class="hljs-title function_">toLocaleString</span>();
+    <span class="hljs-keyword">if</span> (t &lt; <span class="hljs-number">1</span>) <span class="hljs-title function_">requestAnimationFrame</span>(tick);
+  }
+  <span class="hljs-title function_">requestAnimationFrame</span>(tick);
+}
+</code></pre>
+<hr>
+<h2 id="五页面-视图过渡page-transitions">五、页面 / 视图过渡（Page Transitions）<a class="anchor" href="#五页面-视图过渡page-transitions" aria-label="锚点链接">#</a></h2>
+<h3 id="同页视图切换tab-路由">同页视图切换（Tab / 路由）<a class="anchor" href="#同页视图切换tab-路由" aria-label="锚点链接">#</a></h3>
+<ul>
+<li><strong>淡入淡出 + 轻微位移</strong>即可，不要做 3D 翻转</li>
+<li>时长 ≤ 300ms，否则导航会变慢</li>
+</ul>
+<pre><code class="hljs language-css"><span class="hljs-selector-class">.view</span> {
+  <span class="hljs-attribute">opacity</span>: <span class="hljs-number">0</span>;
+  <span class="hljs-attribute">transform</span>: <span class="hljs-built_in">translateY</span>(<span class="hljs-number">8px</span>);
+  <span class="hljs-attribute">transition</span>:
+    opacity <span class="hljs-number">0.25s</span> ease,
+    transform <span class="hljs-number">0.25s</span> ease;
+}
+<span class="hljs-selector-class">.view</span><span class="hljs-selector-class">.is-active</span> {
+  <span class="hljs-attribute">opacity</span>: <span class="hljs-number">1</span>;
+  <span class="hljs-attribute">transform</span>: none;
+}
+</code></pre>
+<h3 id="跨页过渡mpa-多页站">跨页过渡（MPA / 多页站）<a class="anchor" href="#跨页过渡mpa-多页站" aria-label="锚点链接">#</a></h3>
+<p>优先用 <strong>View Transitions API</strong>，一行 CSS 就能开 MPA 过渡：</p>
+<pre><code class="hljs language-css"><span class="hljs-keyword">@view-transition</span> {
+  navigation: auto;
+}
+</code></pre>
+<pre><code class="hljs language-js"><span class="hljs-keyword">if</span> (<span class="hljs-variable language_">document</span>.<span class="hljs-property">startViewTransition</span>) {
+  <span class="hljs-variable language_">document</span>.<span class="hljs-title function_">startViewTransition</span>(<span class="hljs-function">() =&gt;</span> {
+    <span class="hljs-comment">/* 更新 DOM 或导航 */</span>
+  });
+}
+</code></pre>
+<blockquote>
+<p>Chrome / Edge / Safari 已支持，Firefox 部分不支持。未支持就<strong>静默降级</strong>为普通跳转，别 polyfill。</p>
+</blockquote>
+<hr>
+<h2 id="六性能守则performance">六、性能守则（Performance）<a class="anchor" href="#六性能守则performance" aria-label="锚点链接">#</a></h2>
+<p><strong>60fps 是底线，不是目标。</strong> 动效掉帧 = 负分。</p>
+<h3 id="只动这四个属性">只动这四个属性<a class="anchor" href="#只动这四个属性" aria-label="锚点链接">#</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">安全（合成器）</th>
+<th style="text-align:left">危险（触发 layout / paint）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>transform</code></td>
+<td style="text-align:left"><code>width</code> / <code>height</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>opacity</code></td>
+<td style="text-align:left"><code>margin</code> / <code>padding</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>filter</code>（谨慎）</td>
+<td style="text-align:left"><code>top</code> / <code>left</code> / <code>right</code> / <code>bottom</code></td>
+</tr>
+<tr>
+<td style="text-align:left"><code>clip-path</code>（谨慎）</td>
+<td style="text-align:left"><code>border-radius</code> / <code>font-size</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>渲染管线：Layout → Paint → Composite。<code>transform</code> / <code>opacity</code> 直接跳过前两步，剩下的交给 GPU。<code>filter</code> 和 <code>clip-path</code> 虽然也算合成器属性，但 <code>blur</code> 这种在低端机上仍然吃力，谨慎使用。</p>
+</blockquote>
+<h3 id="什么时候用-will-change">什么时候用 <code>will-change</code><a class="anchor" href="#什么时候用-will-change" aria-label="锚点链接">#</a></h3>
+<ul>
+<li><strong>只在即将动之前</strong>通过 JS 加上，动完移除</li>
+<li>不要写死在 CSS 里给一堆元素加</li>
+<li>页面性能本来就没问题的话，<strong>别加</strong>。官方原话：<code>will-change</code> 是“最后手段”</li>
+</ul>
+<h3 id="长列表-大量元素">长列表 / 大量元素<a class="anchor" href="#长列表-大量元素" aria-label="锚点链接">#</a></h3>
+<ul>
+<li>动画元素超过 30 个，考虑用 CSS <code>@keyframes</code> + <code>animation-delay</code> 让 GPU 批处理</li>
+<li>大列表 stagger 间隔 ≤ 30ms，再长就感觉迟钝</li>
+<li>用 Intersection Observer 跳过离屏元素</li>
+</ul>
+<h3 id="检查长帧">检查长帧<a class="anchor" href="#检查长帧" aria-label="锚点链接">#</a></h3>
+<pre><code class="hljs language-js"><span class="hljs-keyword">new</span> <span class="hljs-title class_">PerformanceObserver</span>(<span class="hljs-function">(<span class="hljs-params">list</span>) =&gt;</span> {
+  <span class="hljs-keyword">for</span> (<span class="hljs-keyword">const</span> entry <span class="hljs-keyword">of</span> list.<span class="hljs-title function_">getEntries</span>()) {
+    <span class="hljs-keyword">if</span> (entry.<span class="hljs-property">duration</span> &gt; <span class="hljs-number">50</span>) <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">warn</span>(<span class="hljs-string">&quot;Long frame:&quot;</span>, entry.<span class="hljs-property">duration</span>);
+  }
+}).<span class="hljs-title function_">observe</span>({ <span class="hljs-attr">type</span>: <span class="hljs-string">&quot;long-animation-frame&quot;</span>, <span class="hljs-attr">buffered</span>: <span class="hljs-literal">true</span> });
+</code></pre>
+<hr>
+<h2 id="七可访问性accessibility-不可跳过">七、可访问性（Accessibility）—— <strong>不可跳过</strong><a class="anchor" href="#七可访问性accessibility-不可跳过" aria-label="锚点链接">#</a></h2>
+<h3 id="必须尊重-prefers-reduced-motion">必须尊重 <code>prefers-reduced-motion</code><a class="anchor" href="#必须尊重-prefers-reduced-motion" aria-label="锚点链接">#</a></h3>
+<pre><code class="hljs language-css"><span class="hljs-keyword">@media</span> (<span class="hljs-attribute">prefers-reduced-motion</span>: reduce) {
+  *,
+  *<span class="hljs-selector-pseudo">::before</span>,
+  *<span class="hljs-selector-pseudo">::after</span> {
+    <span class="hljs-attribute">animation-duration</span>: <span class="hljs-number">0.01ms</span> <span class="hljs-meta">!important</span>;
+    <span class="hljs-attribute">animation-iteration-count</span>: <span class="hljs-number">1</span> <span class="hljs-meta">!important</span>;
+    <span class="hljs-attribute">transition-duration</span>: <span class="hljs-number">0.01ms</span> <span class="hljs-meta">!important</span>;
+    <span class="hljs-attribute">scroll-behavior</span>: auto <span class="hljs-meta">!important</span>;
+  }
+}
+</code></pre>
+<blockquote>
+<p>不是所有动效都得删——<strong>保留功能，移除运动</strong>：</p>
+<ul>
+<li>视差 → 静态布局</li>
+<li>滑动进入 → 交叉淡入</li>
+<li>大幅移动 → 仅透明度变化</li>
+</ul>
+</blockquote>
+<h3 id="焦点管理">焦点管理<a class="anchor" href="#焦点管理" aria-label="锚点链接">#</a></h3>
+<ul>
+<li>任何打开 / 关闭的浮层，都要移焦点</li>
+<li>Tab 顺序必须符合视觉顺序</li>
+<li><code>:focus-visible</code> 不能被 <code>outline: none</code> 干掉</li>
+</ul>
+<h3 id="键盘支持">键盘支持<a class="anchor" href="#键盘支持" aria-label="锚点链接">#</a></h3>
+<ul>
+<li>所有交互必须有键盘等价：hover 有的反馈，<code>focus-visible</code> 也要有</li>
+<li>自定义组件（下拉、标签页）用 <code>role</code> + 方向键导航</li>
+</ul>
+<h3 id="动效不是唯一信息通道">动效不是唯一信息通道<a class="anchor" href="#动效不是唯一信息通道" aria-label="锚点链接">#</a></h3>
+<ul>
+<li>状态变化不能只靠颜色或抖动</li>
+<li>加载中要有文字 / 图标，不只是一个转圈</li>
+</ul>
+<hr>
+<h2 id="八时长与缓动速查">八、时长与缓动速查<a class="anchor" href="#八时长与缓动速查" aria-label="锚点链接">#</a></h2>
+<h3 id="时长">时长<a class="anchor" href="#时长" aria-label="锚点链接">#</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">元素</th>
+<th style="text-align:left">时长</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">Tooltip / 微反馈</td>
+<td style="text-align:left">80–120ms</td>
+</tr>
+<tr>
+<td style="text-align:left">按钮 / 开关</td>
+<td style="text-align:left">120–180ms</td>
+</tr>
+<tr>
+<td style="text-align:left">卡片进入 / 退出</td>
+<td style="text-align:left">200–350ms</td>
+</tr>
+<tr>
+<td style="text-align:left">模态框 / 对话框</td>
+<td style="text-align:left">300–400ms</td>
+</tr>
+<tr>
+<td style="text-align:left">页面过渡</td>
+<td style="text-align:left">400–600ms</td>
+</tr>
+<tr>
+<td style="text-align:left">戏剧性揭示</td>
+<td style="text-align:left">600–1200ms</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>退出动画时长为进入的 <strong>65–75%</strong>，太快会显得被“掐断”。</p>
+</blockquote>
+<h3 id="缓动方向">缓动方向<a class="anchor" href="#缓动方向" aria-label="锚点链接">#</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">场景</th>
+<th style="text-align:left">缓动</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">进入</td>
+<td style="text-align:left"><code>ease-out</code></td>
+</tr>
+<tr>
+<td style="text-align:left">退出</td>
+<td style="text-align:left"><code>ease-in</code></td>
+</tr>
+<tr>
+<td style="text-align:left">屏上移动</td>
+<td style="text-align:left"><code>ease-in-out</code></td>
+</tr>
+<tr>
+<td style="text-align:left">循环</td>
+<td style="text-align:left"><code>sine</code></td>
+</tr>
+<tr>
+<td style="text-align:left">旋转 / 进度</td>
+<td style="text-align:left"><code>linear</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="常用-cubic-bezier">常用 cubic-bezier<a class="anchor" href="#常用-cubic-bezier" aria-label="锚点链接">#</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">名称</th>
+<th style="text-align:left">值</th>
+<th style="text-align:left">用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">MD3 Standard</td>
+<td style="text-align:left"><code>(0.2, 0, 0, 1)</code></td>
+<td style="text-align:left">默认屏上动画</td>
+</tr>
+<tr>
+<td style="text-align:left">MD3 Emphasized</td>
+<td style="text-align:left"><code>(0.05, 0.7, 0.1, 1)</code></td>
+<td style="text-align:left">进入动画</td>
+</tr>
+<tr>
+<td style="text-align:left">Gentle float</td>
+<td style="text-align:left"><code>(0.4, 0, 0.2, 1)</code></td>
+<td style="text-align:left">氛围动画</td>
+</tr>
+<tr>
+<td style="text-align:left">Bounce settle</td>
+<td style="text-align:left"><code>(0.175, 0.885, 0.32, 1.275)</code></td>
+<td style="text-align:left">俏皮风格</td>
+</tr>
+<tr>
+<td style="text-align:left">Elastic snap</td>
+<td style="text-align:left"><code>(0.68, -0.55, 0.265, 1.55)</code></td>
+<td style="text-align:left">戏剧性</td>
+</tr>
+</tbody>
+</table>
+<h3 id="按风格调时长">按风格调时长<a class="anchor" href="#按风格调时长" aria-label="锚点链接">#</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">风格</th>
+<th style="text-align:left">快</th>
+<th style="text-align:left">标准</th>
+<th style="text-align:left">慢</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">俏皮</td>
+<td style="text-align:left">150ms</td>
+<td style="text-align:left">250ms</td>
+<td style="text-align:left">400ms</td>
+</tr>
+<tr>
+<td style="text-align:left">高端</td>
+<td style="text-align:left">350ms</td>
+<td style="text-align:left">500ms</td>
+<td style="text-align:left">800ms</td>
+</tr>
+<tr>
+<td style="text-align:left">企业</td>
+<td style="text-align:left">200ms</td>
+<td style="text-align:left">300ms</td>
+<td style="text-align:left">450ms</td>
+</tr>
+<tr>
+<td style="text-align:left">活力</td>
+<td style="text-align:left">100ms</td>
+<td style="text-align:left">180ms</td>
+<td style="text-align:left">300ms</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="九dark-mode-动效">九、Dark Mode 动效<a class="anchor" href="#九dark-mode-动效" aria-label="锚点链接">#</a></h2>
+<ul>
+<li>主题切换 ≤ 200ms，超过 300ms 像页面在重新加载</li>
+<li>颜色沿<strong>感知路径</strong>过渡（保色相、只过渡亮度），别走 RGB 直线——中间态会发浑</li>
+<li>交互状态用<strong>非对称时序</strong>：进入快（80–120ms）显得灵敏，退出稍慢（200–300ms）显得稳</li>
+<li>深色下阴影线索失效，用背景色调抬升代替阴影（如 <code>#0a0a0a</code> 底 / <code>#111</code> 抬升）</li>
+<li>颜色用 <code>oklch()</code> 定义，感知均匀、支持 P3，现代浏览器都有</li>
+</ul>
+<hr>
+<h2 id="十反模式anti-patterns">十、反模式（Anti-Patterns）<a class="anchor" href="#十反模式anti-patterns" aria-label="锚点链接">#</a></h2>
+<p>禁止：</p>
+<ol>
+<li><strong>视差劫持滚动</strong>——用户想把页面滚到底，你偏不让他滚</li>
+<li><strong>每个元素都做悬浮位移</strong>——整页像得了帕金森</li>
+<li><strong>超长进入动画</strong>（&gt;800ms）——用户在等你看动画</li>
+<li><strong>鼠标移动跟随元素跑</strong>——变成鼠标玩具而不是内容</li>
+<li><strong>无限循环装饰动画</strong>（背景光斑、粒子）——耗电、分散注意力，Dashboard 直接禁</li>
+<li><strong><code>onmouseover</code> 里改 <code>style.width</code></strong>——layout thrash</li>
+<li><strong>用 Emoji 或 GIF 当加载动画</strong>——用 CSS spinner 或 SVG</li>
+<li><strong>页面加载时整屏遮罩动画</strong>——用户第二次访问会烦</li>
+<li><strong>点击后延迟 500ms 再响应</strong>——交互反馈必须 ≤ 100ms</li>
+<li><strong><code>will-change</code> 写死在 CSS</strong>——应动态开关，不是常驻</li>
+<li><strong>大量元素同时用 spring 物理动画</strong>——弹簧是 CPU 密集型，超过 10 个改按时长 + <code>easeOut</code></li>
+</ol>
+<hr>
+<h2 id="十一动效强度参考">十一、动效强度参考<a class="anchor" href="#十一动效强度参考" aria-label="锚点链接">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">页面类型</th>
+<th style="text-align:left">进入</th>
+<th style="text-align:left">悬停</th>
+<th style="text-align:left">滚动</th>
+<th style="text-align:left">页面过渡</th>
+<th style="text-align:left">光标</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">品牌落地页</td>
+<td style="text-align:left">明显</td>
+<td style="text-align:left">有</td>
+<td style="text-align:left">视差 / 粘性叙述</td>
+<td style="text-align:left">有</td>
+<td style="text-align:left">可</td>
+</tr>
+<tr>
+<td style="text-align:left">产品官网</td>
+<td style="text-align:left">轻</td>
+<td style="text-align:left">有</td>
+<td style="text-align:left">进度条</td>
+<td style="text-align:left">轻</td>
+<td style="text-align:left">否</td>
+</tr>
+<tr>
+<td style="text-align:left">SaaS 后台</td>
+<td style="text-align:left">极轻</td>
+<td style="text-align:left">有</td>
+<td style="text-align:left">无</td>
+<td style="text-align:left">无</td>
+<td style="text-align:left">否</td>
+</tr>
+<tr>
+<td style="text-align:left">文档站</td>
+<td style="text-align:left">无</td>
+<td style="text-align:left">有</td>
+<td style="text-align:left">章节高亮</td>
+<td style="text-align:left">无</td>
+<td style="text-align:left">否</td>
+</tr>
+<tr>
+<td style="text-align:left">电商</td>
+<td style="text-align:left">轻</td>
+<td style="text-align:left">有（图片放大）</td>
+<td style="text-align:left">无</td>
+<td style="text-align:left">有（加入购物车）</td>
+<td style="text-align:left">否</td>
+</tr>
+<tr>
+<td style="text-align:left">艺术 / 展览</td>
+<td style="text-align:left">明显</td>
+<td style="text-align:left">有</td>
+<td style="text-align:left">视差</td>
+<td style="text-align:left">有</td>
+<td style="text-align:left">可</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="十二代码片段速查">十二、代码片段速查<a class="anchor" href="#十二代码片段速查" aria-label="锚点链接">#</a></h2>
+<h3 id="缓动令牌">缓动令牌<a class="anchor" href="#缓动令牌" aria-label="锚点链接">#</a></h3>
+<pre><code class="hljs language-css"><span class="hljs-selector-pseudo">:root</span> {
+  <span class="hljs-attr">--ease-out</span>: <span class="hljs-built_in">cubic-bezier</span>(<span class="hljs-number">0.2</span>, <span class="hljs-number">0.7</span>, <span class="hljs-number">0.2</span>, <span class="hljs-number">1</span>);
+  <span class="hljs-attr">--ease-in-out</span>: <span class="hljs-built_in">cubic-bezier</span>(<span class="hljs-number">0.6</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0.2</span>, <span class="hljs-number">1</span>);
+  <span class="hljs-attr">--ease-spring</span>: <span class="hljs-built_in">cubic-bezier</span>(<span class="hljs-number">0.175</span>, <span class="hljs-number">0.885</span>, <span class="hljs-number">0.32</span>, <span class="hljs-number">1.275</span>);
+  <span class="hljs-attr">--dur-fast</span>: <span class="hljs-number">150ms</span>;
+  <span class="hljs-attr">--dur-base</span>: <span class="hljs-number">300ms</span>;
+  <span class="hljs-attr">--dur-slow</span>: <span class="hljs-number">600ms</span>;
+}
+</code></pre>
+<h3 id="尊重-reduced-motion">尊重 reduced-motion<a class="anchor" href="#尊重-reduced-motion" aria-label="锚点链接">#</a></h3>
+<pre><code class="hljs language-js"><span class="hljs-keyword">const</span> prefersReduced = <span class="hljs-title function_">matchMedia</span>(<span class="hljs-string">&quot;(prefers-reduced-motion: reduce)&quot;</span>);
+<span class="hljs-keyword">if</span> (!prefersReduced.<span class="hljs-property">matches</span>) {
+  <span class="hljs-comment">// 只在允许动效时初始化</span>
+}
+</code></pre>
+<h3 id="阻尼跟随工具">阻尼跟随工具<a class="anchor" href="#阻尼跟随工具" aria-label="锚点链接">#</a></h3>
+<pre><code class="hljs language-js"><span class="hljs-keyword">export</span> <span class="hljs-keyword">function</span> <span class="hljs-title function_">follow</span>(<span class="hljs-params">target, { damping = <span class="hljs-number">0.12</span> } = {}</span>) {
+  <span class="hljs-keyword">let</span> x = <span class="hljs-number">0</span>,
+    y = <span class="hljs-number">0</span>,
+    tx = <span class="hljs-number">0</span>,
+    ty = <span class="hljs-number">0</span>,
+    raf;
+  <span class="hljs-keyword">const</span> <span class="hljs-title function_">onMove</span> = (<span class="hljs-params">e</span>) =&gt; {
+    tx = e.<span class="hljs-property">clientX</span>;
+    ty = e.<span class="hljs-property">clientY</span>;
+  };
+  <span class="hljs-keyword">const</span> <span class="hljs-title function_">loop</span> = (<span class="hljs-params"></span>) =&gt; {
+    x += (tx - x) * damping;
+    y += (ty - y) * damping;
+    target.<span class="hljs-property">style</span>.<span class="hljs-property">transform</span> = <span class="hljs-string">`translate3d(<span class="hljs-subst">${x}</span>px, <span class="hljs-subst">${y}</span>px, 0)`</span>;
+    raf = <span class="hljs-title function_">requestAnimationFrame</span>(loop);
+  };
+  <span class="hljs-keyword">return</span> {
+    <span class="hljs-title function_">start</span>(<span class="hljs-params"></span>) {
+      <span class="hljs-title function_">addEventListener</span>(<span class="hljs-string">&quot;pointermove&quot;</span>, onMove);
+      <span class="hljs-title function_">loop</span>();
+    },
+    <span class="hljs-title function_">stop</span>(<span class="hljs-params"></span>) {
+      <span class="hljs-title function_">removeEventListener</span>(<span class="hljs-string">&quot;pointermove&quot;</span>, onMove);
+      <span class="hljs-title function_">cancelAnimationFrame</span>(raf);
+    },
+  };
+}
+</code></pre>
+<h3 id="移动端关动效">移动端关动效<a class="anchor" href="#移动端关动效" aria-label="锚点链接">#</a></h3>
+<pre><code class="hljs language-js"><span class="hljs-keyword">if</span> (<span class="hljs-title function_">matchMedia</span>(<span class="hljs-string">&quot;(hover: none)&quot;</span>).<span class="hljs-property">matches</span>) {
+  <span class="hljs-variable language_">document</span>.<span class="hljs-property">documentElement</span>.<span class="hljs-property">classList</span>.<span class="hljs-title function_">add</span>(<span class="hljs-string">&quot;no-motion&quot;</span>);
+}
+</code></pre>
+<pre><code class="hljs language-css"><span class="hljs-selector-class">.no-motion</span> <span class="hljs-selector-class">.cursor-glow</span>,
+<span class="hljs-selector-class">.no-motion</span> <span class="hljs-selector-class">.parallax</span> {
+  <span class="hljs-attribute">display</span>: none;
+}
+</code></pre>
+<h3 id="gsap-reduced-motion">GSAP + reduced-motion<a class="anchor" href="#gsap-reduced-motion" aria-label="锚点链接">#</a></h3>
+<pre><code class="hljs language-js"><span class="hljs-keyword">const</span> mm = gsap.<span class="hljs-title function_">matchMedia</span>();
+mm.<span class="hljs-title function_">add</span>(<span class="hljs-string">&quot;(prefers-reduced-motion: no-preference)&quot;</span>, <span class="hljs-function">() =&gt;</span> {
+  <span class="hljs-comment">// 所有 ScrollTrigger / timeline 代码放这</span>
+  <span class="hljs-comment">// 偏好变更时自动回滚</span>
+});
+</code></pre>
+<hr>
+<h2 id="十三兼容性速查">十三、兼容性速查<a class="anchor" href="#十三兼容性速查" aria-label="锚点链接">#</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">特性</th>
+<th style="text-align:left">Chrome/Edge</th>
+<th style="text-align:left">Firefox</th>
+<th style="text-align:left">Safari</th>
+<th style="text-align:left">降级</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><code>prefers-reduced-motion</code></td>
+<td style="text-align:left">✅</td>
+<td style="text-align:left">✅</td>
+<td style="text-align:left">✅</td>
+<td style="text-align:left">—</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>animation-timeline</code></td>
+<td style="text-align:left">✅</td>
+<td style="text-align:left">✅ 144+</td>
+<td style="text-align:left">⚠️ Polyfill</td>
+<td style="text-align:left">IntersectionObserver</td>
+</tr>
+<tr>
+<td style="text-align:left">View Transitions（SPA）</td>
+<td style="text-align:left">✅</td>
+<td style="text-align:left">✅ 133+</td>
+<td style="text-align:left">✅</td>
+<td style="text-align:left">普通跳转</td>
+</tr>
+<tr>
+<td style="text-align:left">View Transitions（MPA）</td>
+<td style="text-align:left">✅ 126+</td>
+<td style="text-align:left">❌</td>
+<td style="text-align:left">✅ 18.2+</td>
+<td style="text-align:left">普通导航</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>interpolate-size</code></td>
+<td style="text-align:left">✅ 129+</td>
+<td style="text-align:left">❌</td>
+<td style="text-align:left">❌</td>
+<td style="text-align:left"><code>max-height</code> 方案</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>@starting-style</code></td>
+<td style="text-align:left">✅</td>
+<td style="text-align:left">✅</td>
+<td style="text-align:left">✅</td>
+<td style="text-align:left">JS 类切换</td>
+</tr>
+<tr>
+<td style="text-align:left"><code>oklch()</code> 颜色</td>
+<td style="text-align:left">✅</td>
+<td style="text-align:left">✅</td>
+<td style="text-align:left">✅</td>
+<td style="text-align:left"><code>hsl()</code></td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="最终检查">最终检查<a class="anchor" href="#最终检查" aria-label="锚点链接">#</a></h2>
+<ul class="contains-task-list">
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"type="checkbox" id="task-item-1"><label class="task-list-item-label" for="task-item-1"> 动效时长 ≤ 700ms（进入）/ ≤ 300ms（反馈）？</label></li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"type="checkbox" id="task-item-2"> <code>prefers-reduced-motion</code><label class="task-list-item-label" for="task-item-2"> `prefers-reduced-motion` 下退化为静态（保留功能，移除运动）？</label></li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"type="checkbox" id="task-item-3"> 只动 <code>transform</code> / <code>opacity</code><label class="task-list-item-label" for="task-item-3"> 只动 `transform` / `opacity`？</label></li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"type="checkbox" id="task-item-4"> <code>:focus-visible</code><label class="task-list-item-label" for="task-item-4"> `:focus-visible` 样式可见且对比度足够？</label></li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"type="checkbox" id="task-item-5"><label class="task-list-item-label" for="task-item-5"> 所有键盘交互可用？</label></li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"type="checkbox" id="task-item-6"> 模态 / 抽屉管理了焦点、<code>Esc</code><label class="task-list-item-label" for="task-item-6"> 模态 / 抽屉管理了焦点、`Esc`、body 滚动条？</label></li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"type="checkbox" id="task-item-7"><label class="task-list-item-label" for="task-item-7"> 移动端关掉了光标跟随和视差？</label></li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"type="checkbox" id="task-item-8"><label class="task-list-item-label" for="task-item-8"> 没有劫持滚轮？</label></li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"type="checkbox" id="task-item-9"><label class="task-list-item-label" for="task-item-9"> 没有无限循环背景装饰（Dashboard 场景）？</label></li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"type="checkbox" id="task-item-10"><label class="task-list-item-label" for="task-item-10"> 加载 / 错误 / 禁用状态都有视觉表达？</label></li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"type="checkbox" id="task-item-11"><label class="task-list-item-label" for="task-item-11"> 悬停位移 ≤ 4px，不廉价？</label></li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"type="checkbox" id="task-item-12"> <code>will-change</code><label class="task-list-item-label" for="task-item-12"> `will-change` 只在动画前后动态开关？</label></li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"type="checkbox" id="task-item-13"><label class="task-list-item-label" for="task-item-13"> 大量元素（>20）只对视口内元素动画？</label></li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"type="checkbox" id="task-item-14"> 滚动动画优先用 CSS <code>animation-timeline</code><label class="task-list-item-label" for="task-item-14"> 滚动动画优先用 CSS `animation-timeline` 而非 JS 监听？</label></li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"type="checkbox" id="task-item-15"><label class="task-list-item-label" for="task-item-15"> 主题切换 ≤ 200ms，且沿感知路径过渡？</label></li>
+<li class="task-list-item enabled"><input class="task-list-item-checkbox"type="checkbox" id="task-item-16"> 页面<strong>感觉回应人</strong><label class="task-list-item-label" for="task-item-16"> 页面**感觉回应人**，而不是在自顾自表演？</label></li>
+</ul>
+<blockquote>
+<p>记住一句话：<strong>动效是服务员，不是主角。</strong> 用户来是为了内容，动效只是让内容递得更舒服。</p>
+</blockquote>
+<pre><code class="hljs">
+---
+
+改动说明：把上一版的长引用、学术化段落、密集来源标注全部砍掉，回到 `better-theme` 那种**短句 + 要点 + 表格 + 代码**的密度。新内容（缓动表、Dark Mode、兼容性、`will-change` 警告）都塞进了原有章节结构里，没有单独开一堆“参考”章节。语气也拉回了原来那个有点嘴碎、偶尔吐槽、不装的状态。
+</code></pre>

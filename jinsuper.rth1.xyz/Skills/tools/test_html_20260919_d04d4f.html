@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="../../favicon.svg">
+<link rel="apple-touch-icon" href="../../apple-touch-icon.svg">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>单摆计算器 · T 和 l，你填一个就行</title>
+<style>
+  :root {
+    --bg:        #F5EFE6;
+    --bg-deep:   #EFE8DC;
+    --paper:     #FBF7F1;
+    --ink:       #2A2320;
+    --ink-2:     #6B5D53;
+    --line:      #DCD0BF;
+    --line-soft: #E8DECE;
+    --accent:    #D97757;
+    --accent-dp: #C25E3E;
+    --olive:     #6E7A4F;
+    --danger:    #B23A2E;
+
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+            "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua",
+             Georgia, "Songti SC", "STSong", serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: var(--sans);
+    color: var(--ink);
+    background-color: var(--bg);
+    background-image:
+      radial-gradient(90% 60% at 15% 0%, rgba(217,119,87,.055), transparent 62%),
+      radial-gradient(70% 50% at 100% 100%, rgba(110,122,79,.06), transparent 60%);
+    background-attachment: fixed;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* 噪点层：让大面积底色不至于死平 */
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+    opacity: .14;
+    mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 180px 180px;
+  }
+
+  .wrap {
+    width: 100%;
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 28px 84px;
+  }
+
+  /* ---------- 顶栏 ---------- */
+  .bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 18px 0 16px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 56px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14.5px;
+    font-weight: 600;
+    letter-spacing: .01em;
+  }
+
+  .brand-mark {
+    width: 22px;
+    height: 22px;
+    color: var(--accent-dp);
+    flex: none;
+  }
+
+  .bar-formula {
+    font-family: var(--serif);
+    font-size: 15px;
+    color: var(--ink-2);
+    letter-spacing: .02em;
+    white-space: nowrap;
+  }
+
+  /* ---------- 主栅格：左右不等宽 ---------- */
+  .wrap main {
+    display: grid;
+    grid-template-columns: minmax(0, 0.82fr) minmax(0, 1fr);
+    gap: 60px;
+    align-items: start;
+  }
+
+  /* ---------- 左栏 ---------- */
+  .eyebrow {
+    margin: 0 0 18px;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--olive);
+  }
+
+  h1 {
+    margin: 0 0 20px;
+    font-size: clamp(32px, 4.4vw, 48px);
+    line-height: 1.08;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+  }
+
+  .lede {
+    margin: 0;
+    max-width: 34ch;
+    font-size: 16px;
+    line-height: 1.72;
+    color: var(--ink-2);
+  }
+
+  .formula-card {
+    margin-top: 38px;
+    padding: 20px 22px 18px;
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    border-radius: 3px;
+    background: rgba(255, 255, 255, .48);
+  }
+
+  .f-tag {
+    display: block;
+    margin-bottom: 10px;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+  }
+
+  .f-main {
+    font-family: var(--serif);
+    font-size: 25px;
+    line-height: 1.2;
+    color: var(--ink);
+    letter-spacing: .01em;
+  }
+
+  .f-note {
+    margin: 12px 0 0;
+    font-size: 12.5px;
+    line-height: 1.65;
+    color: var(--ink-2);
+  }
+
+  /* ---------- 右栏：工作台 ---------- */
+  .workbench {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--paper);
+    overflow: hidden;
+    box-shadow: 0 1px 0 rgba(255,255,255,.9) inset,
+                0 14px 34px -22px rgba(42,35,32,.42);
+  }
+
+  /* 摆的舞台 */
+  .stage {
+    position: relative;
+    border-bottom: 1px solid var(--line-soft);
+    background-color: var(--bg-deep);
+    background-image: radial-gradient(circle, rgba(42,35,32,.075) 1px, transparent 1.3px);
+    background-size: 15px 15px;
+    overflow: hidden;
+  }
+
+  .stage::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(115% 78% at 50% -6%, rgba(217,119,87,.12), transparent 62%);
+  }
+
+  .pendulum {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 214px;
+  }
+
+  /* 输入区 */
+  .inputs {
+    padding: 22px 24px 18px;
+  }
+
+  .field {
+    display: grid;
+    grid-template-columns: 104px minmax(0, 1fr);
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 12px;
+  }
+
+  .field:last-of-type { margin-bottom: 0; }
+
+  .field label {
+    font-size: 13.5px;
+    color: var(--ink-2);
+    letter-spacing: .01em;
+  }
+
+  .input-shell {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: #fff;
+    transition: border-color .16s ease, box-shadow .16s ease, background-color .16s ease;
+  }
+
+  .input-shell:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(217,119,87,.16);
+  }
+
+  /* 自动算出来的那一格 */
+  .input-shell.is-auto {
+    background: rgba(217,119,87,.075);
+    border-color: rgba(194,94,62,.42);
+  }
+
+  .input-shell input {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 9px 6px 9px 12px;
+    font-family: inherit;
+    font-size: 15.5px;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+    background: transparent;
+    border: 0;
+    outline: 0;
+  }
+
+  .input-shell input::placeholder {
+    color: #B3A79A;
+    font-size: 13.5px;
+  }
+
+  .input-shell .unit {
+    flex: none;
+    padding: 0 12px 0 4px;
+    font-size: 12px;
+    color: var(--ink-2);
+    white-space: nowrap;
+  }
+
+  /* 去掉数字框的小箭头 */
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] { -moz-appearance: textfield; }
+
+  .actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line-soft);
+  }
+
+  .msg {
+    margin: 0;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--danger);
+  }
+
+  .btn {
+    flex: none;
+    padding: 8px 17px;
+    font-family: inherit;
+    font-size: 13.5px;
+    color: var(--bg);
+    background: var(--ink);
+    border: 1px solid var(--ink);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: opacity .16s ease;
+  }
+
+  .btn:hover  { opacity: .8; }
+  .btn:active { opacity: .68; }
+
+  /* 读数区 */
+  .readout {
+    padding: 20px 24px 24px;
+    border-top: 1px solid var(--line-soft);
+    background: linear-gradient(180deg, rgba(217,119,87,.05), rgba(217,119,87,0));
+  }
+
+  .ro-label {
+    margin-bottom: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--olive);
+  }
+
+  .ro-value {
+    display: flex;
+    align-items: baseline;
+    gap: 9px;
+    font-size: clamp(30px, 5.6vw, 42px);
+    font-weight: 650;
+    line-height: 1.08;
+    letter-spacing: -0.025em;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+    word-break: break-all;
+  }
+
+  .ro-unit {
+    font-size: 15px;
+    font-weight: 500;
+    letter-spacing: 0;
+    color: var(--ink-2);
+  }
+
+  .ro-src {
+    margin-top: 10px;
+    font-size: 12.5px;
+    color: var(--ink-2);
+    min-height: 1.2em;
+  }
+
+  /* ---------- 响应式 ---------- */
+  @media (max-width: 880px) {
+    .wrap main { grid-template-columns: 1fr; gap: 44px; }
+    .bar { margin-bottom: 40px; }
+    .lede { max-width: 46ch; }
+  }
+
+  @media (max-width: 480px) {
+    .wrap { padding: 0 18px 64px; }
+    .bar { flex-wrap: wrap; gap: 8px; }
+    .bar-formula { font-size: 13.5px; }
+    .field { grid-template-columns: 1fr; gap: 6px; }
+    .inputs { padding: 18px 18px 16px; }
+    .readout { padding: 18px 18px 20px; }
+    .actions { flex-wrap: wrap; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header class="bar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M4 4.6h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+        <path d="M12 4.6 7.6 17.2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+        <circle cx="7.6" cy="17.2" r="2.9" fill="currentColor"/>
+      </svg>
+      <span>单摆计算器</span>
+    </div>
+    <div class="bar-formula">T = 2π √( l / g )</div>
+  </header>
+
+  <main>
+
+    <!-- 左栏 -->
+    <section class="col-left">
+      <p class="eyebrow">Physics · 小角度近似</p>
+
+      <h1>摆多长，<br>晃多久？</h1>
+
+      <p class="lede">
+        丢一个数字进来——周期 T 或者摆长 l，另一个我立刻替你算出来。
+        重力加速度默认 9.8 m/s²，打算去月球上做实验的话，自己动手改。
+      </p>
+
+      <div class="formula-card">
+        <span class="f-tag">公式</span>
+        <div class="f-main">T = 2π √( l / g )</div>
+        <p class="f-note">
+          只在摆角小于 5° 左右时成立。再大一点，这个公式就开始糊弄你了——
+          真实周期会比它长。
+        </p>
+      </div>
+    </section>
+
+    <!-- 右栏 -->
+    <section class="col-right">
+      <div class="workbench">
+
+        <div class="stage">
+          <svg class="pendulum" viewBox="0 0 400 170" role="img"
+               aria-label="单摆示意图：摆球随摆长变化而升降">
+            <defs>
+              <linearGradient id="bobGrad" x1="0" y1="0" x2="0.3" y2="1">
+                <stop offset="0" stop-color="#E89478"/>
+                <stop offset="1" stop-color="#C25E3E"/>
+              </linearGradient>
+            </defs>
+
+            <!-- 摆动弧线 -->
+            <path id="arc" d="" fill="none" stroke="#C9BCA9"
+                  stroke-width="1.2" stroke-dasharray="3 4"/>
+
+            <!-- 横梁 -->
+            <line x1="138" y1="16" x2="262" y2="16" stroke="#C9BCA9"
+                  stroke-width="2.4" stroke-linecap="round"/>
+
+            <!-- 摆线 -->
+            <line id="cord" x1="200" y1="16" x2="200" y2="100"
+                  stroke="#2A2320" stroke-width="1.4" stroke-linecap="round"/>
+
+            <!-- 支点 -->
+            <circle cx="200" cy="16" r="3.6" fill="#2A2320"/>
+
+            <!-- 摆球 -->
+            <circle id="bob" cx="200" cy="100" r="9.5" fill="url(#bobGrad)"/>
+          </svg>
+        </div>
+
+        <div class="inputs">
+          <div class="field">
+            <label for="g">重力加速度 g</label>
+            <div class="input-shell" id="gShell">
+              <input id="g" type="number" step="any" value="9.8"
+                     inputmode="decimal" autocomplete="off" spellcheck="false">
+              <span class="unit">m/s²</span>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="T">周期 T</label>
+            <div class="input-shell" id="TShell">
+              <input id="T" type="number" step="any" placeholder="填这里，求摆长"
+                     inputmode="decimal" autocomplete="off" spellcheck="false">
+              <span class="unit">s</span>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="l">摆长 l</label>
+            <div class="input-shell" id="lShell">
+              <input id="l" type="number" step="any" placeholder="填这里，求周期"
+                     inputmode="decimal" autocomplete="off" spellcheck="false">
+              <span class="unit">m</span>
+            </div>
+          </div>
+
+          <div class="actions">
+            <p class="msg" id="msg"></p>
+            <button class="btn" id="reset" type="button">重置</button>
+          </div>
+        </div>
+
+        <div class="readout">
+          <div class="ro-label" id="outLabel">等待输入</div>
+          <div class="ro-value">
+            <span id="outVal">—</span>
+            <span class="ro-unit" id="outUnit"></span>
+          </div>
+          <div class="ro-src" id="outSrc"></div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  var els = {
+    g: $("g"), T: $("T"), l: $("l"),
+    gShell: $("gShell"), TShell: $("TShell"), lShell: $("lShell"),
+    outLabel: $("outLabel"), outVal: $("outVal"),
+    outUnit: $("outUnit"), outSrc: $("outSrc"),
+    msg: $("msg"),
+    cord: $("cord"), bob: $("bob"), arc: $("arc")
+  };
+
+  /* 最后被手动编辑的输入框：'T' 或 'l' —— 决定计算方向 */
+  var source = "T";
+
+  var PIVOT_X = 200, PIVOT_Y = 16;
+  var R_MIN = 54, R_SPAN = 84;
+  var BOB_ANGLE = 25 * Math.PI / 180;   // 摆球偏角（仅为视觉）
+  var ARC_ANGLE = 34 * Math.PI / 180;   // 虚线弧张角
+
+  /* 把米映射成像素长度：非线性压缩，保证 0.1m ~ 10m 都画得下 */
+  function cordPx(meters) {
+    return R_MIN + R_SPAN * (meters / (meters + 1.2));
+  }
+
+  /* 6 位有效数字，去掉多余的 0 */
+  function fmt(x) {
+    if (!isFinite(x)) return "";
+    return String(parseFloat(x.toPrecision(6)));
+  }
+
+  function num(el) {
+    var v = el.value.trim();
+    if (v === "") return null;
+    var n = Number(v);
+    return isFinite(n) ? n : null;
+  }
+
+  function setMsg(t) { els.msg.textContent = t || ""; }
+
+  function markAuto(which) {
+    els.TShell.classList.toggle("is-auto", which === "T");
+    els.lShell.classList.toggle("is-auto", which === "l");
+  }
+
+  function clearReadout() {
+    els.outLabel.textContent = "等待输入";
+    els.outVal.textContent = "—";
+    els.outUnit.textContent = "";
+    els.outSrc.textContent = "";
+  }
+
+  /* 重画单摆：摆长变了，绳子和球跟着升降 */
+  function drawPendulum(meters) {
+    var px = cordPx(Math.max(meters, 0.03));
+
+    var bx = PIVOT_X + px * Math.sin(BOB_ANGLE);
+    var by = PIVOT_Y + px * Math.cos(BOB_ANGLE);
+    els.cord.setAttribute("x2", bx.toFixed(2));
+    els.cord.setAttribute("y2", by.toFixed(2));
+    els.bob.setAttribute("cx", bx.toFixed(2));
+    els.bob.setAttribute("cy", by.toFixed(2));
+
+    var x1 = PIVOT_X - px * Math.sin(ARC_ANGLE);
+    var y1 = PIVOT_Y + px * Math.cos(ARC_ANGLE);
+    var x2 = PIVOT_X + px * Math.sin(ARC_ANGLE);
+    var y2 = PIVOT_Y + px * Math.cos(ARC_ANGLE);
+    els.arc.setAttribute("d",
+      "M " + x1.toFixed(2) + " " + y1.toFixed(2) +
+      " A " + px.toFixed(2) + " " + px.toFixed(2) +
+      " 0 0 1 " + x2.toFixed(2) + " " + y2.toFixed(2));
+  }
+
+  function resetView() {
+    markAuto(null);
+    clearReadout();
+    drawPendulum(1);
+  }
+
+  function calc() {
+    var g = num(els.g);
+
+    if (g === null || g <= 0) {
+      els.T.value = "";
+      els.l.value = "";
+      resetView();
+      setMsg("重力加速度得是大于 0 的数。");
+      return;
+    }
+    setMsg("");
+
+    if (source === "T") {
+      /* 已知 T，求 l = g·T² / (4π²) */
+      var T = num(els.T);
+
+      if (T === null) {
+        els.l.value = "";
+        resetView();
+        return;
+      }
+      if (T <= 0) {
+        els.l.value = "";
+        resetView();
+        setMsg("周期得是大于 0 的数。");
+        return;
+      }
+
+      var l = g * T * T / (4 * Math.PI * Math.PI);
+      els.l.value = fmt(l);
+      markAuto("l");
+      drawPendulum(l);
+
+      els.outLabel.textContent = "摆长 l";
+      els.outVal.textContent = fmt(l);
+      els.outUnit.textContent = "m";
+      els.outSrc.textContent = "由 T = " + fmt(T) + " s 反推";
+
+    } else {
+      /* 已知 l，求 T = 2π√(l/g) */
+      var L = num(els.l);
+
+      if (L === null) {
+        els.T.value = "";
+        resetView();
+        return;
+      }
+      if (L <= 0) {
+        els.T.value = "";
+        resetView();
+        setMsg("摆长得是大于 0 的数。");
+        return;
+      }
+
+      var TT = 2 * Math.PI * Math.sqrt(L / g);
+      els.T.value = fmt(TT);
+      markAuto("T");
+      drawPendulum(L);
+
+      els.outLabel.textContent = "周期 T";
+      els.outVal.textContent = fmt(TT);
+      els.outUnit.textContent = "s";
+      els.outSrc.textContent = "由 l = " + fmt(L) + " m 正推";
+    }
+  }
+
+  /* ---- 事件 ---- */
+  els.T.addEventListener("input", function () { source = "T"; calc(); });
+  els.l.addEventListener("input", function () { source = "l"; calc(); });
+  els.g.addEventListener("input", calc);   // 改 g 按原方向重算
+
+  $("reset").addEventListener("click", function () {
+    els.g.value = "9.8";
+    els.T.value = "";
+    els.l.value = "";
+    source = "T";
+    setMsg("");
+    resetView();
+    els.T.focus();
+  });
+
+  /* ---- 初始化 ---- */
+  drawPendulum(1);
+  clearReadout();
+
+})();
+</script>
+
+</body>
+</html>

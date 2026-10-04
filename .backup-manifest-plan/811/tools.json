@@ -1,0 +1,18 @@
+[
+  {
+    "id": "homework",
+    "title": "美味的作业",
+    "desc": "读 data/homework.json 渲染每日清单，勾一下自动保存，全部勾完有惊喜。",
+    "href": "./homework.html",
+    "icon": "clipboardCheck",
+    "order": 10
+  },
+  {
+    "id": "classtable",
+    "title": "课程表",
+    "desc": "基础版与缩略版两套看法，能切完整课表和今日课程，还认得出「现在上哪节」。",
+    "href": "./classtable.html",
+    "icon": "calendar",
+    "order": 20
+  }
+]

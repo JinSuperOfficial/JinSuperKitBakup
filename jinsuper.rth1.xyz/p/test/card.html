@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="obsidian">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="../../favicon.svg">
+<link rel="apple-touch-icon" href="../../apple-touch-icon.svg">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>卡片插件自检 · JinSuper</title>
+
+<style>
+*,*::before,*::after{box-sizing:border-box}
+
+/* 两套主题变量，和 p/docs.html 里的定义一致 —— 用来验证卡片跟着主题走 */
+[data-theme="obsidian"]{
+  --bg:#0E1214; --panel:#13181B; --raised:#191F23;
+  --line:#232C31; --ink:#E7E9E6; --dim:#7E8A90; --faint:#7d8a93;
+}
+[data-theme="cloud"]{
+  --bg:#F2F0EB; --panel:#FBFAF7; --raised:#F6F4EF;
+  --line:#DCD7CD; --ink:#1F1D1A; --dim:#6B6862; --faint:#6e6b62;
+}
+
+body{
+  margin:0;padding:32px 28px 64px;
+  background:var(--bg);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  font-size:14px;line-height:1.7;
+  transition:background .18s ease,color .18s ease;
+}
+h1{font-size:20px;margin:0 0 6px}
+h2{font-size:15px;margin:30px 0 10px;letter-spacing:.02em}
+.lead{color:var(--dim);margin:0 0 18px}
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+button{
+  font:inherit;padding:6px 14px;border-radius:6px;cursor:pointer;
+  background:var(--panel);color:var(--ink);border:1px solid var(--line);
+}
+button:hover{border-color:#D97757}
+
+.stage{
+  border:1px dashed var(--line);border-radius:10px;padding:18px 20px;
+  max-width:640px;
+}
+.stage > :first-child{margin-top:0}
+.stage > :last-child{margin-bottom:0}
+.stage .tag{
+  margin-top:22px;padding-top:12px;border-top:1px dashed var(--line);
+  color:var(--dim);font-size:12.5px;
+}
+
+/* 自检页里让普通链接低调一点，方便看清卡片本身 */
+.md a:not(.card){color:#D97757;text-decoration:none;border-bottom:1px solid rgba(215,119,87,.36)}
+
+.check{list-style:none;margin:0;padding:0}
+.check li{
+  padding:7px 12px;border-radius:6px;margin-bottom:6px;
+  border:1px solid var(--line);background:var(--panel);
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;
+}
+.check li.ok{border-color:rgba(103,160,110,.5)}
+.check li.bad{border-color:rgba(217,87,87,.6)}
+.check .mark{font-weight:700;margin-right:8px}
+.check li.ok .mark{color:#7FB98A}
+.check li.bad .mark{color:#E0736B}
+
+pre{
+  margin:0;padding:14px 16px;border:1px solid var(--line);border-radius:8px;
+  background:var(--panel);color:var(--dim);overflow:auto;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.6;
+  white-space:pre-wrap;word-break:break-word;
+}
+</style>
+</head>
+<body>
+
+<h1>卡片插件自检</h1>
+<p class="lead">验证 &lt;card&gt; 的行内规则、转义、与 html_inline 的兼容性、样式注入次数，以及暗色 / 亮色两套主题下的样子。看完可以删掉这个页面。</p>
+
+<div class="bar">
+  <button id="btnTheme" type="button">切到亮色（云舞者）</button>
+  <button id="btnRerun" type="button">重跑自检</button>
+</div>
+
+<h2>渲染结果</h2>
+<div class="stage md" id="stage"></div>
+
+<h2>检查项</h2>
+<ul class="check" id="checks"></ul>
+
+<h2>渲染出来的 HTML</h2>
+<pre id="dump"></pre>
+
+<!-- 自检用的 Markdown 原文（script 里是裸文本，不会被浏览器当 DOM 解析） -->
+<script type="text/markdown" id="src">
+<card link="idea/1.归途且慢.md">归途，且慢</card>
+
+<card link="idea/1.归途且慢.md" date="2026.9.27">归途，且慢</card>
+
+一行里放三张，彼此独立：<card link="a.md">甲</card><card link="b.md" date="9.27">乙</card><card link="c.md">丙</card>
+
+外链卡片原样跳：<card link="https://example.com/?a=1&b=2" date="9.27">外链卡片</card>
+
+已经是文档站链接的不再套一层：<card link="/p/docs.html#idea%2F1.%E5%BD%92%E9%80%94%E4%B8%94%E6%85%A2.md">已经是深链接</card>
+
+指向页面的也不绕：<card link="index.html">页面链接</card>
+
+标签名大小写不敏感：<CARD LINK="d.md" DATE="2026.1.1">大写也一样</CARD>
+
+标题里的 HTML 要变成字面量：<card link="x.md"><img src=x onerror=alert(1)> &amp; 引号 " 也要安全</card>
+
+link 里塞引号不该逃出属性：<card link='a.md" onmouseover="alert(1)'>引号测试</card>
+
+没写 link 的放过：<card>这张应该原样留着</card>
+
+普通 HTML 不受影响：<span class="inline-html">行内标签</span>、<em>斜体</em>、<a href="https://example.com" target="_blank" rel="noopener">外链</a>
+
+手写结构：<a class="card" href="idea/1.归途且慢.md"><span class="card-title">手写的 a.card</span><span class="card-date">2026.9.27</span></a>
+
+代码围栏里的不算：
+
+```html
+<card link="idea/1.归途且慢.md">这是代码，不该变成卡片</card>
+```
+</script>
+
+<script src="../docs-card.js?v=2"></script>
+<script src="../docs-md.js?v=4"></script>
+<script>
+(function(){
+'use strict';
+
+var STYLE_ID = 'card-plugin-style';
+var src = document.getElementById('src').textContent;
+var stage = document.getElementById('stage');
+var checkList = document.getElementById('checks');
+var dump = document.getElementById('dump');
+var btnTheme = document.getElementById('btnTheme');
+
+/* 切主题：验证卡片颜色跟着 CSS 变量走 */
+btnTheme.onclick = function(){
+  var light = document.documentElement.getAttribute('data-theme') === 'cloud';
+  document.documentElement.setAttribute('data-theme', light ? 'obsidian' : 'cloud');
+  btnTheme.textContent = light ? '切到亮色（云舞者）' : '切回暗色（曜石）';
+};
+
+function report(name, pass, detail){
+  var li = document.createElement('li');
+  li.className = pass ? 'ok' : 'bad';
+  var mark = document.createElement('span');
+  mark.className = 'mark';
+  mark.textContent = pass ? '[✓]' : '[✗]';
+  li.appendChild(mark);
+  li.appendChild(document.createTextNode(name + (detail ? '  —— ' + detail : '')));
+  checkList.appendChild(li);
+}
+
+var pick = function(list, fn){ return Array.prototype.slice.call(list).filter(fn)[0] || null; };
+
+function run(){
+  checkList.innerHTML = '';
+
+  if (!window.DocsMd || !window.DocsCard){
+    report('渲染器与插件都已就位', false, 'DocsMd / DocsCard 没加载');
+    return;
+  }
+
+  var html;
+  try {
+    html = window.DocsMd.render(src);
+  } catch (e){
+    report('渲染不报错', false, e.message || String(e));
+    return;
+  }
+
+  stage.innerHTML = html;
+  dump.textContent = html;
+
+  report('渲染不报错', true, html.length + ' 个字符');
+
+  /* ① 行内规则抢在 html_inline 前面（只剩“没写 link”那张会原样留着） */
+  var rawLeft = (html.match(/<card[\s>]/gi) || []).length;
+  report('<card> 没被 html_inline 抢先', rawLeft === 1, '残留 ' + rawLeft + ' 处（预期 1）');
+
+  /* ② 卡片张数：11 张插件卡片 + 1 张手写的 */
+  var cards = (html.match(/<a [^>]*class="card"/g) || []).length;
+  report('每张卡片都渲染成 a.card', cards === 12, '共 ' + cards + ' 张（预期 12）');
+
+  /* ③ 标签名大小写不敏感（href 一样会被转成文档站深链接） */
+  var upper = /<a href="\/p\/docs\.html#d\.md" class="card">[\s\S]*?大写也一样/.test(html);
+  report('标签名大小写不敏感', upper, '');
+
+  /* ④ 标题转义：<img …> 只能是字面量 */
+  var titleEscaped = html.indexOf('&lt;img src=x onerror=alert(1)&gt;') >= 0 &&
+    html.indexOf('<img src=x') < 0;
+  report('标题里的 HTML 被转义', titleEscaped, '');
+
+  /* ⑤ 属性转义：引号不能逃出属性，不能凭空多出一个 onmouseover 属性 */
+  var attrSafe = html.indexOf('onmouseover="alert(1)"') < 0 &&
+    html.indexOf('&amp;b=2') >= 0;   /* 外链里的 & 也转义了 */
+  report('link 里的引号与 & 都被转义', attrSafe, '');
+
+  /* ⑥ date 选填：带日期的卡片才渲染 .card-date（含手写那张共 5 个） */
+  var dated = (html.match(/class="card-date"/g) || []).length;
+  report('date 写了才渲染 .card-date', dated === 5, '共 ' + dated + ' 个（预期 5）');
+
+  /* ⑦ link 自动变成文档站深链接 */
+  var deep = window.DocsCard.href('idea/1.归途且慢.md');
+  var deepOk = deep === '/p/docs.html#idea%2F1.%E5%BD%92%E9%80%94%E4%B8%94%E6%85%A2.md' &&
+    html.indexOf('href="' + deep + '" class="card"') >= 0;
+  report('card link 自动指向文档站深链接', deepOk, deep);
+
+  /* ⑧ 外链 / 已带 # 的 / .html 页面都不该被二次包装 */
+  var keep = window.DocsCard.href('https://example.com/?a=1&b=2') === 'https://example.com/?a=1&b=2' &&
+    window.DocsCard.href('/p/docs.html#idea%2Fx.md') === '/p/docs.html#idea%2Fx.md' &&
+    window.DocsCard.href('index.html') === 'index.html';
+  report('外链 / 深链接 / .html 原样保留', keep, '');
+
+  /* ⑨ html_inline / html_block 照旧 */
+  var htmlOk = html.indexOf('<span class="inline-html">行内标签</span>') >= 0 &&
+    html.indexOf('<em>斜体</em>') >= 0 &&
+    html.indexOf('<a href="https://example.com" target="_blank" rel="noopener">外链</a>') >= 0;
+  report('原有 html_inline / html_block 没被破坏', htmlOk, '');
+
+  /* ⑩ 代码围栏里原样输出 */
+  var inFence = html.indexOf('&lt;card link=&quot;idea/1.归途且慢.md&quot;&gt;这是代码，不该变成卡片&lt;/card&gt;') >= 0;
+  report('代码围栏里的 <card> 原样保留', inFence, '');
+
+  /* ⑪ 手写结构也吃到样式 */
+  var hand = pick(stage.querySelectorAll('a.card'), function(a){
+    return (a.textContent || '').indexOf('手写的 a.card') >= 0;
+  });
+  var cs = hand ? getComputedStyle(hand) : null;
+  report('手写的 a.card 也能套上样式', !!cs && cs.borderRadius === '8px' && cs.display === 'block',
+    cs ? 'border-radius=' + cs.borderRadius + ', display=' + cs.display : '没找到');
+
+  /* ⑫ 样式只注入一次 */
+  window.DocsCard.inject();
+  window.DocsCard.inject();
+  var styles = document.querySelectorAll('#' + STYLE_ID).length;
+  report('CSS 只注入一次', styles === 1, '当前 <style> 数量：' + styles);
+
+  /* ⑬ enhance 兜底：模拟预渲染稿 / 平台渲染稿里的裸 <card> */
+  var tag = document.createElement('p');
+  tag.className = 'tag';
+  tag.textContent = '下面两条是 enhance 兜底的结果（模拟预渲染稿里的裸 <card>）：';
+  var box = document.createElement('div');
+  box.innerHTML = '<p>前文<card link="idea/1.归途且慢.md" date="2026.9.27">兜底卡片</card>后文</p>' +
+    '<p><card>没写 link 的兜底卡片</card></p>';
+  var fixed = window.DocsCard.enhance(box);
+  stage.appendChild(tag);
+  stage.appendChild(box);
+
+  var el = box.querySelector('a.card');
+  report('enhance 能把裸 <card> 换成卡片', fixed === 1 && !!el &&
+    el.getAttribute('href') === deep &&
+    !!el.querySelector('.card-date') && (el.textContent || '').indexOf('兜底卡片') >= 0,
+    '换了 ' + fixed + ' 张');
+
+  /* ⑭ 左边那条 3px 橙条默认藏着，hover 才亮 */
+  var bar = el || hand;
+  var bs = bar ? getComputedStyle(bar, '::before') : null;
+  report('橙色竖条默认隐藏（3px、opacity 0、#D97757）', !!bs &&
+    bs.width === '3px' && bs.opacity === '0' &&
+    (bs.backgroundColor === 'rgb(217, 119, 87)' || bs.backgroundColor === '#D97757'),
+    bs ? 'width=' + bs.width + ', opacity=' + bs.opacity + ', bg=' + bs.backgroundColor : '');
+
+  /* ⑮ 键盘 focus 可见 */
+  var focusRule = false;
+  Array.prototype.slice.call(document.styleSheets).forEach(function(sheet){
+    var rules;
+    try { rules = sheet.cssRules; } catch (e){ return; }
+    Array.prototype.slice.call(rules).forEach(function(r){
+      if (r.selectorText && r.selectorText.indexOf('.card:focus-visible') >= 0 &&
+          r.style && r.style.outlineColor !== '') focusRule = true;
+    });
+  });
+  report('有 .card:focus-visible 的描边规则', focusRule, 'Tab 到卡片上能看见焦点框');
+
+  /* ⑯ 没有任何外部依赖：注入的样式里不该出现 url() / @import */
+  var cssEl = document.getElementById(STYLE_ID);
+  var css = cssEl ? cssEl.textContent : '';
+  var noDep = !!css && css.indexOf('url(') < 0 && css.indexOf('@import') < 0;
+  report('卡片样式不引用任何外部资源', noDep, css ? '样式 ' + css.length + ' 个字符' : '没找到注入的样式');
+}
+
+document.getElementById('btnRerun').onclick = run;
+run();
+})();
+</script>
+</body>
+</html>

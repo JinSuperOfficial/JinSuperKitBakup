@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="../../favicon.svg">
+<link rel="apple-touch-icon" href="../../apple-touch-icon.svg">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>站点信息 · 目录与图标</title>
+<link rel="stylesheet" href="/docs/info/info.css">
+</head>
+<body>
+
+<div class="bg"></div>
+<div class="rail"></div>
+
+<div class="wrap">
+
+  <header class="top">
+    <div class="top-left">
+      <div class="eyebrow"><span class="dot"></span> Site Reference</div>
+      <h1>这个站的<em>里里外外</em></h1>
+      <p class="lede">
+        两份参考资料放在一起：左边是整站的目录地图，每个文件干什么用；
+        右边是 <code>/asset/icon</code> 里 598 枚矢量图标的索引，点一下就复制引用路径。
+      </p>
+    </div>
+    <nav class="jump" aria-label="页内跳转">
+      <a href="#tree"><span class="n">01</span> 目录结构</a>
+      <a href="#icons"><span class="n">02</span> 图标索引</a>
+      <a href="#svg"><span class="n">03</span> SVG 说明</a>
+    </nav>
+  </header>
+
+  <!-- ═══════════════ 01 目录 ═══════════════ -->
+  <section class="block" id="tree">
+    <div class="block-head">
+      <span class="idx">01</span>
+      <div>
+        <h2>目录结构</h2>
+        <p>网站根目录下的每一条路径。点击文件夹可展开 / 收起，点文件复制它的绝对路径。</p>
+      </div>
+    </div>
+
+    <div class="tree-tools">
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="treeq" type="search" placeholder="按文件名或说明筛选…" autocomplete="off" aria-label="筛选目录">
+      </div>
+      <button class="mini" id="treeExpand" type="button">全部展开</button>
+      <button class="mini" id="treeCollapse" type="button">全部收起</button>
+    </div>
+
+    <div class="tree" id="treeRoot" role="tree"></div>
+  </section>
+
+  <!-- ═══════════════ 02 图标 ═══════════════ -->
+  <section class="block" id="icons">
+    <div class="block-head">
+      <span class="idx">02</span>
+      <div>
+        <h2>图标索引</h2>
+        <p>
+          598 枚 SVG，来自 Ant Design 官方图标库（iconfont 集合 <b>cid=9402</b>，整理者「竹尔」，非原创）。
+          点任意一枚复制它的引用代码。
+        </p>
+      </div>
+    </div>
+
+    <div class="icon-tools">
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="iconq" type="search" placeholder="搜图标名，例如 arrow / chart / file…" autocomplete="off" aria-label="搜索图标">
+      </div>
+      <div class="count"><b id="iconCount">598</b> 枚</div>
+    </div>
+
+    <div class="chips" id="iconCats" role="tablist" aria-label="图标分类"></div>
+
+    <div class="icon-grid" id="iconGrid" role="list"></div>
+    <p class="none" id="iconNone" hidden>没找到这个名字的图标，换个词试试。</p>
+  </section>
+
+  <!-- ═══════════════ 03 SVG ═══════════════ -->
+  <section class="block" id="svg">
+    <div class="block-head">
+      <span class="idx">03</span>
+      <div>
+        <h2>SVG 说明</h2>
+        <p>这些图标的格式、怎么引用、怎么上色，以及本平台的几条硬规则。</p>
+      </div>
+    </div>
+
+    <div class="notes">
+      <article class="note">
+        <h3>它是什么</h3>
+        <p>
+          全部是<strong>纯矢量 SVG</strong>——放大不糊、体积极小、能用 CSS 直接改颜色。
+          单色图标靠 <code>fill="currentColor"</code> 跟随文字色，是放进按钮和导航最省事的素材。
+        </p>
+        <p class="meta">共 598 枚 · 均为 <code>viewBox="0 0 1024 1024"</code> 的方形画布</p>
+      </article>
+
+      <article class="note">
+        <h3>怎么引用</h3>
+        <p>三种常见用法，从简到繁：</p>
+        <ul>
+          <li><b>img 标签</b> — 最简单，但颜色定死在文件里，无法用 CSS 改色。
+            <code>&lt;img src="/asset/icon/home.svg" width="20" alt=""&gt;</code></li>
+          <li><b>内联 SVG</b> — 直接把文件内容贴进 HTML，好处是能用 <code>currentColor</code> 改色，也能换 <code>stroke</code>。
+            图标少的时候用它。</li>
+          <li><b>背景图</b> — <code>background-image:url(/asset/icon/search.svg)</code>，适合做装饰性或 input 里的图标。</li>
+        </ul>
+        <p class="meta">站内引用一律写绝对路径，从网站根算起，别带开头的域名</p>
+      </article>
+
+      <article class="note">
+        <h3>命名规律</h3>
+        <ul>
+          <li><code>-fill</code> 后缀 = 实心版本，不带则是描边 / 线性版本，成对出现。</li>
+          <li><code>-circle-fill</code> / <code>-square-fill</code> = 品牌图标带圆形或方形底。</li>
+          <li>下划线（<code>account_book</code>）多见于较老的图标，连字符（<code>arrow-down</code>）是主流写法，搜索时两种都试试。</li>
+        </ul>
+      </article>
+
+      <article class="note warn">
+        <h3>本平台限制</h3>
+        <p>按站点规范，有两条不能碰：</p>
+        <ul>
+          <li><b>不要用 base64</b> 把图标或图片塞进代码里——体积翻几倍，还毁缓存。用文件路径引用。</li>
+          <li><b>不要加载外部字体 / 字体图标</b>（如 Google Fonts、iconfont 的在线字体），国内常常打不开或很慢。所以这里全部用本地 SVG，不引 CDN 字体。</li>
+        </ul>
+        <p class="meta">需要矢量图标时，优先从这里挑，离线可用</p>
+      </article>
+    </div>
+  </section>
+
+  <footer>
+    <span>数据来源：站点文件系统扫描 · <code>/asset/icon</code> 599 项集合</span>
+    <span>作者主页见 <code>/asset/icon/作者主页-竹尔.url</code></span>
+  </footer>
+
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="/docs/info/info.js"></script>
+</body>
+</html>

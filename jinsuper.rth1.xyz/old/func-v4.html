@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>函数显示器 · Plot</title>
+<style>
+  :root{
+    --bg:      #0E1214;
+    --panel:   #13181B;
+    --raised:  #191F23;
+    --line:    #232C31;
+    --ink:     #E7E9E6;
+    --dim:     #7E8A90;
+    --faint:   #566168;
+    --accent:  #D97757;
+    --lime:    #E1FCAD;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  *{ box-sizing: border-box; }
+  html, body{ height:100%; margin:0; }
+  body{
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Inter", "Segoe UI", -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .app{ display:flex; height:100dvh; }
+
+  /* ───────── 左侧面板 ───────── */
+  .panel{
+    width: 350px; flex:none;
+    display:flex; flex-direction:column; gap:22px;
+    padding: 24px 20px 20px;
+    background: linear-gradient(180deg,#14191C 0%, #101417 100%);
+    border-right: 1px solid var(--line);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .panel::-webkit-scrollbar{ width:8px; }
+  .panel::-webkit-scrollbar-thumb{ background:#222A2F; border-radius:4px; }
+
+  .head{ display:flex; gap:12px; align-items:center; }
+  .mark{
+    width:38px; height:38px; flex:none;
+    display:grid; place-items:center;
+    border-radius:6px;
+    background: rgba(215,119,87,.12);
+    border: 1px solid rgba(215,119,87,.28);
+    color: var(--accent);
+  }
+  .mark svg{ width:20px; height:20px; }
+  h1{
+    font-size:16px; font-weight:650; margin:0;
+    letter-spacing:.01em;
+  }
+  .head p{
+    margin:3px 0 0; font-size:12px; color:var(--faint);
+  }
+
+  .label{
+    font-size:10.5px; font-weight:650;
+    letter-spacing:.11em; text-transform:uppercase;
+    color:var(--faint);
+    margin-bottom:10px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .label::after{
+    content:''; flex:1; height:1px; background:var(--line);
+  }
+
+  .fn-list{ display:flex; flex-direction:column; gap:8px; }
+
+  .fn-row{
+    display:flex; align-items:center; gap:7px;
+    background: var(--raised);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 5px 7px 5px 10px;
+    transition: border-color .16s, background .16s;
+  }
+  .fn-row:focus-within{ border-color:#39434A; background:#1C2328; }
+  .fn-row.error{ border-color: rgba(215,119,87,.6); }
+  .fn-row.error .fn-input{ color:#F0A98F; }
+
+  .swatch{
+    width:13px; height:13px; flex:none;
+    border-radius:3px; padding:0; border:none;
+    background: var(--c);
+    cursor:pointer;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.10) inset;
+    transition: transform .12s;
+  }
+  .swatch:hover{ transform: scale(1.18); }
+
+  .fn-input{
+    flex:1; min-width:0;
+    background:transparent; border:none; outline:none;
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 13.5px;
+    padding: 6px 0;
+  }
+  .fn-input::placeholder{ color:#4A555C; }
+
+  .icon-btn{
+    width:25px; height:25px; flex:none;
+    display:grid; place-items:center;
+    background:transparent; border:none; border-radius:4px;
+    color:#5C676E; cursor:pointer;
+    transition: color .14s, background .14s;
+  }
+  .icon-btn svg{ width:15px; height:15px; }
+  .icon-btn:hover{ color:var(--ink); background: rgba(255,255,255,.07); }
+  .icon-btn.off{ color:#333C42; }
+  .icon-btn.del:hover{ color:#E08A6C; }
+
+  .add-btn{
+    width:100%; margin-top:8px;
+    display:flex; align-items:center; justify-content:center; gap:7px;
+    padding:10px;
+    background:transparent;
+    border:1px dashed #2C363C;
+    border-radius:6px;
+    color:#78848A; font-size:12.5px; font-family:inherit;
+    cursor:pointer;
+    transition: all .16s;
+  }
+  .add-btn:hover{
+    border-color: rgba(215,119,87,.55);
+    color: var(--accent);
+    background: rgba(215,119,87,.05);
+  }
+
+  .chips{ display:flex; flex-wrap:wrap; gap:6px; }
+  .chip{
+    font-family: var(--mono);
+    font-size: 11.5px;
+    padding: 5px 9px;
+    background: var(--raised);
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    color: #8B959B;
+    cursor:pointer;
+    transition: all .15s;
+  }
+  .chip:hover{ color: var(--lime); border-color:#3E4A3A; background:#1A2019; }
+
+  .footnote{
+    margin-top:auto; padding-top:6px;
+    font-size: 11.5px; line-height: 1.75;
+    color: #4F5A61;
+    border-top: 1px solid var(--line);
+  }
+  .footnote code{
+    font-family: var(--mono);
+    color:#6E7A80;
+    background: rgba(255,255,255,.035);
+    padding: 1px 4px; border-radius:3px;
+  }
+
+  /* ───────── 右侧画布 ───────── */
+  .stage{ position:relative; flex:1; min-width:0; overflow:hidden; }
+  canvas{ display:block; cursor: crosshair; touch-action:none; }
+
+  .readout{
+    position:absolute; top:16px; right:16px;
+    display:flex; gap:16px;
+    padding: 8px 13px;
+    background: rgba(14,18,20,.82);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--dim);
+    pointer-events:none;
+    font-variant-numeric: tabular-nums;
+  }
+  .readout b{ color: var(--ink); font-weight:500; }
+
+  .zoombar{
+    position:absolute; left:16px; bottom:16px;
+    display:flex; gap:3px; padding:4px;
+    background: rgba(14,18,20,.82);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+  }
+  .zoombar button{
+    min-width:30px; height:28px; padding:0 9px;
+    display:grid; place-items:center;
+    background:transparent; border:none; border-radius:4px;
+    color:#8B959B; font-size:14px; font-family:inherit;
+    cursor:pointer;
+    transition: all .14s;
+  }
+  .zoombar button:hover{ background: rgba(255,255,255,.07); color:var(--ink); }
+  .zoombar button.reset{ font-size:12px; color:#6E7A80; }
+
+  .legend{
+    position:absolute; right:16px; bottom:16px;
+    display:flex; flex-direction:column; gap:6px;
+    padding: 10px 13px;
+    min-width: 170px;
+    background: rgba(14,18,20,.86);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--line);
+    border-radius:6px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    opacity:0; transform: translateY(6px);
+    transition: opacity .16s, transform .16s;
+    pointer-events:none;
+  }
+  .legend.show{ opacity:1; transform:none; }
+  .lg-row{ display:flex; align-items:center; gap:8px; }
+  .lg-row i{ width:8px; height:8px; border-radius:2px; flex:none; }
+  .lg-eq{
+    flex:1; min-width:0;
+    color:#8B959B;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    max-width:130px;
+  }
+  .lg-row b{ color: var(--ink); font-weight:500; font-variant-numeric: tabular-nums; }
+
+  @media (max-width: 880px){
+    .app{ flex-direction:column; }
+    .panel{
+      width:100%; border-right:none;
+      border-bottom:1px solid var(--line);
+      max-height: 47dvh; padding: 18px 16px 14px;
+    }
+    .stage{ flex:1; min-height:0; }
+    .legend{ display:none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ══════ 侧栏 ══════ -->
+  <aside class="panel">
+
+    <header class="head">
+      <div class="mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 17c2.6 0 3.4-10 6.6-10S13 15 16 15s2.4-4 5-4"/>
+        </svg>
+      </div>
+      <div>
+        <h1>函数显示器</h1>
+        <p>把公式丢进来，剩下的交给它</p>
+      </div>
+    </header>
+
+    <section>
+      <div class="label">表达式</div>
+      <div class="fn-list" id="fnList"></div>
+      <button class="add-btn" id="addBtn">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M12 5v14M5 12h14"/>
+        </svg>
+        再加一条
+      </button>
+    </section>
+
+    <section>
+      <div class="label">随手试试</div>
+      <div class="chips" id="chips"></div>
+    </section>
+
+    <div class="footnote">
+      拖动平移，滚轮缩放。鼠标停在曲线上可以读值。<br>
+      认得 <code>sin cos tan ln log sqrt abs exp floor</code>，
+      常数 <code>pi e</code>，以及隐式乘法 —— 写 <code>2x</code> 就当 <code>2·x</code>。
+    </div>
+
+  </aside>
+
+  <!-- ══════ 画布 ══════ -->
+  <main class="stage" id="stage">
+    <canvas id="cv"></canvas>
+
+    <div class="readout">
+      <span>x <b id="hudX">—</b></span>
+      <span>y <b id="hudY">—</b></span>
+    </div>
+
+    <div class="zoombar">
+      <button data-zoom="in"  title="放大">+</button>
+      <button data-zoom="out" title="缩小">−</button>
+      <button data-zoom="reset" class="reset">重置</button>
+    </div>
+
+    <div class="legend" id="legend"></div>
+  </main>
+
+</div>
+
+<script>
+/* ═══════════════════════════════════════════
+   1. 表达式解析器
+   ═══════════════════════════════════════════ */
+
+const CONSTS = {
+  pi: Math.PI, PI: Math.PI,
+  e: Math.E, E: Math.E,
+  tau: Math.PI * 2,
+};
+
+const fn1 = f => ({ arity: 1, f });
+const fn2 = f => ({ arity: 2, f });
+const fnN = f => ({ arity: -1, f });
+
+const FUNCS = {
+  sin: fn1(Math.sin), cos: fn1(Math.cos), tan: fn1(Math.tan),
+  asin: fn1(Math.asin), arcsin: fn1(Math.asin),
+  acos: fn1(Math.acos), arccos: fn1(Math.acos),
+  atan: fn1(Math.atan), arctan: fn1(Math.atan),
+  sinh: fn1(Math.sinh), cosh: fn1(Math.cosh), tanh: fn1(Math.tanh),
+  ln: fn1(Math.log), log: fn1(Math.log10), log2: fn1(Math.log2), log10: fn1(Math.log10),
+  exp: fn1(Math.exp), sqrt: fn1(Math.sqrt), cbrt: fn1(Math.cbrt),
+  abs: fn1(Math.abs), floor: fn1(Math.floor), ceil: fn1(Math.ceil),
+  round: fn1(Math.round), sign: fn1(Math.sign),
+  min: fnN((...a) => Math.min(...a)),
+  max: fnN((...a) => Math.max(...a)),
+  pow: fn2(Math.pow), atan2: fn2(Math.atan2),
+};
+
+function tokenize(src){
+  const s = src.replace(/\s+/g, '');
+  const out = [];
+  let i = 0;
+  while (i < s.length){
+    const c = s[i];
+    if (/[0-9.]/.test(c)){
+      let j = i;
+      while (j < s.length && /[0-9.]/.test(s[j])) j++;
+      if ((s[j] === 'e' || s[j] === 'E')){
+        let k = j + 1;
+        if (s[k] === '+' || s[k] === '-') k++;
+        if (/[0-9]/.test(s[k] || '')){
+          while (k < s.length && /[0-9]/.test(s[k])) k++;
+          j = k;
+        }
+      }
+      const num = parseFloat(s.slice(i, j));
+      if (!isFinite(num)) throw new Error('数字写错了');
+      out.push({ t:'num', v:num });
+      i = j;
+    } else if (/[a-zA-Z_]/.test(c)){
+      let j = i;
+      while (j < s.length && /[a-zA-Z_0-9]/.test(s[j])) j++;
+      out.push({ t:'id', v: s.slice(i, j) });
+      i = j;
+    } else if ('+-*/^%(),'.includes(c)){
+      out.push({ t:c });
+      i++;
+    } else {
+      throw new Error('看不懂这个符号：' + c);
+    }
+  }
+  return out;
+}
+
+function compile(src){
+  if (!src || !src.trim()) throw new Error('空的');
+  let s = src.trim().replace(/^\s*(y|f\s*\(\s*x\s*\))\s*=\s*/i, '');
+
+  const tokens = tokenize(s);
+  let pos = 0;
+
+  const peek = () => tokens[pos];
+  const next = () => tokens[pos++];
+  const need = t => {
+    if (!peek() || peek().t !== t) throw new Error('这里少了个 ' + t);
+    return next();
+  };
+
+  function parseExpr(){
+    let left = parseTerm();
+    while (peek() && (peek().t === '+' || peek().t === '-')){
+      const op = next().t;
+      const right = parseTerm();
+      const l = left, r = right;
+      left = op === '+' ? (x => l(x) + r(x)) : (x => l(x) - r(x));
+    }
+    return left;
+  }
+
+  function parseTerm(){
+    let left = parseUnary();
+    for(;;){
+      const tk = peek();
+      if (!tk) break;
+      if (tk.t === '*' || tk.t === '/' || tk.t === '%'){
+        next();
+        const right = parseUnary();
+        const l = left, r = right;
+        if (tk.t === '*')      left = x => l(x) * r(x);
+        else if (tk.t === '/') left = x => l(x) / r(x);
+        else                   left = x => l(x) % r(x);
+      } else if (tk.t === 'num' || tk.t === 'id' || tk.t === '('){
+        // 隐式乘法：2x、3sin(x)、(x+1)(x-1)
+        const right = parseUnary();
+        const l = left, r = right;
+        left = x => l(x) * r(x);
+      } else break;
+    }
+    return left;
+  }
+
+  function parseUnary(){
+    const tk = peek();
+    if (tk && tk.t === '-'){ next(); const v = parseUnary(); return x => -v(x); }
+    if (tk && tk.t === '+'){ next(); return parseUnary(); }
+    return parsePower();
+  }
+
+  function parsePower(){
+    const base = parseAtom();
+    if (peek() && peek().t === '^'){
+      next();
+      const exp = parseUnary();     // 右结合，且允许 x^-2
+      const b = base, e = exp;
+      return x => Math.pow(b(x), e(x));
+    }
+    return base;
+  }
+
+  function parseAtom(){
+    const tk = next();
+    if (!tk) throw new Error('表达式没写完');
+
+    if (tk.t === 'num'){ const v = tk.v; return () => v; }
+
+    if (tk.t === 'id'){
+      const name = tk.v;
+
+      // 函数调用
+      if (peek() && peek().t === '('){
+        next();
+        const args = [];
+        if (peek() && peek().t !== ')'){
+          args.push(parseExpr());
+          while (peek() && peek().t === ','){ next(); args.push(parseExpr()); }
+        }
+        need(')');
+        const spec = FUNCS[name.toLowerCase()];
+        if (!spec) throw new Error('不认识的函数：' + name);
+        if (spec.arity >= 0 && args.length !== spec.arity)
+          throw new Error(`${name} 要 ${spec.arity} 个参数，你给了 ${args.length} 个`);
+        const A = args;
+        return x => spec.f(...A.map(g => g(x)));
+      }
+
+      if (name in CONSTS){ const v = CONSTS[name]; return () => v; }
+      if (name === 'x' || name === 'X') return x => x;
+      throw new Error('不认识的变量：' + name);
+    }
+
+    if (tk.t === '('){
+      const inner = parseExpr();
+      need(')');
+      return inner;
+    }
+
+    throw new Error('这里多了个 ' + tk.t);
+  }
+
+  const fn = parseExpr();
+  if (pos < tokens.length){
+    const t = tokens[pos];
+    throw new Error('多余的符号：' + (t.v !== undefined ? t.v : t.t));
+  }
+  return fn;
+}
+
+/* ═══════════════════════════════════════════
+   2. 状态
+   ═══════════════════════════════════════════ */
+
+const PALETTE = ['#D97757', '#E1FCAD', '#7EC8C8', '#C9A84C', '#C5B8D4', '#A8B89A'];
+
+const state = {
+  funcs: [],
+  view: { cx: 0, cy: 0, scale: 56 },
+};
+
+let uid = 0;
+function addFunc(expr, colorIdx){
+  const f = {
+    id: ++uid,
+    expr,
+    fn: null,
+    error: null,
+    visible: true,
+    color: PALETTE[(colorIdx ?? state.funcs.length) % PALETTE.length],
+  };
+  try { f.fn = compile(expr); }
+  catch (e){ f.error = e.message; }
+  state.funcs.push(f);
+  return f;
+}
+
+addFunc('sin(x)', 0);
+addFunc('x^2/4 - 2', 1);
+
+/* ═══════════════════════════════════════════
+   3. DOM
+   ═══════════════════════════════════════════ */
+
+const stage   = document.getElementById('stage');
+const canvas  = document.getElementById('cv');
+const ctx     = canvas.getContext('2d');
+const fnList  = document.getElementById('fnList');
+const hudX    = document.getElementById('hudX');
+const hudY    = document.getElementById('hudY');
+const legendEl= document.getElementById('legend');
+
+const ICON_EYE_ON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="2.6"/></svg>`;
+const ICON_EYE_OFF= `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4l16 16"/><path d="M9.6 5.7A9.6 9.6 0 0 1 12 5.5c6.4 0 10 6.5 10 6.5a17 17 0 0 1-3.3 4"/><path d="M6.5 7.7A17 17 0 0 0 2 12s3.6 6.5 10 6.5a9.9 9.9 0 0 0 4-.8"/><path d="M10.2 10.3a2.6 2.6 0 0 0 3.6 3.6"/></svg>`;
+const ICON_X      = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>`;
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function renderList(){
+  fnList.innerHTML = '';
+  state.funcs.forEach(f => {
+    const row = document.createElement('div');
+    row.className = 'fn-row' + (f.error && f.expr.trim() ? ' error' : '');
+    row.dataset.id = f.id;
+
+    row.innerHTML = `
+      <button class="swatch" style="--c:${f.color}" title="换个颜色"></button>
+      <input class="fn-input" spellcheck="false" autocomplete="off"
+             value="${esc(f.expr)}" placeholder="sin(x)">
+      <button class="icon-btn vis ${f.visible ? '' : 'off'}"
+              title="${f.visible ? '藏起来' : '显示出来'}">
+        ${f.visible ? ICON_EYE_ON : ICON_EYE_OFF}
+      </button>
+      <button class="icon-btn del" title="删掉">${ICON_X}</button>
+    `;
+
+    const input  = row.querySelector('.fn-input');
+    const swatch = row.querySelector('.swatch');
+    const visBtn = row.querySelector('.vis');
+    const delBtn = row.querySelector('.del');
+
+    input.addEventListener('input', e => {
+      f.expr = e.target.value;
+      try { f.fn = compile(f.expr); f.error = null; }
+      catch (err){ f.fn = null; f.error = err.message; }
+      const bad = !!f.error && f.expr.trim() !== '';
+      row.classList.toggle('error', bad);
+      row.title = bad ? f.error : '';
+      requestRender();
+      updateHUD();
+    });
+
+    swatch.addEventListener('click', () => {
+      const i = PALETTE.indexOf(f.color);
+      f.color = PALETTE[(i + 1) % PALETTE.length];
+      swatch.style.setProperty('--c', f.color);
+      requestRender();
+      updateHUD();
+    });
+
+    visBtn.addEventListener('click', () => {
+      f.visible = !f.visible;
+      visBtn.classList.toggle('off', !f.visible);
+      visBtn.innerHTML = f.visible ? ICON_EYE_ON : ICON_EYE_OFF;
+      visBtn.title = f.visible ? '藏起来' : '显示出来';
+      requestRender();
+      updateHUD();
+    });
+
+    delBtn.addEventListener('click', () => {
+      state.funcs = state.funcs.filter(x => x.id !== f.id);
+      if (state.funcs.length === 0) addFunc('', 0);
+      renderList();
+      requestRender();
+      updateHUD();
+    });
+
+    fnList.appendChild(row);
+  });
+}
+renderList();
+
+document.getElementById('addBtn').addEventListener('click', () => {
+  addFunc('', state.funcs.length);
+  renderList();
+  const inputs = fnList.querySelectorAll('.fn-input');
+  inputs[inputs.length - 1].focus();
+  requestRender();
+});
+
+/* 快捷示例 */
+const CHIPS = ['sin(x)/x', 'e^(-x^2)', 'tan(x)', 'floor(x)', 'sqrt(abs(x))', 'x^3-3x'];
+const chipsEl = document.getElementById('chips');
+CHIPS.forEach(c => {
+  const b = document.createElement('button');
+  b.className = 'chip';
+  b.textContent = c;
+  b.addEventListener('click', () => {
+    const empty = state.funcs.find(f => f.expr.trim() === '');
+    if (empty){
+      empty.expr = c;
+      try { empty.fn = compile(c); empty.error = null; } catch(e){ empty.fn = null; empty.error = e.message; }
+      renderList();
+    } else {
+      addFunc(c, state.funcs.length);
+      renderList();
+    }
+    requestRender();
+    updateHUD();
+  });
+  chipsEl.appendChild(b);
+});
+
+/* ═══════════════════════════════════════════
+   4. 画布尺寸 & 背景噪点
+   ═══════════════════════════════════════════ */
+
+let W = 0, H = 0;
+let noisePattern = null;
+
+function buildNoise(){
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const nx = c.getContext('2d');
+  const img = nx.createImageData(128, 128);
+  for (let i = 0; i < img.data.length; i += 4){
+    const v = 120 + Math.random() * 135;
+    img.data[i] = img.data[i+1] = img.data[i+2] = v;
+    img.data[i+3] = 255;
+  }
+  nx.putImageData(img, 0, 0);
+  noisePattern = ctx.createPattern(c, 'repeat');
+}
+
+function resize(){
+  const r = stage.getBoundingClientRect();
+  W = Math.max(1, Math.round(r.width));
+  H = Math.max(1, Math.round(r.height));
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width  = Math.round(W * dpr);
+  canvas.height = Math.round(H * dpr);
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (!noisePattern) buildNoise();
+  requestRender();
+}
+
+new ResizeObserver(resize).observe(stage);
+
+/* ═══════════════════════════════════════════
+   5. 渲染
+   ═══════════════════════════════════════════ */
+
+let needsRender = false;
+function requestRender(){
+  if (needsRender) return;
+  needsRender = true;
+  requestAnimationFrame(() => { needsRender = false; draw(); });
+}
+
+function niceStep(scale, targetPx){
+  const raw = targetPx / scale;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const norm = raw / mag;
+  const mult = norm <= 1.5 ? 1 : norm <= 3.5 ? 2 : norm <= 7.5 ? 5 : 10;
+  return mult * mag;
+}
+
+function fmtTick(v, step){
+  if (Math.abs(v) < step * 0.001) return '0';
+  const a = Math.abs(v);
+  if (a >= 1e5 || a < 1e-3) return v.toExponential(0).replace('e+', 'e');
+  const dec = Math.max(0, -Math.floor(Math.log10(step)));
+  return v.toFixed(Math.min(dec, 6));
+}
+
+function draw(){
+  if (!W || !H) return;
+  const { cx, cy, scale } = state.view;
+
+  /* ---- 背景 ---- */
+  const g = ctx.createRadialGradient(W * 0.62, H * 0.12, 0, W * 0.62, H * 0.12, Math.max(W, H) * 0.95);
+  g.addColorStop(0, '#182026');
+  g.addColorStop(0.55, '#121819');
+  g.addColorStop(1, '#0C1012');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+
+  if (noisePattern){
+    ctx.globalAlpha = 0.028;
+    ctx.fillStyle = noisePattern;
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1;
+  }
+
+  /* ---- 网格 ---- */
+  const xMin = cx - W / 2 / scale;
+  const xMax = cx + W / 2 / scale;
+  const yMin = cy - H / 2 / scale;
+  const yMax = cy + H / 2 / scale;
+
+  const major = niceStep(scale, 88);
+  const minor = major / 5;
+
+  if (minor * scale >= 9){
+    ctx.strokeStyle = 'rgba(232,236,238,.045)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let k = Math.ceil(xMin / minor); k * minor <= xMax; k++){
+      const sx = Math.round((k * minor - cx) * scale + W / 2) + 0.5;
+      ctx.moveTo(sx, 0); ctx.lineTo(sx, H);
+    }
+    for (let k = Math.ceil(yMin / minor); k * minor <= yMax; k++){
+      const sy = Math.round(H / 2 - (k * minor - cy) * scale) + 0.5;
+      ctx.moveTo(0, sy); ctx.lineTo(W, sy);
+    }
+    ctx.stroke();
+  }
+
+  ctx.strokeStyle = 'rgba(232,236,238,.095)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let k = Math.ceil(xMin / major); k * major <= xMax; k++){
+    const sx = Math.round((k * major - cx) * scale + W / 2) + 0.5;
+    ctx.moveTo(sx, 0); ctx.lineTo(sx, H);
+  }
+  for (let k = Math.ceil(yMin / major); k * major <= yMax; k++){
+    const sy = Math.round(H / 2 - (k * major - cy) * scale) + 0.5;
+    ctx.moveTo(0, sy); ctx.lineTo(W, sy);
+  }
+  ctx.stroke();
+
+  /* ---- 坐标轴 ---- */
+  const y0 = H / 2 - (0 - cy) * scale;
+  const x0 = W / 2 + (0 - cx) * scale;
+
+  ctx.strokeStyle = 'rgba(232,236,238,.26)';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  if (y0 >= -1 && y0 <= H + 1){ ctx.moveTo(0, Math.round(y0) + .5); ctx.lineTo(W, Math.round(y0) + .5); }
+  if (x0 >= -1 && x0 <= W + 1){ ctx.moveTo(Math.round(x0) + .5, 0); ctx.lineTo(Math.round(x0) + .5, H); }
+  ctx.stroke();
+
+  /* ---- 刻度文字 ---- */
+  ctx.font = '11px ui-monospace, SFMono-Regular, Menlo, monospace';
+  ctx.fillStyle = '#57636A';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+
+  const labY = Math.min(Math.max(y0, 15), H - 7);
+  for (let k = Math.ceil(xMin / major); k * major <= xMax; k++){
+    const v = k * major;
+    if (Math.abs(v) < major * 0.001) continue;
+    const sx = (v - cx) * scale + W / 2;
+    ctx.fillText(fmtTick(v, major), sx + 4, labY - 6);
+  }
+
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  const labX = Math.min(Math.max(x0, 26), W - 8);
+  for (let k = Math.ceil(yMin / major); k * major <= yMax; k++){
+    const v = k * major;
+    if (Math.abs(v) < major * 0.001) continue;
+    const sy = H / 2 - (v - cy) * scale;
+    ctx.fillText(fmtTick(v, major), labX - 7, sy);
+  }
+
+  /* ---- 曲线 ---- */
+  for (const f of state.funcs){
+    if (!f.visible || !f.fn) continue;
+
+    ctx.beginPath();
+    buildPath(f.fn);
+
+    ctx.globalAlpha = 0.14;
+    ctx.lineWidth = 7;
+    ctx.strokeStyle = f.color;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.stroke();
+
+    ctx.globalAlpha = 1;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  /* ---- 悬停十字 ---- */
+  drawHover();
+}
+
+function buildPath(fn){
+  const { cx, cy, scale } = state.view;
+  let prevSy = null;
+  const n = Math.ceil(W);
+
+  for (let i = 0; i <= n; i++){
+    const px = i;
+    const x = (px - W / 2) / scale + cx;
+
+    let y;
+    try { y = fn(x); } catch { y = NaN; }
+    if (typeof y !== 'number' || !isFinite(y)){ prevSy = null; continue; }
+
+    let sy = H / 2 - (y - cy) * scale;
+    if (!isFinite(sy)){ prevSy = null; continue; }
+    if (sy < -6000) sy = -6000;
+    else if (sy > H + 6000) sy = H + 6000;
+
+    if (prevSy === null || Math.abs(sy - prevSy) > H * 3){
+      ctx.moveTo(px, sy);
+    } else {
+      ctx.lineTo(px, sy);
+    }
+    prevSy = sy;
+  }
+}
+
+let hover = null;
+
+function drawHover(){
+  if (!hover) return;
+  const { cx, cy, scale } = state.view;
+  const { mx, my } = hover;
+
+  ctx.save();
+  ctx.setLineDash([3, 4]);
+  ctx.strokeStyle = 'rgba(232,236,238,.2)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(Math.round(mx) + .5, 0); ctx.lineTo(Math.round(mx) + .5, H);
+  ctx.moveTo(0, Math.round(my) + .5); ctx.lineTo(W, Math.round(my) + .5);
+  ctx.stroke();
+  ctx.restore();
+
+  const hx = (mx - W / 2) / scale + cx;
+
+  for (const f of state.funcs){
+    if (!f.visible || !f.fn) continue;
+    let y;
+    try { y = f.fn(hx); } catch { continue; }
+    if (!isFinite(y)) continue;
+
+    const sy = H / 2 - (y - cy) * scale;
+    if (sy < -24 || sy > H + 24) continue;
+
+    ctx.beginPath();
+    ctx.arc(mx, sy, 6, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(12,16,18,.92)';
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(mx, sy, 3.6, 0, Math.PI * 2);
+    ctx.fillStyle = f.color;
+    ctx.fill();
+  }
+}
+
+/* ═══════════════════════════════════════════
+   6. HUD
+   ═══════════════════════════════════════════ */
+
+function fmtShort(v){
+  if (!isFinite(v)) return '∞';
+  if (Math.abs(v) < 1e-12) return '0';
+  const a = Math.abs(v);
+  if (a >= 1e6 || a < 1e-4) return v.toExponential(2);
+  return v.toFixed(4).replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
+}
+
+function updateHUD(){
+  const { cx, cy, scale } = state.view;
+
+  if (!hover){
+    hudX.textContent = '—';
+    hudY.textContent = '—';
+    legendEl.classList.remove('show');
+    return;
+  }
+
+  const hx = (hover.mx - W / 2) / scale + cx;
+  const hy = cy - (hover.my - H / 2) / scale;
+  hudX.textContent = fmtShort(hx);
+  hudY.textContent = fmtShort(hy);
+
+  const live = state.funcs.filter(f => f.visible && f.fn);
+  if (live.length === 0){ legendEl.classList.remove('show'); return; }
+
+  legendEl.innerHTML = live.map(f => {
+    let v;
+    try { v = f.fn(hx); } catch { v = NaN; }
+    const txt = (typeof v === 'number' && isFinite(v)) ? fmtShort(v) : '未定义';
+    return `<div class="lg-row">
+      <i style="background:${f.color}"></i>
+      <span class="lg-eq">${esc(f.expr || '—')}</span>
+      <b>${txt}</b>
+    </div>`;
+  }).join('');
+  legendEl.classList.add('show');
+}
+
+/* ═══════════════════════════════════════════
+   7. 交互
+   ═══════════════════════════════════════════ */
+
+let drag = null;
+
+canvas.addEventListener('pointerdown', e => {
+  canvas.setPointerCapture(e.pointerId);
+  drag = {
+    px: e.clientX, py: e.clientY,
+    cx: state.view.cx, cy: state.view.cy,
+  };
+  canvas.style.cursor = 'grabbing';
+});
+
+canvas.addEventListener('pointermove', e => {
+  const rect = canvas.getBoundingClientRect();
+  hover = { mx: e.clientX - rect.left, my: e.clientY - rect.top };
+
+  if (drag){
+    const dx = e.clientX - drag.px;
+    const dy = e.clientY - drag.py;
+    state.view.cx = drag.cx - dx / state.view.scale;
+    state.view.cy = drag.cy + dy / state.view.scale;
+  }
+
+  requestRender();
+  updateHUD();
+});
+
+function endDrag(e){
+  if (!drag) return;
+  drag = null;
+  canvas.style.cursor = 'crosshair';
+  try { canvas.releasePointerCapture(e.pointerId); } catch {}
+}
+canvas.addEventListener('pointerup', endDrag);
+canvas.addEventListener('pointercancel', endDrag);
+
+canvas.addEventListener('pointerleave', () => {
+  hover = null;
+  drag = null;
+  canvas.style.cursor = 'crosshair';
+  requestRender();
+  updateHUD();
+});
+
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  const unit = e.deltaMode === 1 ? 0.045 : 0.0018;
+  zoomAt(mx, my, Math.exp(-e.deltaY * unit));
+}, { passive: false });
+
+function zoomAt(mx, my, factor){
+  const { cx, cy, scale } = state.view;
+  const bx = (mx - W / 2) / scale + cx;
+  const by = cy - (my - H / 2) / scale;
+
+  const ns = Math.min(Math.max(scale * factor, 0.4), 4000);
+  state.view.scale = ns;
+  state.view.cx = bx - (mx - W / 2) / ns;
+  state.view.cy = by + (my - H / 2) / ns;
+
+  requestRender();
+  updateHUD();
+}
+
+document.querySelector('.zoombar').addEventListener('click', e => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  const mode = btn.dataset.zoom;
+
+  if (mode === 'reset'){
+    state.view.cx = 0;
+    state.view.cy = 0;
+    state.view.scale = 56;
+  } else {
+    zoomAt(W / 2, H / 2, mode === 'in' ? 1.25 : 0.8);
+    return;
+  }
+  requestRender();
+  updateHUD();
+});
+
+window.addEventListener('keydown', e => {
+  if (e.key === '0' && (e.metaKey || e.ctrlKey)){
+    e.preventDefault();
+    state.view.cx = 0; state.view.cy = 0; state.view.scale = 56;
+    requestRender(); updateHUD();
+  }
+});
+
+/* ═══════════════════════════════════════════
+   8. 启动
+   ═══════════════════════════════════════════ */
+
+resize();
+requestRender();
+</script>
+</body>
+</html>

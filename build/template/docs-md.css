@@ -1,0 +1,252 @@
+/* ═══════════════════════════════════════════════════
+   文档页 · markdown-it 扩展元素样式
+   覆盖：公式 / 代码高亮 / 告示 / 提示框 / 任务列表 /
+         脚注 / 定义列表 / 上下标标记 / 目录 / 注音 /
+         剧透 / 图片（figure·尺寸·主题图·灯箱）/ Mermaid
+   全部基于主题变量，12 套主题自动适配
+   ═══════════════════════════════════════════════════ */
+
+/* ── 公式（KaTeX） ── */
+.md .katex{ color:inherit }
+.md .katex-display{
+  margin:1.35em 0;padding:2px 0;
+  overflow-x:auto;overflow-y:hidden;
+  scrollbar-width:thin;scrollbar-color:var(--line) transparent;
+}
+.md .katex-display::-webkit-scrollbar{ height:8px }
+.md .katex-display::-webkit-scrollbar-thumb{ background:var(--line); border-radius:var(--radius-badge) }
+.md .katex-error{ color:var(--accent); font-family:var(--mono); font-size:.92em }
+
+/* ── 代码高亮（highlight.js）：配色按明/暗主题各一套 ── */
+html[data-theme="obsidian"],html[data-theme="ink"],html[data-theme="forest"],
+html[data-theme="ocean"],html[data-theme="midnight"],html[data-theme="amber"]{
+  --c-key:#C792EA; --c-str:#C3E88D; --c-num:#F78C6C; --c-fun:#82AAFF;
+  --c-com:#7E8A90; --c-typ:#FFCB6B; --c-tag:#F07178;
+}
+html[data-theme="cloud"],html[data-theme="linen"],html[data-theme="rose"],
+html[data-theme="sepia"],html[data-theme="paper"],html[data-theme="moss"]{
+  --c-key:#A626A4; --c-str:#50A14F; --c-num:#986801; --c-fun:#4078F2;
+  --c-com:#9AA0A6; --c-typ:#C18401; --c-tag:#E45649;
+}
+.md pre code.hljs{ display:block;background:transparent;padding:0 }
+.md .hljs-comment,.md .hljs-quote{ color:var(--c-com); font-style:italic }
+.md .hljs-keyword,.md .hljs-selector-tag,.md .hljs-literal,.md .hljs-doctag,
+.md .hljs-template-tag,.md .hljs-name{ color:var(--c-key) }
+.md .hljs-string,.md .hljs-regexp,.md .hljs-addition,.md .hljs-meta-string{ color:var(--c-str) }
+.md .hljs-number,.md .hljs-built_in,.md .hljs-symbol,.md .hljs-bullet,
+.md .hljs-variable,.md .hljs-template-variable{ color:var(--c-num) }
+.md .hljs-title,.md .hljs-title.function_,.md .hljs-function .hljs-title,
+.md .hljs-section,.md .hljs-selector-id{ color:var(--c-fun) }
+.md .hljs-type,.md .hljs-class .hljs-title,.md .hljs-title.class_,
+.md .hljs-attr,.md .hljs-attribute,.md .hljs-params{ color:var(--c-typ) }
+.md .hljs-tag,.md .hljs-selector-class,.md .hljs-deletion,.md .hljs-meta{ color:var(--c-tag) }
+.md .hljs-emphasis{ font-style:italic }
+.md .hljs-strong{ font-weight:700 }
+
+/* 代码行号与高亮行：```js:line-numbers 或 ```js {1,3-5} */
+.md pre.with-lines{ position:relative }
+.md pre code.with-lines{ display:block }
+.md pre code.with-lines .cl{
+  display:block;position:relative;
+  min-height:1.72em;
+}
+.md pre code.with-lines.show-lines .cl{ padding-left:3.4em }
+.md pre code.with-lines .cl.hl{
+  background:color-mix(in srgb,var(--accent) 12%,transparent);
+  box-shadow:inset 2px 0 0 var(--accent);
+}
+.md pre code.with-lines.show-lines{ counter-reset:cl }
+.md pre code.with-lines.show-lines .cl::before{
+  counter-increment:cl;
+  content:counter(cl);
+  position:absolute;left:0;width:2.4em;
+  text-align:right;
+  color:var(--faint);opacity:.7;
+  -webkit-user-select:none;user-select:none;
+}
+
+/* ── GitHub 告示：> [!NOTE] / ::: 提示框 ── */
+.md .markdown-alert,
+.md .md-box{
+  --md-hl:var(--dim);
+  margin:1.2em 0;padding:12px 16px;
+  border:1px solid color-mix(in srgb,var(--md-hl) 26%,transparent);
+  border-left:3px solid var(--md-hl);
+  border-radius:0 var(--radius-card) var(--radius-card) 0;
+  background:color-mix(in srgb,var(--md-hl) 8%,transparent);
+}
+/* 标题里允许行内 Markdown，所以这里不能用 flex：
+   flex 会把「文字 + code + 文字」拆成带间距的独立项，读起来是断的。 */
+.md .markdown-alert-title,
+.md .md-box-title{
+  margin:0 0 6px;
+  font-size:13px;font-weight:640;line-height:1.4;
+  color:var(--md-hl);
+}
+.md .markdown-alert-title svg{
+  width:15px;height:15px;fill:currentColor;
+  display:inline-block;vertical-align:-2px;margin-right:6px;
+}
+.md .markdown-alert-title code,
+.md .md-box-title code{
+  font-size:.92em;padding:1px 5px;border-radius:var(--radius-badge);
+  color:inherit;
+  background:color-mix(in srgb,var(--md-hl) 15%,transparent);
+}
+.md .markdown-alert-title strong,
+.md .md-box-title strong{ font-weight:700 }
+.md .markdown-alert > :last-child,
+.md .md-box > :last-child{ margin-bottom:0 }
+.md .markdown-alert-note,.md .md-box-note,.md .md-box-info{ --md-hl:#4A90D9 }
+.md .markdown-alert-tip,.md .md-box-tip,.md .md-box-success{ --md-hl:#3FA96B }
+.md .markdown-alert-important,.md .md-box-question{ --md-hl:#8A6BD9 }
+.md .markdown-alert-warning,.md .md-box-warning{ --md-hl:#D9A44A }
+.md .markdown-alert-caution,.md .md-box-danger{ --md-hl:#D9605A }
+
+/* ── 任务列表 ── */
+.md .task-list-item{ list-style:none;margin-left:-1.35em }
+.md .task-list-item label{ display:inline }
+.md .task-list-item input[type=checkbox]{
+  -webkit-appearance:none;appearance:none;
+  width:14px;height:14px;flex:none;
+  margin:0 8px 0 0;padding:0;
+  position:relative;vertical-align:-2px;
+  border:1px solid var(--dim);border-radius:var(--radius-xs);
+  background:transparent;cursor:default;
+}
+.md .task-list-item input[type=checkbox]:checked{
+  background:var(--accent);border-color:var(--accent);
+}
+.md .task-list-item input[type=checkbox]:checked::after{
+  content:'';position:absolute;left:4px;top:1px;
+  width:4px;height:8px;
+  border:solid var(--bg);border-width:0 2px 2px 0;
+  transform:rotate(45deg);
+}
+.md .contains-task-list{ padding-left:1.35em }
+
+/* ── 脚注 ── */
+.md .footnotes{
+  margin-top:2.6em;padding-top:14px;
+  border-top:1px solid var(--line-soft);
+  font-size:12.5px;color:var(--md-dim);
+}
+.md .footnotes-sep{ display:none }
+.md .footnotes-list{ padding-left:1.4em }
+.md .footnote-item{ margin:.4em 0 }
+.md sup.footnote-ref{ line-height:0 }
+.md .footnote-ref a{ text-decoration:none;padding:0 2px }
+.md .footnote-backref{ text-decoration:none;margin-left:4px;color:var(--faint) }
+.md .footnote-backref:hover{ color:var(--accent) }
+
+/* ── 定义列表 ── */
+.md dl{ margin:1.1em 0 }
+.md dt{ font-weight:640;color:var(--ink);margin-top:.8em }
+.md dd{ margin:.25em 0 0 1.4em;color:var(--md-dim) }
+
+/* ── 上下标 / 标记 / 缩写 ── */
+.md sub,.md sup{ font-size:.76em;line-height:0 }
+.md mark{
+  background:color-mix(in srgb,var(--accent) 26%,transparent);
+  color:var(--ink);padding:0 2px;border-radius:var(--radius-xs);
+}
+.md ins{ text-decoration:none;border-bottom:1px solid var(--accent-line) }
+.md abbr{ text-decoration:underline dotted;text-underline-offset:2px;cursor:help }
+
+/* ── 目录 [[toc]] ── */
+.md .md-toc{
+  margin:1.4em 0;padding:14px 18px;
+  border:1px solid var(--line);border-radius:var(--radius-card);
+  background:color-mix(in srgb,var(--ink) 3%,transparent);
+  font-size:13px;
+}
+.md .md-toc-title{
+  margin:0 0 8px;
+  font-family:var(--mono);font-size:10.5px;
+  letter-spacing:.13em;text-transform:uppercase;color:var(--faint);
+}
+.md .md-toc a{
+  display:block;margin:.28em 0;
+  color:var(--dim);text-decoration:none;
+  transition:color .13s var(--ease);
+}
+.md .md-toc a:hover{ color:var(--accent) }
+.md .md-toc-lv2{ padding-left:1.1em }
+.md .md-toc-lv3{ padding-left:2.2em }
+/* 兼容其它 TOC 插件的输出结构 */
+.md .table-of-contents{
+  margin:1.4em 0;padding:14px 18px;
+  border:1px solid var(--line);border-radius:var(--radius-card);
+  background:color-mix(in srgb,var(--ink) 3%,transparent);
+  font-size:13px;
+}
+.md .table-of-contents ul,.md .table-of-contents ol{ list-style:none;margin:0;padding:0 }
+.md .table-of-contents li{ margin:.3em 0 }
+.md .table-of-contents a{ color:var(--dim);text-decoration:none }
+.md .table-of-contents a:hover{ color:var(--accent) }
+
+/* ── 注音（ruby） ── */
+.md ruby{ ruby-position:over;ruby-align:center }
+.md rt{ font-size:.55em;font-weight:400;color:var(--faint);letter-spacing:0 }
+.md rp{ color:var(--faint) }
+
+/* ── 剧透 !!内容!! ── */
+.md .spoiler{
+  background:var(--ink);color:transparent;
+  border-radius:var(--radius-xs);padding:0 3px;
+  cursor:pointer;
+  transition:color .16s var(--ease),background .16s var(--ease);
+}
+.md .spoiler:hover,
+.md .spoiler:focus{
+  background:color-mix(in srgb,var(--ink) 8%,transparent);
+  color:var(--ink);outline:none;
+}
+
+/* ── 图片：figure / 尺寸 / 主题图 / 灯箱 ── */
+.md figure{ margin:1.5em 0;text-align:center }
+.md figure img{ margin:0 auto }
+.md figcaption{ margin-top:.6em;font-size:12.5px;color:var(--faint) }
+.md img{ cursor:zoom-in }
+.md img[tabindex]:focus-visible{ outline:2px solid var(--accent);outline-offset:2px }
+
+/* 按主题明暗切换图片：![alt](url#dark) / ![alt](url#light) */
+:is(html[data-theme="obsidian"],html[data-theme="ink"],html[data-theme="forest"],
+    html[data-theme="ocean"],html[data-theme="midnight"],html[data-theme="amber"])
+  .md img[data-mode="lightmode-only"],
+:is(html[data-theme="obsidian"],html[data-theme="ink"],html[data-theme="forest"],
+    html[data-theme="ocean"],html[data-theme="midnight"],html[data-theme="amber"])
+  .md figure:has(img[data-mode="lightmode-only"]){ display:none }
+:is(html[data-theme="cloud"],html[data-theme="linen"],html[data-theme="rose"],
+    html[data-theme="sepia"],html[data-theme="paper"],html[data-theme="moss"])
+  .md img[data-mode="darkmode-only"],
+:is(html[data-theme="cloud"],html[data-theme="linen"],html[data-theme="rose"],
+    html[data-theme="sepia"],html[data-theme="paper"],html[data-theme="moss"])
+  .md figure:has(img[data-mode="darkmode-only"]){ display:none }
+
+/* 灯箱 */
+.md-lightbox{
+  position:fixed;inset:0;z-index:400;
+  display:flex;align-items:center;justify-content:center;
+  padding:32px;
+  background:rgba(0,0,0,.74);
+  opacity:0;cursor:zoom-out;
+  transition:opacity .18s var(--ease);
+}
+.md-lightbox.on{ opacity:1 }
+.md-lightbox img{
+  max-width:100%;max-height:100%;
+  border-radius:var(--radius-control);box-shadow:var(--shadow);cursor:zoom-out;
+}
+
+/* ── Mermaid 图表 ── */
+.md .md-mermaid{
+  margin:1.4em 0;padding:6px;
+  text-align:center;overflow-x:auto;
+  scrollbar-width:thin;scrollbar-color:var(--line) transparent;
+}
+.md .md-mermaid svg{ max-width:100%;height:auto }
+.md .md-mermaid:not([data-processed]){ font-family:var(--mono);font-size:12px;color:var(--faint);text-align:left;white-space:pre-wrap }
+
+/* ── 表情 ── */
+.md .emoji{ font-style:normal;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",var(--sans) }

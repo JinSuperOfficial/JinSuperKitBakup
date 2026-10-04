@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="../favicon.svg">
+<link rel="apple-touch-icon" href="../apple-touch-icon.svg">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>课程表 · 811班</title>
+<style>
+  /* ---------- 圆角（macOS 风格：小半径 + 层级化 + 同心嵌套） ----------
+     规范：.Skills/theme-plus/references/circle_angle.md
+     默认 rounded-md / rounded-lg，窗口最多 rounded-xl，禁止 rounded-2xl / rounded-3xl
+     以及按钮/输入框/卡片的 rounded-full；只有状态点、开关才用胶囊。 */
+  :root{
+    --radius-xs:4px;      /* 标签、徽章 */
+    --radius-sm:6px;      /* 小控件 */
+    --radius-md:8px;      /* 按钮、输入框、分段控件 */
+    --radius-lg:10px;     /* 卡片、面板 */
+    --radius-xl:12px;     /* 窗口、弹窗 */
+    --radius-pill:999px;  /* 仅状态点、开关 */
+
+    --radius-control:var(--radius-md);
+    --radius-card:var(--radius-lg);
+    --radius-swatch:var(--radius-xs);
+    --radius-badge:var(--radius-xs);
+  }
+
+  :root[data-theme="dark"]{
+    --bg:#0E1214;
+    --panel:#13181B;
+    --raised:#191F23;
+    --raised-2:#1C2328;
+    --line:#232C31;
+    --line-soft:#1A2226;
+    --ink:#E7E9E6;
+    --ink-strong:#F0F2EF;
+    --dim:#818c92;
+    --faint:#7f8d95;
+    --accent:#D97757;
+    --accent-soft:rgba(215,119,87,.12);
+    --accent-line:rgba(215,119,87,.28);
+    --today-bg:rgba(215,119,87,.055);
+    --now-bg:rgba(215,119,87,.14);
+    --break-bg:#0C1012;
+    --empty-color:#3A444A;
+    --shadow:0 20px 44px -22px rgba(0,0,0,.75);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --ease:cubic-bezier(.2,.7,.2,1);
+  }
+
+  :root[data-theme="light"]{
+    --bg:#F5F0E8;
+    --panel:#FFFFFF;
+    --raised:#F8F3EC;
+    --raised-2:#EFE8DC;
+    --line:#E0D8CC;
+    --line-soft:#EBE3D7;
+    --ink:#2B2B2B;
+    --ink-strong:#111111;
+    --dim:#666666;
+    --faint:#6b655d;
+    --accent:#D97757;
+    --accent-soft:rgba(215,119,87,.10);
+    --accent-line:rgba(215,119,87,.30);
+    --today-bg:rgba(215,119,87,.07);
+    --now-bg:rgba(215,119,87,.16);
+    --break-bg:#EFE8DC;
+    --empty-color:#B8B0A4;
+    --shadow:0 16px 40px -20px rgba(90,70,50,.18);
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    font-size:14px;
+    -webkit-font-smoothing:antialiased;
+    min-height:100dvh;
+    transition:background .2s var(--ease), color .2s var(--ease);
+  }
+
+  .bg{
+    position:fixed; inset:0; z-index:-1; pointer-events:none;
+    background:
+      radial-gradient(1100px 640px at 82% -10%, var(--raised-2) 0%, transparent 58%),
+      radial-gradient(820px 560px at 4% 108%, var(--raised) 0%, transparent 55%);
+    transition:background .2s var(--ease);
+  }
+  :root[data-theme="dark"] .bg::after{
+    content:''; position:absolute; inset:0; opacity:.032;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/></filter><rect width='140' height='140' filter='url(%23n)'/></svg>");
+  }
+
+  .wrap{
+    max-width:1240px; margin:0 auto;
+    padding:clamp(24px,5vh,48px) clamp(16px,4vw,40px) 80px;
+  }
+
+  header{
+    display:flex; flex-wrap:wrap; gap:16px;
+    align-items:flex-end; justify-content:space-between;
+    padding-bottom:20px;
+    margin-bottom:22px;
+    border-bottom:1px solid var(--line);
+  }
+
+  .title-block{ min-width:0; }
+  .eyebrow{
+    display:inline-flex; align-items:center; gap:9px;
+    font-family:var(--mono); font-size:11px; letter-spacing:.16em;
+    text-transform:uppercase; color:var(--faint);
+    margin-bottom:12px;
+  }
+  .eyebrow .dot{
+    width:6px; height:6px; border-radius:var(--radius-pill); background:var(--accent);
+    box-shadow:0 0 0 3px rgba(215,119,87,.18);
+  }
+  h1{
+    margin:0 0 8px;
+    font-size:clamp(24px,3.6vw,34px);
+    font-weight:680; letter-spacing:-.022em; line-height:1.1;
+  }
+  h1 em{ font-style:normal; color:var(--accent); }
+  .sub{
+    margin:0;
+    font-size:13px; line-height:1.6;
+    color:var(--dim);
+  }
+
+  .head-right{
+    display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+  }
+
+  .theme-btn{
+    width:38px; height:38px;
+    display:grid; place-items:center;
+    background:var(--raised); border:1px solid var(--line); border-radius:var(--radius-control);
+    color:var(--dim); cursor:pointer;
+    transition:border-color .13s var(--ease), color .13s var(--ease),
+               background .13s var(--ease), transform .13s var(--ease);
+  }
+  .theme-btn:hover{ border-color:#3A464E; color:var(--ink); background:var(--raised-2); }
+  .theme-btn:active{ transform:scale(.94); }
+  .theme-btn:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  .theme-btn svg{ width:16px; height:16px; display:none; }
+  :root[data-theme="dark"] .theme-btn .sun{ display:block; }
+  :root[data-theme="light"] .theme-btn .moon{ display:block; }
+
+  /* 更多 811 工具 → /811/index.html */
+  .more-btn{
+    display:inline-flex; align-items:center; gap:7px;
+    min-height:38px; padding:0 14px;
+    background:var(--raised); border:1px solid var(--line);
+    border-radius:var(--radius-control);
+    color:var(--dim);
+    font-family:var(--mono); font-size:12px; letter-spacing:.02em;
+    text-decoration:none; white-space:nowrap;
+    transition:border-color .13s var(--ease), color .13s var(--ease),
+               background .13s var(--ease), transform .13s var(--ease);
+  }
+  .more-btn svg{ width:15px; height:15px; flex:none; }
+  .more-btn:hover{
+    border-color:#3A464E; color:var(--ink); background:var(--raised-2);
+    transform:translateY(-1px);
+  }
+  :root[data-theme="light"] .more-btn:hover{ border-color:#C9BFB0; }
+  .more-btn:active{ transform:translateY(0) scale(.97); }
+  .more-btn:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+
+  .switcher{
+    display:inline-flex; gap:2px;
+    padding:3px;
+    background:var(--raised);
+    border:1px solid var(--line); border-radius:var(--radius-md);
+  }
+  .switcher button{
+    padding:7px 14px;
+    background:transparent; border:none; border-radius:calc(var(--radius-md) - 3px);
+    color:var(--dim);
+    font-family:var(--mono); font-size:12px; letter-spacing:.02em;
+    cursor:pointer;
+    transition:color .13s var(--ease), background .13s var(--ease);
+    white-space:nowrap;
+  }
+  .switcher button:hover{ color:var(--ink); background:rgba(255,255,255,.04); }
+  :root[data-theme="light"] .switcher button:hover{ background:rgba(0,0,0,.035); }
+  .switcher button.active{
+    color:var(--accent);
+    background:var(--accent-soft);
+    box-shadow:inset 0 0 0 1px var(--accent-line);
+  }
+  .switcher button:focus-visible{ outline:2px solid var(--accent); outline-offset:1px; }
+
+  main{
+    transition:opacity .18s var(--ease), transform .18s var(--ease);
+  }
+  main.switching{
+    opacity:0; transform:translateY(4px);
+  }
+
+  /* 完整课表 */
+  .schedule{
+    display:grid;
+    grid-template-columns:104px repeat(5, minmax(130px, 1fr));
+    gap:1px;
+    background:var(--line);
+    border:1px solid var(--line);
+    border-radius:var(--radius-card);
+    overflow:hidden;
+    box-shadow:var(--shadow);
+  }
+
+  .cell{
+    background:var(--panel);
+    padding:11px 12px;
+    min-width:0;
+    display:flex; flex-direction:column; gap:3px;
+    position:relative;
+    transition:background .13s var(--ease);
+  }
+
+  .time-cell{
+    background:var(--raised);
+    justify-content:center;
+    align-items:flex-start;
+  }
+  .cell-label{
+    font-family:var(--mono); font-size:11.5px;
+    color:var(--ink);
+    font-weight:600;
+    letter-spacing:.01em;
+  }
+  .cell-time{
+    font-family:var(--mono); font-size:10.5px;
+    color:var(--faint);
+    letter-spacing:.02em;
+  }
+
+  .day-head{
+    background:var(--raised);
+    align-items:center;
+    justify-content:center;
+    font-family:var(--mono); font-size:12px;
+    color:var(--dim);
+    font-weight:600;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    padding:12px 8px;
+    position:sticky; top:0; z-index:2;
+    transition:color .13s var(--ease), background .13s var(--ease);
+  }
+  .day-head.today{
+    color:var(--accent);
+    background:var(--accent-soft);
+  }
+  .day-head.today::after{
+    content:'';
+    position:absolute; left:50%; bottom:6px; transform:translateX(-50%);
+    width:16px; height:2px;
+    border-radius:var(--radius-xs);
+    background:var(--accent);
+  }
+
+  .subject-cell{
+    border-left:2px solid transparent;
+    justify-content:center;
+  }
+  .subject-cell .subject{
+    font-size:13.5px; font-weight:640;
+    color:var(--ink);
+    letter-spacing:-.005em;
+    line-height:1.3;
+  }
+  .subject-cell .teacher{
+    font-family:var(--mono); font-size:11px;
+    color:var(--dim);
+    letter-spacing:.01em;
+  }
+  .subject-cell.today{
+    background:var(--today-bg);
+  }
+  .subject-cell.empty{
+    color:var(--empty-color);
+    align-items:center; justify-content:center;
+    font-family:var(--mono); font-size:12px;
+    font-style:italic;
+  }
+
+  .cell.break{
+    grid-column:span 6;
+    background:var(--break-bg);
+    padding:9px 18px;
+    flex-direction:row; align-items:center; gap:14px;
+    justify-content:flex-start;
+    border-top:1px solid var(--line-soft);
+    border-bottom:1px solid var(--line-soft);
+  }
+  .break-label{
+    font-family:var(--mono); font-size:11px;
+    color:var(--faint); letter-spacing:.13em;
+    text-transform:uppercase;
+    flex:none;
+  }
+  .break-time{
+    font-family:var(--mono); font-size:11px;
+    color:var(--dim);
+    flex:none;
+  }
+  .break-text{
+    font-size:12px;
+    color:var(--faint);
+    flex:1;
+    min-width:0;
+  }
+  .break-text::before{
+    content:'·';
+    margin-right:10px;
+    color:var(--empty-color);
+  }
+
+  .cell.full-span{
+    grid-column:span 5;
+    background:var(--accent-soft);
+    flex-direction:row; align-items:center; gap:10px;
+    color:var(--ink);
+    font-size:13px; font-weight:600;
+    padding:11px 16px;
+    border-left:2px solid var(--accent);
+  }
+  .cell.full-span svg{
+    width:14px; height:14px;
+    color:var(--accent);
+    flex:none;
+  }
+
+  /* 今日视图 */
+  .today-head{
+    display:flex; align-items:baseline; gap:14px;
+    padding:0 4px 18px;
+    margin-bottom:18px;
+    border-bottom:1px solid var(--line);
+    flex-wrap:wrap;
+  }
+  .today-day{
+    font-size:clamp(28px,5vw,44px);
+    font-weight:680; letter-spacing:-.028em;
+    color:var(--accent);
+    line-height:1;
+  }
+  .today-date{
+    font-family:var(--mono); font-size:12.5px;
+    color:var(--dim);
+    letter-spacing:.04em;
+  }
+  .today-count{
+    font-family:var(--mono); font-size:11.5px;
+    color:var(--faint);
+    margin-left:auto;
+    padding:4px 10px;
+    background:var(--raised);
+    border:1px solid var(--line);
+    border-radius:var(--radius-badge);
+  }
+
+  .today-list{
+    display:flex; flex-direction:column; gap:10px;
+  }
+  .today-item{
+    display:grid;
+    grid-template-columns:150px 1fr;
+    gap:20px;
+    padding:16px 20px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius-md);
+    position:relative;
+    overflow:hidden;
+    transition:border-color .15s var(--ease),
+               background .15s var(--ease),
+               transform .15s var(--ease);
+  }
+  .today-item::before{
+    content:'';
+    position:absolute;
+    left:0; top:0; bottom:0;
+    width:3px;
+    background:var(--item-color, transparent);
+    opacity:.8;
+  }
+  .today-item:hover{
+    border-color:#333F47;
+    transform:translateX(2px);
+  }
+  :root[data-theme="light"] .today-item:hover{ border-color:#C9BFB0; }
+
+  .today-item.now{
+    border-color:var(--accent-line);
+    background:var(--now-bg);
+    box-shadow:0 0 0 1px var(--accent-line) inset;
+  }
+  .today-item.now::after{
+    content:'NOW';
+    position:absolute;
+    right:16px; top:14px;
+    font-family:var(--mono); font-size:9.5px;
+    letter-spacing:.14em;
+    color:var(--accent);
+    padding:2px 6px;
+    border:1px solid var(--accent-line);
+    border-radius:var(--radius-xs);
+    background:var(--accent-soft);
+    animation:pulse 1.8s ease-in-out infinite;
+  }
+  @keyframes pulse{
+    0%,100%{opacity:1}
+    50%{opacity:.55}
+  }
+  .today-item.past{
+    opacity:.55;
+  }
+  .today-item.past:hover{ opacity:.85; }
+
+  .today-time{
+    font-family:var(--mono); font-size:12.5px;
+    color:var(--dim);
+    display:flex; flex-direction:column; gap:4px;
+    justify-content:center;
+  }
+  .today-label{
+    font-family:var(--mono); font-size:10.5px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:var(--faint);
+  }
+  .today-info{
+    display:flex; flex-direction:column; gap:5px;
+    justify-content:center;
+    min-width:0;
+  }
+  .today-subject{
+    font-size:17px; font-weight:660;
+    letter-spacing:-.01em;
+    line-height:1.25;
+    color:var(--ink-strong);
+  }
+  .today-teacher{
+    font-family:var(--mono); font-size:12px;
+    color:var(--dim);
+    letter-spacing:.01em;
+  }
+
+  @media (max-width:640px){
+    .today-item{ grid-template-columns:1fr; gap:10px; padding:14px 16px; }
+    .today-item.now::after{ top:auto; bottom:12px; right:12px; }
+    .today-time{ flex-direction:row; gap:12px; align-items:baseline; }
+  }
+
+  .empty-state{
+    padding:72px 32px;
+    text-align:center;
+    border:1px dashed var(--line);
+    border-radius:var(--radius-card);
+    background:var(--raised);
+  }
+  .empty-state svg{
+    width:44px; height:44px;
+    color:var(--empty-color);
+    margin-bottom:18px;
+  }
+  .empty-state h3{
+    margin:0 0 10px;
+    font-size:18px; font-weight:640;
+    color:var(--ink-strong);
+    letter-spacing:-.008em;
+  }
+  .empty-state p{
+    margin:0;
+    font-size:13px; line-height:1.8;
+    color:var(--dim);
+    max-width:36ch;
+    margin-inline:auto;
+  }
+
+  footer{
+    margin-top:52px;
+    padding-top:22px;
+    border-top:1px solid var(--line);
+    display:flex; flex-wrap:wrap; gap:14px;
+    justify-content:space-between; align-items:center;
+    font-family:var(--mono); font-size:11px;
+    color:var(--faint);
+    letter-spacing:.02em;
+  }
+  footer .legend{
+    display:flex; flex-wrap:wrap; gap:14px; align-items:center;
+  }
+  footer .legend-item{
+    display:inline-flex; align-items:center; gap:6px;
+  }
+  footer .legend-dot{
+    width:8px; height:8px; border-radius:var(--radius-swatch);
+    flex:none;
+  }
+  .legend-time{ color:var(--dim); }
+  .legend-code{ color:var(--dim); padding:0 4px; }
+
+  @media (max-width:760px){
+    .schedule{
+      grid-template-columns:88px repeat(5, minmax(110px, 1fr));
+      font-size:12.5px;
+    }
+    .subject-cell .subject{ font-size:12.5px; }
+    .subject-cell .teacher{ font-size:10.5px; }
+    .time-cell{ padding:8px; }
+    .cell-label{ font-size:11px; }
+    .cell-time{ font-size:9.5px; }
+  }
+
+  @media (max-width:560px){
+    .switcher button{ padding:6px 10px; font-size:11px; }
+    header{ gap:14px; }
+  }
+
+  /* 连续曲率：支持时启用 squircle，不支持就退回小半径 */
+  @supports (corner-shape: squircle){
+    .schedule,
+    .today-item,
+    .empty-state,
+    .switcher,
+    .switcher button,
+    .theme-btn,
+    .more-btn,
+    .today-count,
+    .today-item.now::after{
+      corner-shape:squircle;
+    }
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{
+      animation-duration:.01ms !important;
+      transition-duration:.01ms !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="bg"></div>
+
+<div class="wrap">
+
+  <header>
+    <div class="title-block">
+      <div class="eyebrow"><span class="dot"></span> 2026 下半年 · 811 班</div>
+      <h1>课程<em>表</em></h1>
+      <p class="sub" id="subtitle">基础版 · 常规课表</p>
+    </div>
+
+    <div class="head-right">
+      <a class="more-btn" href="/811/index.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/>
+          <rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/>
+          <rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/>
+          <rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>
+        </svg>
+        <span>更多811工具</span>
+      </a>
+
+      <div class="switcher" id="versionSwitch" role="tablist" aria-label="版本">
+        <button data-version="normal" class="active" role="tab" aria-selected="true">基础</button>
+        <button data-version="flash" role="tab" aria-selected="false">缩略</button>
+      </div>
+
+      <div class="switcher" id="viewSwitch" role="tablist" aria-label="视图">
+        <button data-view="full" class="active" role="tab" aria-selected="true">完整课表</button>
+        <button data-view="today" role="tab" aria-selected="false">今日课程</button>
+      </div>
+
+      <button class="theme-btn" id="themeBtn" aria-label="切换主题" title="切换白天 / 夜间模式">
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/>
+        </svg>
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="4"/>
+          <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <main id="main"></main>
+
+  <footer>
+    <div class="legend">
+      <span class="legend-item"><span class="legend-dot" style="background:#D97757"></span><span class="legend-time">数学</span></span>
+      <span class="legend-item"><span class="legend-dot" style="background:#7EC8C8"></span><span class="legend-time">语文</span></span>
+      <span class="legend-item"><span class="legend-dot" style="background:#6B9BD1"></span><span class="legend-time">英语</span></span>
+      <span class="legend-item"><span class="legend-dot" style="background:#A8B89A"></span><span class="legend-time">科学</span></span>
+      <span class="legend-item"><span class="legend-dot" style="background:#C9A84C"></span><span class="legend-time">社会</span></span>
+    </div>
+    <span>
+      <span class="legend-code">A</span>早 · <span class="legend-code">D</span>午 ·
+      <span class="legend-code">P</span>午后 · <span class="legend-code">N</span>晚间
+    </span>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  var DAYS = ['周一','周二','周三','周四','周五'];
+
+  var SUBJECT_COLORS = {
+    '数学':'#D97757',
+    '语文':'#7EC8C8',
+    '英语':'#6B9BD1',
+    '科学':'#A8B89A',
+    '社会':'#C9A84C',
+    '体育':'#E08A6C',
+    '美术':'#E1A3B0',
+    '音乐':'#E8B17C',
+    '信息技术':'#8DA9C4',
+    '班会':'#B5A8C8',
+    '社团':'#9B9ECE'
+  };
+
+  /* ══════════════════════════════════════════════
+     公共数据片段
+     ══════════════════════════════════════════════ */
+
+  /* 早自修 + 第一节：同科同师，两个时间段共用一批课程 */
+  var MORNING_CELLS = [
+    '数学|张新新','社会|林晨露','语文|池春阳','科学|金珍宽','英语|施蓓蕾'
+  ];
+
+  /* 午自修（D12:40 - P01:20） */
+  var NOON_SELF = [
+    '社会|林晨露','英语|施蓓蕾','科学|金珍宽','语文|池春阳','数学|张新新'
+  ];
+
+  /* 晚自习三节：科目完全一致 */
+  var EVENING_CELLS = [
+    '英语|施蓓蕾','社会|林晨露','语文|池春阳','科学|金珍宽','数学|张新新'
+  ];
+
+  /* 托管 / 第四时段 */
+  var HOMEROOM = [
+    '语文|池春阳','数学|张新新','英语|施蓓蕾','社会|林晨露',''
+  ];
+
+  /* ── 版本 1：基础（带教师名，含朗读活动） ── */
+  var NORMAL = {
+    name: '基础',
+    desc: '基础版 · 常规课表',
+    rows: [
+      { type:'class', label:'早自修', time:'07:30–07:55', cells: MORNING_CELLS },
+      { type:'class', label:'一',     time:'08:00–08:45', cells: MORNING_CELLS },
+      { type:'class', label:'二',     time:'09:10–09:55', cells:[
+        '科学|金珍宽','语文|池春阳','数学|张新新','科学|金珍宽','语文|池春阳'
+      ]},
+      { type:'class', label:'三',     time:'10:05–10:50', cells:[
+        '英语|施蓓蕾','英语|施蓓蕾','社会|林晨露','数学|张新新','社会|林晨露'
+      ]},
+      { type:'class', label:'四',     time:'11:10–11:45', cells:[
+        '美术|陈向东','科学|金珍宽','体育|陈雷迅','信息技术|周凡','音乐|姜素棉'
+      ]},
+      { type:'break', label:'午间',   time:'11:45–12:40', text:'午间休息 & 午饭' },
+      { type:'class', label:'午自修', time:'12:40–13:20', cells: NOON_SELF },
+      { type:'class', label:'五/一',  time:'13:30–14:15', cells:[
+        '社会|林晨露','体育|陈雷迅','科学|金珍宽','语文|池春阳','数学|张新新'
+      ]},
+      { type:'class', label:'六/二',  time:'14:25–15:15', cells:[
+        '语文|池春阳','数学|张新新','英语|施蓓蕾','社会|林晨露','科学|金珍宽'
+      ]},
+      { type:'class', label:'七/三',  time:'15:25–16:10', cells:[
+        '体育|陈雷迅','班会|张新新','社团|','英语|施蓓蕾','科学|金珍宽'
+      ]},
+      { type:'class', label:'托管/四', time:'16:20–17:00', cells: HOMEROOM },
+      { type:'break', label:'晚间',   time:'17:00–17:45', text:'夜间休息 & 晚饭' },
+      { type:'full',  label:'晚读',   time:'17:45–18:00', text:'英语晚间朗读活动', extra:'王有铮' },
+      { type:'class', label:'晚自习一', time:'18:00–18:45', cells: EVENING_CELLS },
+      { type:'class', label:'晚自习二', time:'18:55–19:40', cells: EVENING_CELLS },
+      { type:'class', label:'晚自习三', time:'19:50–20:35', cells: EVENING_CELLS }
+    ]
+  };
+
+  /* ── 版本 2：缩略（无教师名） ── */
+  var FLASH = {
+    name: '缩略',
+    desc: '缩略版 · 精简课程表',
+    rows: [
+      { type:'class', label:'早自修', time:'07:30–08:45', cells:[
+        '数学|','社会|','语文|','科学|','英语|'
+      ]},
+      { type:'class', label:'二',     time:'09:10–09:55', cells:[
+        '科学|','语文|','数学|','科学|','语文|'
+      ]},
+      { type:'class', label:'三',     time:'10:05–10:50', cells:[
+        '英语|','英语|','社会|','数学|','社会|'
+      ]},
+      { type:'class', label:'四',     time:'11:10–11:45', cells:[
+        '美术|','科学|','体育|','信息技术|','音乐|'
+      ]},
+      { type:'break', label:'午间',   time:'11:45–12:40', text:'午间休息 & 午饭' },
+      { type:'class', label:'午自修', time:'12:40–13:20', cells:[
+        '社会|','英语|','科学|','语文|','数学|'
+      ]},
+      { type:'class', label:'五/一',  time:'13:30–14:15', cells:[
+        '社会|','体育|','科学|','语文|','数学|'
+      ]},
+      { type:'class', label:'六/二',  time:'14:25–15:15', cells:[
+        '语文|','数学|','英语|','社会|','科学|'
+      ]},
+      { type:'class', label:'七/三',  time:'15:25–16:10', cells:[
+        '体育|','班会|','社团|','英语|','科学|'
+      ]},
+      { type:'class', label:'托管/四', time:'16:20–17:00', cells:[
+        '语文|','数学|','英语|','社会|',''
+      ]},
+      { type:'break', label:'晚间',   time:'17:00–18:00', text:'晚修 & 晚饭 & 晚读' },
+      { type:'class', label:'晚自习一', time:'18:00–18:45', cells:[
+        '英语|','社会|','语文|','科学|','数学|'
+      ]},
+      { type:'class', label:'晚自习二', time:'18:55–19:40', cells:[
+        '英语|','社会|','语文|','科学|','数学|'
+      ]},
+      { type:'class', label:'晚自习三', time:'19:50–20:35', cells:[
+        '英语|','社会|','语文|','科学|','数学|'
+      ]}
+    ]
+  };
+
+  var VERSIONS = {
+    normal: NORMAL,
+    flash: FLASH
+  };
+
+  /* ══════════════════════════════════════════════
+     状态
+     ══════════════════════════════════════════════ */
+
+  var state = {
+    version: 'normal',
+    view: 'full',
+    theme: 'dark'
+  };
+
+  /* ══════════════════════════════════════════════
+     DOM
+     ══════════════════════════════════════════════ */
+
+  var $ = function(id){ return document.getElementById(id); };
+  var mainEl = $('main');
+  var subtitleEl = $('subtitle');
+  var versionSwitch = $('versionSwitch');
+  var viewSwitch = $('viewSwitch');
+  var themeBtn = $('themeBtn');
+
+  /* ══════════════════════════════════════════════
+     工具
+     ══════════════════════════════════════════════ */
+
+  function esc(s){
+    return String(s || '').replace(/[&<>"]/g, function(c){
+      return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c];
+    });
+  }
+
+  function todayIndex(){
+    var d = new Date().getDay();
+    if (d === 0 || d === 6) return -1;
+    return d - 1;
+  }
+
+  function parseRange(str){
+    var m = String(str).match(/(\d{1,2}):(\d{2})\s*[–\-—~]\s*(\d{1,2}):(\d{2})/);
+    if (!m) return null;
+    return {
+      start: (+m[1]) * 60 + (+m[2]),
+      end: (+m[3]) * 60 + (+m[4])
+    };
+  }
+
+  function nowMinutes(){
+    var d = new Date();
+    return d.getHours() * 60 + d.getMinutes();
+  }
+
+  function isNow(range){
+    var r = parseRange(range);
+    if (!r) return false;
+    var n = nowMinutes();
+    return n >= r.start && n < r.end;
+  }
+
+  function isPast(range){
+    var r = parseRange(range);
+    if (!r) return false;
+    return nowMinutes() >= r.end;
+  }
+
+  function subjectColor(subject){
+    return SUBJECT_COLORS[subject] || 'var(--faint)';
+  }
+
+  /* ══════════════════════════════════════════════
+     渲染：完整课表
+     ══════════════════════════════════════════════ */
+
+  function renderFull(sch){
+    var today = todayIndex();
+    var html = '<div class="schedule">';
+
+    html += '<div class="cell day-head" style="background:var(--raised);color:var(--faint)">时间</div>';
+    DAYS.forEach(function(d, i){
+      html += '<div class="cell day-head' + (i === today ? ' today' : '') + '">' + d + '</div>';
+    });
+
+    sch.rows.forEach(function(row){
+      if (row.type === 'break'){
+        html += '<div class="cell break">';
+        html += '<span class="break-label">' + esc(row.label) + '</span>';
+        html += '<span class="break-time">' + esc(row.time) + '</span>';
+        if (row.text) html += '<span class="break-text">' + esc(row.text) + '</span>';
+        html += '</div>';
+        return;
+      }
+
+      if (row.type === 'full'){
+        html += '<div class="cell time-cell">';
+        html += '<div class="cell-label">' + esc(row.label) + '</div>';
+        html += '<div class="cell-time">' + esc(row.time) + '</div>';
+        html += '</div>';
+        html += '<div class="cell full-span">';
+        html += '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V6l10-2v12"/><circle cx="6" cy="18" r="3"/><circle cx="16" cy="16" r="3"/></svg>';
+        html += '<span>' + esc(row.text) + (row.extra ? ' · ' + esc(row.extra) : '') + '</span>';
+        html += '</div>';
+        return;
+      }
+
+      html += '<div class="cell time-cell">';
+      html += '<div class="cell-label">' + esc(row.label) + '</div>';
+      html += '<div class="cell-time">' + esc(row.time) + '</div>';
+      html += '</div>';
+
+      row.cells.forEach(function(cell, i){
+        var isToday = i === today;
+        var cls = 'cell subject-cell' + (isToday ? ' today' : '');
+
+        if (!cell || !cell.trim()){
+          html += '<div class="' + cls + ' empty">—</div>';
+          return;
+        }
+
+        var parts = cell.split('|');
+        var subject = (parts[0] || '').trim();
+        var teacher = (parts[1] || '').trim();
+        var color = subjectColor(subject);
+
+        html += '<div class="' + cls + '" style="border-left-color:' + color + '">';
+        html += '<div class="subject">' + esc(subject) + '</div>';
+        if (teacher) html += '<div class="teacher">' + esc(teacher) + '</div>';
+        html += '</div>';
+      });
+    });
+
+    html += '</div>';
+    return html;
+  }
+
+  /* ══════════════════════════════════════════════
+     渲染：今日课程
+     ══════════════════════════════════════════════ */
+
+  function renderToday(sch){
+    var today = todayIndex();
+
+    if (today < 0){
+      return '<div class="empty-state">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">' +
+          '<circle cx="12" cy="12" r="9"/>' +
+          '<path d="M12 8v4l3 2"/>' +
+        '</svg>' +
+        '<h3>今天是周末</h3>' +
+        '<p>没有安排，好好休息。切换到「完整课表」可以看整周。</p>' +
+      '</div>';
+    }
+
+    var dayName = DAYS[today];
+    var now = new Date();
+    var dateStr = (now.getMonth() + 1) + ' 月 ' + now.getDate() + ' 日 · ' + dayName;
+
+    var classCount = 0;
+    sch.rows.forEach(function(row){
+      if (row.type === 'break' || row.type === 'full') return;
+      var cell = row.cells[today];
+      if (cell && cell.trim()) classCount++;
+    });
+
+    var html = '<div class="today-head">';
+    html += '<div class="today-day">' + dayName + '</div>';
+    html += '<div class="today-date">' + dateStr + '</div>';
+    html += '<div class="today-count">' + classCount + ' 节</div>';
+    html += '</div>';
+
+    html += '<div class="today-list">';
+
+    var hasAny = false;
+
+    sch.rows.forEach(function(row){
+      /* 分隔行和全宽行也展示，作为时间线节点 */
+      if (row.type === 'break'){
+        if (hasAny){
+          html += '<div class="today-item" style="--item-color:var(--line);padding:10px 20px;background:var(--break-bg)">';
+          html += '<div class="today-time" style="color:var(--faint)"><span class="today-label" style="color:var(--faint)">' + esc(row.label) + '</span><span>' + esc(row.time) + '</span></div>';
+          html += '<div class="today-info"><div class="today-subject" style="font-size:13px;font-weight:500;color:var(--faint)">' + esc(row.text || row.label) + '</div></div>';
+          html += '</div>';
+        }
+        return;
+      }
+
+      if (row.type === 'full'){
+        hasAny = true;
+        html += '<div class="today-item" style="--item-color:var(--accent);background:var(--accent-soft)">';
+        html += '<div class="today-time"><span class="today-label">' + esc(row.label) + '</span><span>' + esc(row.time) + '</span></div>';
+        html += '<div class="today-info"><div class="today-subject">' + esc(row.text) + '</div>' + (row.extra ? '<div class="today-teacher">' + esc(row.extra) + '</div>' : '') + '</div>';
+        html += '</div>';
+        return;
+      }
+
+      var cell = (row.cells[today] || '').trim();
+      if (!cell) return;   /* 空堂跳过 */
+      hasAny = true;
+
+      var parts = cell.split('|');
+      var subject = (parts[0] || '').trim();
+      var teacher = (parts[1] || '').trim();
+      var color = subjectColor(subject);
+
+      var nowFlag = isNow(row.time);
+      var pastFlag = isPast(row.time);
+
+      var cls = 'today-item';
+      if (nowFlag) cls += ' now';
+      else if (pastFlag) cls += ' past';
+
+      html += '<div class="' + cls + '" style="--item-color:' + color + '">';
+      html += '<div class="today-time">';
+      html += '<span class="today-label">' + esc(row.label) + '</span>';
+      html += '<span>' + esc(row.time) + '</span>';
+      html += '</div>';
+      html += '<div class="today-info">';
+      html += '<div class="today-subject">' + esc(subject) + '</div>';
+      if (teacher) html += '<div class="today-teacher">' + esc(teacher) + '</div>';
+      html += '</div>';
+      html += '</div>';
+    });
+
+    if (!hasAny){
+      html += '<div class="empty-state">' +
+        '<h3>今天没课</h3>' +
+        '<p>可能是周末或节假日，好好休息。</p>' +
+      '</div>';
+    }
+
+    html += '</div>';
+    return html;
+  }
+
+  /* ══════════════════════════════════════════════
+     主渲染
+     ══════════════════════════════════════════════ */
+
+  var renderToken = 0;
+
+  function render(){
+    var sch = VERSIONS[state.version];
+    if (!sch) return;
+
+    subtitleEl.textContent = sch.desc;
+
+    var content = state.view === 'full'
+      ? renderFull(sch)
+      : renderToday(sch);
+
+    mainEl.classList.add('switching');
+    var token = ++renderToken;
+    setTimeout(function(){
+      if (token !== renderToken) return;
+      mainEl.innerHTML = content;
+      requestAnimationFrame(function(){
+        mainEl.classList.remove('switching');
+      });
+    }, 90);
+  }
+
+  /* ══════════════════════════════════════════════
+     事件
+     ══════════════════════════════════════════════ */
+
+  versionSwitch.addEventListener('click', function(e){
+    var btn = e.target.closest('button[data-version]');
+    if (!btn || btn.classList.contains('active')) return;
+
+    state.version = btn.dataset.version;
+    versionSwitch.querySelectorAll('button').forEach(function(b){
+      var on = b === btn;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-selected', String(on));
+    });
+    render();
+  });
+
+  viewSwitch.addEventListener('click', function(e){
+    var btn = e.target.closest('button[data-view]');
+    if (!btn || btn.classList.contains('active')) return;
+
+    state.view = btn.dataset.view;
+    viewSwitch.querySelectorAll('button').forEach(function(b){
+      var on = b === btn;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-selected', String(on));
+    });
+    render();
+  });
+
+  function setTheme(t){
+    state.theme = t;
+    document.documentElement.setAttribute('data-theme', t);
+    try { localStorage.setItem('timetable-theme', t); } catch(_){}
+  }
+
+  function initTheme(){
+    var saved = null;
+    try { saved = localStorage.getItem('timetable-theme'); } catch(_){}
+    if (saved === 'light' || saved === 'dark'){
+      setTheme(saved);
+      return;
+    }
+    var prefersLight = matchMedia('(prefers-color-scheme: light)').matches;
+    setTheme(prefersLight ? 'light' : 'dark');
+  }
+
+  themeBtn.addEventListener('click', function(){
+    setTheme(state.theme === 'dark' ? 'light' : 'dark');
+  });
+
+  document.addEventListener('keydown', function(e){
+    if (e.target !== document.body && e.target !== mainEl) return;
+    if (e.key === '1'){
+      versionSwitch.querySelector('[data-version="normal"]').click();
+    } else if (e.key === '2'){
+      versionSwitch.querySelector('[data-version="flash"]').click();
+    } else if (e.key === 'f' || e.key === 'F'){
+      viewSwitch.querySelector('[data-view="full"]').click();
+    } else if (e.key === 't' || e.key === 'T'){
+      viewSwitch.querySelector('[data-view="today"]').click();
+    } else if (e.key === 'd' || e.key === 'D'){
+      themeBtn.click();
+    }
+  });
+
+  initTheme();
+  render();
+
+})();
+</script>
+</body>
+</html>

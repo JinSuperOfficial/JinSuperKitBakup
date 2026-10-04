@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="../../favicon.svg">
+<link rel="apple-touch-icon" href="../../apple-touch-icon.svg">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>今日份美味 😋 作业</title>
+<style>
+  :root{
+    color-scheme: light dark;
+
+    /* ---------- 浅色模式基准 ---------- */
+    --bg:#F8F3EC;
+    --paper:#FFFCF7;
+    --ink:#2E2A26;
+    --ink-soft:#6B635A;
+    --oak:#8D6959;
+    --olive:#8E9867;
+    --clay:#D97757;
+    --line:rgba(46,42,38,.12);
+    --line-soft:rgba(46,42,38,.07);
+    --check-mark:#FFFCF7;
+    --done-text:#A9A29A;
+    --empty-text:#B3ACA4;
+    --foot-text:#A9A29A;
+    --thead-bg:rgba(142,152,103,.07);
+    --skeleton-1:rgba(46,42,38,.06);
+    --skeleton-2:rgba(46,42,38,.11);
+    --overlay:rgba(46,42,38,.34);
+    --mark-bg:rgba(217,119,87,.13);
+    --mark-border:rgba(217,119,87,.30);
+    --cta-bg:#B0552F;
+    --cta-bg-hover:#98462A;
+    --shadow-1:rgba(46,42,38,.04);
+    --shadow-2:rgba(46,42,38,.45);
+    --shadow-3:rgba(46,42,38,.55);
+
+    /* 动态色调（JS 按完成度重写）0% 冷灰蓝 → 100% 陶土橙 */
+    --tint-accent: hsl(220 8% 60%);
+    --tint-text:   hsl(220 8% 34%);
+    --tint-soft:   hsl(220 8% 60% / .14);
+    --tint-line:   hsl(220 8% 60% / .30);
+    --tint-box:    hsl(220 8% 60% / .55);
+    --tint-card:   hsl(220 8% 60% / .22);
+    --tint-fill:   hsl(220 8% 60%);
+
+    /* 背景光晕 */
+    --glow-1: hsl(220 8% 60% / .16);
+    --glow-2: hsl(220 8% 60% / .14);
+
+    --serif:"Songti SC","Noto Serif SC",Georgia,"Times New Roman",serif;
+    --sans:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+  }
+
+  /* ---------- 深色模式（跟随系统） ---------- */
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#14120E;
+      --paper:#1E1B17;
+      --ink:#EDE7DF;
+      --ink-soft:#A29A8E;
+      --oak:#B89B85;
+      --olive:#A8B57C;
+      --clay:#E88B6D;
+      --line:rgba(237,231,223,.14);
+      --line-soft:rgba(237,231,223,.08);
+      --check-mark:#1A1815;
+      --done-text:#6B635A;
+      --empty-text:#6B635A;
+      --foot-text:#7A736A;
+      --thead-bg:rgba(142,152,103,.12);
+      --skeleton-1:rgba(237,231,223,.06);
+      --skeleton-2:rgba(237,231,223,.12);
+      --overlay:rgba(0,0,0,.60);
+      --mark-bg:rgba(217,119,87,.20);
+      --mark-border:rgba(217,119,87,.45);
+      --cta-bg:#C9683D;
+      --cta-bg-hover:#B0552F;
+      --shadow-1:rgba(0,0,0,.40);
+      --shadow-2:rgba(0,0,0,.70);
+      --shadow-3:rgba(0,0,0,.80);
+
+      --glow-1: hsl(220 12% 60% / .30);
+      --glow-2: hsl(220 12% 60% / .26);
+    }
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+
+  body{
+    min-height:100vh;
+    background:
+      radial-gradient(880px 520px at 12% -8%, var(--glow-1), transparent 62%),
+      radial-gradient(760px 480px at 92% 4%, var(--glow-2), transparent 60%),
+      var(--bg);
+    color:var(--ink);
+    font-family:var(--sans);
+    font-size:16px;
+    line-height:1.7;
+    -webkit-font-smoothing:antialiased;
+    padding:clamp(28px,6vw,76px) clamp(16px,5vw,40px) clamp(48px,8vw,100px);
+    transition:background .5s ease, color .3s ease;
+  }
+
+  .page{max-width:820px;margin:0 auto}
+
+  /* ---------- 头部 ---------- */
+  .head{margin-bottom:clamp(22px,3.6vw,36px)}
+  .kicker{
+    display:inline-flex;
+    align-items:center;
+    gap:10px;
+    font-size:11px;
+    letter-spacing:.2em;
+    text-transform:uppercase;
+    color:var(--oak);
+    margin-bottom:16px;
+  }
+  .kicker::before{
+    content:"";
+    width:26px;height:1px;
+    background:var(--tint-accent);
+    flex:none;
+    transition:background .5s ease;
+  }
+
+  h1{
+    font-family:var(--serif);
+    font-weight:500;
+    font-size:clamp(27px,5.4vw,42px);
+    line-height:1.26;
+    letter-spacing:-.01em;
+  }
+
+  .meta{
+    display:flex;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:12px;
+    margin-top:16px;
+    font-size:13.5px;
+    color:var(--ink-soft);
+  }
+  .meta .sep{width:1px;height:12px;background:var(--line)}
+
+  /* ---------- 进度条 ---------- */
+  .progress-track{
+    margin-top:16px;
+    height:5px;
+    border-radius:999px;
+    background:rgba(46,42,38,.08);
+    overflow:hidden;
+  }
+  @media (prefers-color-scheme: dark){
+    .progress-track{ background:rgba(237,231,223,.10); }
+  }
+  .progress-fill{
+    height:100%;
+    width:0%;
+    border-radius:999px;
+    background:var(--tint-fill);
+    transition:
+      width .5s cubic-bezier(.2,.7,.2,1),
+      background .5s ease;
+  }
+
+  /* ---------- 进度徽章 ---------- */
+  .badge{
+    display:inline-flex;
+    align-items:center;
+    gap:7px;
+    padding:4px 12px;
+    border-radius:999px;
+    background:var(--tint-soft);
+    border:1px solid var(--tint-line);
+    color:var(--tint-text);
+    font-size:12.5px;
+    letter-spacing:.02em;
+    transition:
+      background .5s ease,
+      border-color .5s ease,
+      color .5s ease;
+  }
+  .badge.all-done{
+    font-weight:500;
+    letter-spacing:.05em;
+  }
+
+  /* 完成 ≥ 80% 且未全部完成 → 兴奋颤抖 */
+  @keyframes excited-shake{
+    0%, 60%, 100%{ transform:translate3d(0,0,0) rotate(0deg); }
+    64%{ transform:translate3d(-2.4px,.8px,0) rotate(-1.2deg); }
+    68%{ transform:translate3d(2.4px,-.8px,0) rotate(1.2deg); }
+    72%{ transform:translate3d(-2px,.6px,0) rotate(-1deg); }
+    76%{ transform:translate3d(1.8px,-.6px,0) rotate(.9deg); }
+    80%{ transform:translate3d(-1.4px,.4px,0) rotate(-.7deg); }
+    84%{ transform:translate3d(1.1px,-.4px,0) rotate(.55deg); }
+    88%{ transform:translate3d(-.7px,.2px,0) rotate(-.35deg); }
+    92%{ transform:translate3d(.4px,-.15px,0) rotate(.2deg); }
+  }
+  .badge.excited{
+    animation:excited-shake 3.2s cubic-bezier(.4,0,.2,1) infinite;
+    will-change:transform;
+  }
+  @media (prefers-reduced-motion: reduce){
+    .badge.excited{ animation:none; }
+    .progress-fill{ transition:none; }
+  }
+
+  /* ---------- 提示条 ---------- */
+  .notice{
+    display:none;
+    align-items:flex-start;
+    gap:11px;
+    padding:14px 18px;
+    margin-bottom:18px;
+    border-radius:12px;
+    background:rgba(192,138,62,.11);
+    border:1px solid rgba(192,138,62,.28);
+    color:#7A5619;
+    font-size:13.5px;
+    line-height:1.75;
+  }
+  @media (prefers-color-scheme: dark){
+    .notice{
+      background:rgba(192,138,62,.16);
+      border-color:rgba(192,138,62,.36);
+      color:#E0B57A;
+    }
+  }
+  .notice.show{display:flex}
+  .notice .ico{flex:none;font-size:15px;line-height:1.5}
+  .notice code{
+    font-family:"SF Mono",Menlo,Consolas,monospace;
+    font-size:12.5px;
+    background:rgba(122,86,25,.10);
+    padding:1px 6px;
+    border-radius:4px;
+  }
+  @media (prefers-color-scheme: dark){
+    .notice code{ background:rgba(224,181,122,.14); }
+  }
+
+  /* ---------- 表格卡片 ---------- */
+  .card{
+    background:var(--paper);
+    border:1px solid var(--tint-card);
+    border-radius:18px;
+    overflow:hidden;
+    box-shadow:
+      0 1px 2px var(--shadow-1),
+      0 26px 52px -34px var(--shadow-2);
+    transition:border-color .5s ease, background .3s ease, box-shadow .3s ease;
+  }
+
+  table{width:100%;border-collapse:collapse}
+
+  thead th{
+    text-align:left;
+    font-size:11.5px;
+    font-weight:500;
+    letter-spacing:.16em;
+    text-transform:uppercase;
+    color:var(--oak);
+    padding:15px clamp(16px,2.6vw,26px);
+    background:var(--thead-bg);
+    border-bottom:1px solid var(--line);
+    white-space:nowrap;
+    transition:background .3s ease, border-color .3s ease, color .3s ease;
+  }
+  thead th:first-child{width:132px}
+
+  tbody td{
+    padding:clamp(15px,2.2vw,20px) clamp(16px,2.6vw,26px);
+    border-bottom:1px solid var(--line-soft);
+    vertical-align:top;
+    transition:border-color .3s ease;
+  }
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr{transition:background .22s}
+  tbody tr:hover{background:rgba(142,152,103,.045)}
+  @media (prefers-color-scheme: dark){
+    tbody tr:hover{background:rgba(142,152,103,.06)}
+  }
+
+  .subject{
+    display:inline-flex;
+    align-items:center;
+    gap:9px;
+    font-family:var(--serif);
+    font-size:15.5px;
+    letter-spacing:.05em;
+    white-space:nowrap;
+  }
+  .subject .dot{
+    width:9px;height:9px;
+    border-radius:50%;
+    background:var(--c);
+    flex:none;
+    box-shadow:0 0 0 3px color-mix(in srgb, var(--c) 18%, transparent);
+    transition:filter .3s ease;
+  }
+  @media (prefers-color-scheme: dark){
+    .subject .dot{ filter:brightness(1.15) saturate(1.05); }
+  }
+
+  .hw-list{list-style:none;display:grid;gap:11px}
+
+  .hw-item{
+    display:flex;
+    align-items:flex-start;
+    gap:11px;
+    cursor:pointer;
+    padding:2px 0;
+    border-radius:6px;
+    -webkit-tap-highlight-color:transparent;
+    user-select:none;
+  }
+  .hw-item:focus-visible{
+    outline:2px solid var(--tint-accent);
+    outline-offset:3px;
+  }
+
+  .box{
+    flex:none;
+    width:17px;height:17px;
+    margin-top:4px;
+    border:1.5px solid var(--tint-box);
+    border-radius:5px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition:
+      background .2s,
+      border-color .5s ease,
+      transform .2s;
+  }
+  .box svg{
+    width:10px;height:10px;
+    opacity:0;
+    transform:scale(.6);
+    transition:opacity .18s, transform .18s;
+  }
+  .box svg path{ stroke:var(--check-mark); }
+  .hw-item:hover .box{border-color:var(--tint-accent)}
+  .hw-item.done .box{background:var(--olive);border-color:var(--olive)}
+  .hw-item.done .box svg{opacity:1;transform:scale(1)}
+  .hw-item:active .box{transform:scale(.9)}
+
+  .text{
+    font-size:15px;
+    line-height:1.78;
+    color:var(--ink);
+    white-space:pre-line;
+    transition:color .22s;
+    word-break:break-word;
+  }
+  .hw-item.done .text{
+    color:var(--done-text);
+    text-decoration:line-through;
+    text-decoration-thickness:1px;
+    text-decoration-color:currentColor;
+  }
+
+  .empty{font-size:14.5px;color:var(--empty-text);letter-spacing:.04em}
+
+  /* 骨架屏 */
+  .skeleton{
+    height:15px;
+    border-radius:6px;
+    background:linear-gradient(90deg, var(--skeleton-1), var(--skeleton-2), var(--skeleton-1));
+    background-size:200% 100%;
+    animation:shimmer 1.3s ease-in-out infinite;
+  }
+  .skeleton + .skeleton{margin-top:11px}
+  @keyframes shimmer{
+    0%{background-position:180% 0}
+    100%{background-position:-80% 0}
+  }
+
+  /* ---------- 便签（Notes） ---------- */
+  .note{
+    position:relative;
+    margin-top:18px;
+    padding:14px 18px 15px 22px;
+    background:#FDF7D9;
+    border:1px solid rgba(190,155,65,.28);
+    border-radius:12px;
+    box-shadow:
+      0 1px 2px rgba(150,120,40,.06),
+      0 8px 20px -14px rgba(150,120,40,.30);
+    transition:background .3s ease, border-color .3s ease, box-shadow .3s ease;
+  }
+  .note[hidden]{ display:none; }
+
+  .note::before{
+    content:"";
+    position:absolute;
+    left:0; top:12px; bottom:12px;
+    width:3px;
+    border-radius:0 3px 3px 0;
+    background:#E8C560;
+    transition:background .3s ease;
+  }
+
+  .note-label{
+    display:inline-block;
+    font-size:10px;
+    font-weight:500;
+    letter-spacing:.20em;
+    text-transform:uppercase;
+    color:#9C7B2A;
+    margin-bottom:5px;
+  }
+
+  .note-text{
+    font-size:14.5px;
+    line-height:1.75;
+    color:#5C4A1C;
+    white-space:pre-line;
+    word-break:break-word;
+  }
+
+  @media (prefers-color-scheme: dark){
+    .note{
+      background:#2A2414;
+      border-color:rgba(200,170,80,.22);
+      box-shadow:
+        0 1px 2px rgba(0,0,0,.30),
+        0 8px 20px -14px rgba(0,0,0,.60);
+    }
+    .note::before{ background:#C9A84C; }
+    .note-label{ color:#C9A84C; }
+    .note-text{ color:#E8DBA8; }
+  }
+
+  .foot{
+    margin-top:22px;
+    text-align:center;
+    font-size:12.5px;
+    color:var(--foot-text);
+    letter-spacing:.06em;
+  }
+
+  /* ---------- 恭喜弹窗 ---------- */
+  .congrats{
+    position:fixed;
+    inset:0;
+    z-index:60;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+    background:var(--overlay);
+    -webkit-backdrop-filter:blur(3px);
+    backdrop-filter:blur(3px);
+    opacity:0;
+    visibility:hidden;
+    pointer-events:none;
+    transition:opacity .22s ease, visibility 0s linear .22s, background .3s ease;
+  }
+  .congrats.show{
+    opacity:1;
+    visibility:visible;
+    pointer-events:auto;
+    transition:opacity .22s ease, visibility 0s, background .3s ease;
+  }
+
+  .congrats-card{
+    width:min(360px,100%);
+    background:var(--paper);
+    border:1px solid var(--line);
+    border-radius:18px;
+    padding:clamp(26px,5.4vw,34px);
+    text-align:center;
+    box-shadow:0 30px 64px -32px var(--shadow-3);
+    transform:translateY(14px) scale(.97);
+    transition:transform .3s cubic-bezier(.2,.7,.2,1), background .3s ease, border-color .3s ease;
+  }
+  .congrats.show .congrats-card{transform:none}
+
+  .congrats-mark{
+    width:54px;height:54px;
+    margin:0 auto 16px;
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:var(--mark-bg);
+    border:1px solid var(--mark-border);
+    transition:background .3s ease, border-color .3s ease;
+  }
+  .congrats-mark svg{width:24px;height:24px}
+
+  .congrats-title{
+    font-family:var(--serif);
+    font-weight:500;
+    font-size:20px;
+    line-height:1.4;
+    letter-spacing:.02em;
+    color:var(--ink);
+  }
+
+  .congrats-text{
+    margin-top:9px;
+    font-size:14px;
+    line-height:1.8;
+    color:var(--ink-soft);
+    white-space:pre-line;
+    word-break:break-word;
+  }
+
+  /* 彩蛋模式：弹窗整体冷下来，和喜庆版形成反差 */
+  .congrats.easter .congrats-mark{
+    background:rgba(120,120,120,.13);
+    border-color:rgba(120,120,120,.30);
+  }
+  .congrats.easter .congrats-mark svg path{
+    stroke:#8C8C8C;
+  }
+  .congrats.easter .congrats-title{
+    color:var(--ink-soft);
+    font-weight:400;
+  }
+  .congrats.easter .congrats-text{
+    color:var(--ink-soft);
+    font-style:italic;
+  }
+  .congrats.easter .congrats-btn{
+    background:#5A5A5A;
+  }
+  .congrats.easter .congrats-btn:hover{
+    background:#4A4A4A;
+  }
+
+  .congrats-btn{
+    margin-top:22px;
+    min-height:44px;
+    padding:0 28px;
+    border:0;
+    border-radius:999px;
+    background:var(--cta-bg);
+    color:#FFFCF7;
+    font-family:inherit;
+    font-size:14.5px;
+    letter-spacing:.05em;
+    cursor:pointer;
+    transition:background .18s ease, transform .15s ease;
+  }
+  .congrats-btn:hover{background:var(--cta-bg-hover);transform:translateY(-1px)}
+  .congrats-btn:active{transform:translateY(0) scale(.98)}
+  .congrats-btn:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+
+  @media (prefers-reduced-motion: reduce){
+    .congrats{transition-duration:1ms}
+    .congrats-card{transition-duration:1ms}
+    tbody tr{transition:none}
+    .note{transition:none}
+  }
+
+  @media (max-width:600px){
+    thead{display:none}
+    table,tbody,tr,td{display:block;width:100%}
+    tbody tr{
+      border-bottom:1px solid var(--line);
+      padding:6px 0 12px;
+    }
+    tbody tr:last-child{border-bottom:none}
+    tbody td{border:none;padding:6px clamp(16px,5vw,22px)}
+    tbody td:first-child{padding-top:16px;padding-bottom:2px}
+    tbody td:last-child{padding-bottom:16px}
+    .subject{font-size:14.5px}
+  }
+</style>
+</head>
+<body>
+
+<main class="page">
+
+  <header class="head">
+    <p class="kicker">Homework · 每日清单</p>
+    <h1>今日份美味 😋 作业</h1>
+    <div class="meta">
+      <span id="dateText">—</span>
+      <span class="sep"></span>
+      <span id="progressText" aria-live="polite" aria-atomic="true">加载中…</span>
+    </div>
+    <div class="progress-track" aria-hidden="true">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+  </header>
+
+  <div class="notice" id="notice">
+    <span class="ico">🍂</span>
+    <span id="noticeText"></span>
+  </div>
+
+  <section class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>科目</th>
+          <th>内容</th>
+        </tr>
+      </thead>
+      <tbody id="tbody">
+        <tr>
+          <td><div class="skeleton" style="width:52px"></div></td>
+          <td>
+            <div class="skeleton" style="width:82%"></div>
+            <div class="skeleton" style="width:64%"></div>
+          </td>
+        </tr>
+        <tr>
+          <td><div class="skeleton" style="width:52px"></div></td>
+          <td><div class="skeleton" style="width:70%"></div></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 便签：从 JSON 的 "笔记" 键读取；没有就不显示 -->
+  <div class="note" id="note" hidden>
+    <span class="note-label">Notes</span>
+    <p class="note-text" id="noteText"></p>
+  </div>
+
+  <p class="foot">点一下前面的方框，就能打勾 ✦</p>
+
+</main>
+
+<div class="congrats" id="congrats" role="dialog" aria-modal="true"
+     aria-labelledby="congratsTitle" aria-describedby="congratsText">
+  <div class="congrats-card">
+    <span class="congrats-mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="M4.5 12.5 9.5 17.5 19.5 6.5" stroke="#D97757" stroke-width="2.4"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </span>
+    <h2 class="congrats-title" id="congratsTitle">今日作业...已清零!好样的伙计!</h2>
+    <p class="congrats-text" id="congratsText">WONDERFUL！</p>
+    <button class="congrats-btn" id="congratsBtn" type="button">朕知晓了</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ============ 基础科目配置（固定 5 科，顺序不变） ============ */
+  const BASE_SUBJECTS = [
+    { name:'语文', color:'#D97757', keys:['语文','chinese','yuwen'] },
+    { name:'数学', color:'#8E9867', keys:['数学','math','shuxue'] },
+    { name:'英语', color:'#8D6959', keys:['英语','english','yingyu'] },
+    { name:'科学', color:'#6E8B8B', keys:['科学','science','kexue'] },
+    { name:'社会', color:'#C08A3E', keys:['社会','social','shehui'] }
+  ];
+
+  /* ============ 自动拓展科目的配色循环池 ============ */
+  const EXTRA_COLORS = [
+    '#A47864', // 摩卡慕斯
+    '#6B7D5A', // 砂绿
+    '#3A6B8C', // 石青
+    '#C43A2A', // 朱砂红
+    '#C9A84C', // 描金
+    '#539DB6', // 泳池蓝
+    '#7EC8C8', // 薄荷蓝
+    '#B35A3E', // 锈红
+    '#8E6B9E', // 灰紫
+    '#E8703A', // 生动橙
+    '#AEB73A', // 酸性绿
+    '#2D4A3E'  // 森林绿
+  ];
+
+  const RESERVED_KEYS = ['笔记', 'date', 'homework'];
+
+  function isKnownKey(key){
+    const lower = String(key).toLowerCase();
+    for(const rk of RESERVED_KEYS){
+      if(String(rk).toLowerCase() === lower) return true;
+    }
+    for(const sub of BASE_SUBJECTS){
+      for(const alias of sub.keys){
+        if(String(alias).toLowerCase() === lower) return true;
+      }
+    }
+    return false;
+  }
+
+  function collectExtraSubjects(src){
+    const extras = [];
+    Object.keys(src).forEach(key => {
+      if(isKnownKey(key)) return;
+      extras.push({
+        name: key,
+        color: EXTRA_COLORS[extras.length % EXTRA_COLORS.length],
+        keys: [key]
+      });
+    });
+    return extras;
+  }
+
+  const PATHS = ['./data/homework.json', '/811/data/homework.json', '/data/homework.json'];
+/*         读取失败显示的默认作业          */
+  const DEMO = {
+    '笔记': '家庭的作业非常好完成啊',
+    '语文': '写一篇能把孔子吓死的文言文',
+    '数学': '算完圆周率\n随便选一个数学未解之谜求解并且发在论文平台',
+    '英语': '完成中美签证\n背诵蛋白质英文和贝多芬全名',
+    '科学': '将自己的DNA打散然后重组一次\n复活任意名字作为单位的科学家',
+    '社会': '当上美国总统\n当上日本首相\n当上俄罗斯沙皇\n测量地球表面积'
+  };
+
+  /* ============ 色调系统 ============ */
+  const STEPS = 15;
+  const H0 = 220, H1 = 14;
+  const S0 = 8,   S1 = 65;
+  const L0 = 60,  L1 = 58;
+
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const r0   = n => Math.round(n);
+
+  const darkQuery = matchMedia('(prefers-color-scheme: dark)');
+  let lastStep = -1;
+
+  function computeStep(done, total){
+    if(total <= 0) return 0;
+    return Math.min(STEPS, Math.round((done / total) * STEPS));
+  }
+
+  function applyTint(done, total){
+    const step = computeStep(done, total);
+
+    const fill = document.getElementById('progressFill');
+    if(fill){
+      fill.style.width = (total > 0 ? (done / total) * 100 : 0) + '%';
+    }
+
+    if(step === lastStep) return;
+    lastStep = step;
+
+    const t    = step / STEPS;
+    const dark = darkQuery.matches;
+    const root = document.documentElement.style;
+
+    const h = lerp(H0, H1, t);
+    const s = lerp(S0, S1, t);
+    const l = lerp(L0, L1, t);
+
+    const ts = dark ? lerp(24, 90, t) : lerp(8, 58, t);
+    const tl = dark ? lerp(74, 78, t) : lerp(34, 38, t);
+
+    const softA = dark ? 0.22 : 0.14;
+    const lineA = dark ? 0.42 : 0.30;
+    const boxL  = dark ? lerp(70, 68, t) : l;
+    const boxA  = dark ? 0.62 : 0.55;
+    const cardA = dark ? 0.36 : 0.22;
+
+    root.setProperty('--tint-accent', `hsl(${r0(h)} ${r0(s)}% ${r0(l)}%)`);
+    root.setProperty('--tint-text',   `hsl(${r0(h)} ${r0(ts)}% ${r0(tl)}%)`);
+    root.setProperty('--tint-soft',   `hsl(${r0(h)} ${r0(s)}% ${r0(l)}% / ${softA})`);
+    root.setProperty('--tint-line',   `hsl(${r0(h)} ${r0(s)}% ${r0(l)}% / ${lineA})`);
+    root.setProperty('--tint-box',    `hsl(${r0(h)} ${r0(s)}% ${r0(boxL)}% / ${boxA})`);
+    root.setProperty('--tint-card',   `hsl(${r0(h)} ${r0(s)}% ${r0(l)}% / ${cardA})`);
+    root.setProperty('--tint-fill',   `hsl(${r0(h)} ${r0(s)}% ${r0(l)}%)`);
+
+    const g1h = r0(h + 12);
+    const g1s = r0(s * 0.85);
+    const g1l = r0(Math.min(78, l + 6));
+    const g1a = dark ? lerp(0.32, 0.62, t) : lerp(0.16, 0.38, t);
+
+    const g2h = r0(h - 18);
+    const g2s = r0(s * 1.10);
+    const g2l = r0(l);
+    const g2a = dark ? lerp(0.26, 0.52, t) : lerp(0.14, 0.32, t);
+
+    root.setProperty('--glow-1', `hsl(${g1h} ${g1s}% ${g1l}% / ${g1a})`);
+    root.setProperty('--glow-2', `hsl(${g2h} ${g2s}% ${g2l}% / ${g2a})`);
+  }
+
+  /* ============ DOM ============ */
+  const tbody        = document.getElementById('tbody');
+  const dateText     = document.getElementById('dateText');
+  const progressText = document.getElementById('progressText');
+  const notice       = document.getElementById('notice');
+  const noticeText   = document.getElementById('noticeText');
+  const noteEl       = document.getElementById('note');
+  const noteTextEl   = document.getElementById('noteText');
+  const congrats     = document.getElementById('congrats');
+  const congratsBtn  = document.getElementById('congratsBtn');
+  const congratsText = document.getElementById('congratsText');
+  const congratsTitle = document.getElementById('congratsTitle');
+
+  let currentDate   = '';
+  let hasCelebrated = false;
+  let isDemoMode    = false;   // ★ 彩蛋触发条件：DEMO 状态
+
+  /* ============ 工具 ============ */
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+
+  function todayStr(){
+    const d = new Date();
+    const p = n => String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+  }
+
+  function fmtDate(d){
+    if(!d) return '';
+    const dt = new Date(d + 'T00:00:00');
+    if(isNaN(dt.getTime())) return String(d);
+    const w = ['日','一','二','三','四','五','六'][dt.getDay()];
+    return `${dt.getFullYear()} 年 ${dt.getMonth()+1} 月 ${dt.getDate()} 日 · 星期${w}`;
+  }
+
+  function splitLines(v){
+    if(v === null || v === undefined) return [];
+    return String(v)
+      .replace(/\\n/g, '\n')
+      .split(/\r?\n/)
+      .map(s => s.trim())
+      .filter(Boolean);
+  }
+
+  function toList(v){
+    if(v === null || v === undefined) return [];
+    if(Array.isArray(v)) return v.flatMap(splitLines);
+    return splitLines(v);
+  }
+
+  /* ============ 便签渲染 ============ */
+  function renderNote(raw){
+    const lines = splitLines(raw);
+    if(lines.length === 0){
+      noteEl.hidden = true;
+      noteTextEl.textContent = '';
+      return;
+    }
+    noteTextEl.textContent = lines.join('\n');
+    noteEl.hidden = false;
+  }
+
+  /* ============ 读取数据 ============ */
+  async function loadData(){
+    for(const p of PATHS){
+      try{
+        const res = await fetch(p, { cache:'no-store' });
+        if(!res.ok) continue;
+
+        let text = await res.text();
+        text = text.replace(/,\s*([}\]])/g, '$1');
+
+        const json = JSON.parse(text);
+        return { data: json, demo:false };
+      }catch(e){ /* 换下一个路径再试 */ }
+    }
+    return { data: DEMO, demo:true };
+  }
+
+  /* ============ 渲染 ============ */
+  function render(data){
+    let src = data;
+    let topNote = null;
+
+    if(data && typeof data === 'object' && data.homework && typeof data.homework === 'object'){
+      src = data.homework;
+      currentDate = data.date ? String(data.date) : todayStr();
+      if(data['笔记'] !== null && data['笔记'] !== undefined) topNote = data['笔记'];
+    }else{
+      currentDate = todayStr();
+    }
+    if(!src || typeof src !== 'object') src = DEMO;
+
+    let noteRaw = topNote;
+    if(noteRaw === null && src['笔记'] !== null && src['笔记'] !== undefined){
+      noteRaw = src['笔记'];
+    }
+    renderNote(noteRaw);
+
+    dateText.textContent = fmtDate(currentDate) || '—';
+
+    const allSubjects = BASE_SUBJECTS.concat(collectExtraSubjects(src));
+
+    let html = '';
+
+    allSubjects.forEach(sub => {
+      let raw = null;
+      for(const k of sub.keys){
+        if(src[k] !== null && src[k] !== undefined){ raw = src[k]; break; }
+      }
+      const list = toList(raw);
+
+      let contentHTML;
+      if(list.length === 0){
+        contentHTML = '<span class="empty">今天没有 · 休息一下</span>';
+      }else{
+        contentHTML = '<ul class="hw-list">' + list.map((item, i) => {
+          const key  = `hw:${currentDate}:${sub.name}:${i}`;
+          const done = isDone(key);
+          return `
+            <li class="hw-item${done ? ' done' : ''}" data-key="${esc(key)}"
+                role="checkbox" aria-checked="${done}" tabindex="0">
+              <span class="box">
+                <svg viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                  <path d="M1.8 6.2 4.5 9 10.2 3.2" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+              <span class="text">${esc(item)}</span>
+            </li>`;
+        }).join('') + '</ul>';
+      }
+
+      html += `
+        <tr>
+          <td><span class="subject" style="--c:${sub.color}">
+            <span class="dot"></span>${esc(sub.name)}
+          </span></td>
+          <td>${contentHTML}</td>
+        </tr>`;
+    });
+
+    tbody.innerHTML = html;
+
+    lastStep = -1;
+    updateProgress(false);
+  }
+
+  /* ============ 打勾状态 ============ */
+  function isDone(key){
+    try{ return localStorage.getItem(key) === '1'; }catch(e){ return false; }
+  }
+  function setDone(key, val){
+    try{
+      if(val) localStorage.setItem(key, '1');
+      else localStorage.removeItem(key);
+    }catch(e){}
+  }
+
+  /* ============ 进度 / 色调 / 兴奋 ============ */
+  function updateProgress(fromUser){
+    const items = tbody.querySelectorAll('.hw-item');
+    const total = items.length;
+    const done  = tbody.querySelectorAll('.hw-item.done').length;
+
+    if(total === 0){
+      progressText.textContent = '今天没有作业 🎉';
+      applyTint(0, 1);
+      return;
+    }
+
+    const allDone = done === total;
+    const ratio   = done / total;
+    const excited = !allDone && ratio >= 0.8;
+
+    if(allDone){
+      progressText.innerHTML =
+        `<span class="badge all-done">全部完成 ✦ ${done} / ${total}</span>`;
+    }else{
+      progressText.innerHTML =
+        `<span class="badge${excited ? ' excited' : ''}">已完成 ${done} / ${total}</span>`;
+    }
+
+    applyTint(done, total);
+
+    if(allDone){
+      if(fromUser && !hasCelebrated){
+        hasCelebrated = true;
+        setTimeout(() => {
+          const now = tbody.querySelectorAll('.hw-item');
+          if(now.length && tbody.querySelectorAll('.hw-item.done').length === now.length){
+            openCongrats(now.length);
+          }
+        }, 300);
+      }
+    }else{
+      hasCelebrated = false;
+    }
+  }
+
+  function toggle(el){
+    if(!el || !el.classList.contains('hw-item')) return;
+    const key = el.dataset.key;
+    const now = !el.classList.contains('done');
+    el.classList.toggle('done', now);
+    el.setAttribute('aria-checked', now ? 'true' : 'false');
+    setDone(key, now);
+    updateProgress(true);
+  }
+
+  /* ============ 事件绑定 ============ */
+  tbody.addEventListener('click', e => {
+    const item = e.target.closest('.hw-item');
+    if(item) toggle(item);
+  });
+
+  tbody.addEventListener('keydown', e => {
+    if(e.key !== 'Enter' && e.key !== ' ') return;
+    const item = e.target.closest('.hw-item');
+    if(item){ e.preventDefault(); toggle(item); }
+  });
+
+  /* ============ 恭喜弹窗 ============ */
+  let lastFocus = null;
+
+  function lockScroll(on){
+    if(on){
+      const sw = window.innerWidth - document.documentElement.clientWidth;
+      document.body.style.overflow = 'hidden';
+      if(sw > 0) document.body.style.paddingRight = sw + 'px';
+    }else{
+      document.body.style.overflow = '';
+      document.body.style.paddingRight = '';
+    }
+  }
+
+  function openCongrats(count){
+    if(congrats.classList.contains('show')) return;
+    lastFocus = document.activeElement;
+
+    if(isDemoMode){
+      /* ★ 彩蛋：DEMO 状态下全部完成 → 完全反差的语气 */
+      congrats.classList.add('easter');
+      congratsTitle.textContent = '完成了...?';
+      congratsText.textContent  = '真牛啊，你怎么做到的...\n滚吧，不诚实的孩子';
+      congratsBtn.textContent   = '奴知晓了';
+    }else{
+      /* 正常模式：庆祝语气 */
+      congrats.classList.remove('easter');
+      congratsTitle.textContent = '今日作业...已清零!好样的伙计!';
+      congratsText.textContent  =
+        `WONDERFUL！${count} 项全清了。合上本子，剩下的时间归你。`;
+      congratsBtn.textContent   = '朕知晓了';
+    }
+
+    congrats.classList.add('show');
+    lockScroll(true);
+    congratsBtn.focus();
+  }
+
+  function closeCongrats(){
+    if(!congrats.classList.contains('show')) return;
+    congrats.classList.remove('show');
+    lockScroll(false);
+    if(lastFocus && document.contains(lastFocus)) lastFocus.focus();
+  }
+
+  congratsBtn.addEventListener('click', closeCongrats);
+
+  congrats.addEventListener('click', e => {
+    if(e.target === congrats) closeCongrats();
+  });
+
+  congrats.addEventListener('keydown', e => {
+    if(e.key === 'Tab'){ e.preventDefault(); congratsBtn.focus(); }
+  });
+
+  document.addEventListener('keydown', e => {
+    if(e.key === 'Escape') closeCongrats();
+  });
+
+  /* ============ 系统配色切换监听 ============ */
+  function onSchemeChange(){
+    lastStep = -1;
+    const items = tbody.querySelectorAll('.hw-item');
+    if(items.length){
+      applyTint(tbody.querySelectorAll('.hw-item.done').length, items.length);
+    }else{
+      applyTint(0, 1);
+    }
+  }
+  if(darkQuery.addEventListener){
+    darkQuery.addEventListener('change', onSchemeChange);
+  }else if(darkQuery.addListener){
+    darkQuery.addListener(onSchemeChange);
+  }
+
+  /* ============ 启动 ============ */
+  loadData().then(({ data, demo }) => {
+    isDemoMode = demo;      // ★ 记录当前是否 DEMO 状态
+    render(data);
+
+    if(demo){
+      noticeText.innerHTML =
+        '没读到 <code>data/homework.json</code>，下面是示例内容。' +
+        '把 JSON 放到与网页同级的 <code>data/</code> 文件夹里刷新即可。';
+      notice.classList.add('show');
+    }
+  }).catch(err => {
+    isDemoMode = true;      // ★ 报错兜底也按 DEMO 处理
+    render(DEMO);
+    noticeText.textContent = '读取作业数据出错，已显示示例内容：' + err.message;
+    notice.classList.add('show');
+  });
+
+})();
+</script>
+
+</body>
+</html>

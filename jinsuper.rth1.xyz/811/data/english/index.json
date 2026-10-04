@@ -1,0 +1,184 @@
+{
+  "title": "英语教材音频",
+  "note": "按单元分组。文件名规则：<单元>/<章节>.mp3；加音频 = 丢进目录 + 在 tracks 里加一行。",
+  "dir": "/811/data/english/",
+  "units": [
+    {
+      "unit": "U1",
+      "label": "Unit 1",
+      "tracks": [
+        {
+          "id": "words-and-expressions",
+          "title": "Words and expressions",
+          "zh": "词汇与表达",
+          "file": "U1/words-and-expressions.mp3",
+          "bytes": 1685945
+        },
+        {
+          "id": "understanding-ideas-2",
+          "title": "Understanding ideas 2",
+          "zh": "课文理解",
+          "file": "U1/understanding-ideas-2.mp3",
+          "bytes": 2245557
+        },
+        {
+          "id": "developing-ideas-1-2",
+          "title": "Developing ideas 1-2",
+          "zh": "拓展阅读",
+          "file": "U1/developing-ideas-1-2.mp3",
+          "bytes": 1151340
+        },
+        {
+          "id": "developing-ideas-3",
+          "title": "Developing ideas 3",
+          "zh": "拓展阅读",
+          "file": "U1/developing-ideas-3.mp3",
+          "bytes": 1201949
+        },
+        {
+          "id": "reading-for-writing",
+          "title": "Reading for writing",
+          "zh": "读写",
+          "file": "U1/reading-for-writing.mp3",
+          "bytes": 2304107
+        }
+      ]
+    },
+    {
+      "unit": "U2",
+      "label": "Unit 2",
+      "tracks": [
+        {
+          "id": "words-and-expressions",
+          "title": "Words and expressions",
+          "zh": "词汇与表达",
+          "file": "U2/words-and-expressions.mp3",
+          "bytes": 1867340
+        },
+        {
+          "id": "understanding-ideas-2",
+          "title": "Understanding ideas 2",
+          "zh": "课文理解",
+          "file": "U2/understanding-ideas-2.mp3",
+          "bytes": 2565714
+        },
+        {
+          "id": "developing-ideas-1-2",
+          "title": "Developing ideas 1-2",
+          "zh": "拓展阅读",
+          "file": "U2/developing-ideas-1-2.mp3",
+          "bytes": 953645
+        },
+        {
+          "id": "developing-ideas-3",
+          "title": "Developing ideas 3",
+          "zh": "拓展阅读",
+          "file": "U2/developing-ideas-3.mp3",
+          "bytes": 1221557
+        },
+        {
+          "id": "reading-for-writing",
+          "title": "Reading for writing",
+          "zh": "读写",
+          "file": "U2/reading-for-writing.mp3",
+          "bytes": 2072940
+        }
+      ]
+    },
+    {
+      "unit": "U3",
+      "label": "Unit 3",
+      "tracks": [
+        {
+          "id": "words-and-expressions",
+          "title": "Words and expressions",
+          "zh": "词汇与表达",
+          "file": "U3/words-and-expressions.mp3",
+          "bytes": 1898687
+        },
+        {
+          "id": "understanding-ideas-2",
+          "title": "Understanding ideas 2",
+          "zh": "课文理解",
+          "file": "U3/understanding-ideas-2.mp3",
+          "bytes": 2388793
+        },
+        {
+          "id": "developing-ideas-1",
+          "title": "Developing ideas 1",
+          "zh": "拓展阅读",
+          "file": "U3/developing-ideas-1.mp3",
+          "bytes": 857391
+        },
+        {
+          "id": "developing-ideas-3",
+          "title": "Developing ideas 3",
+          "zh": "拓展阅读",
+          "file": "U3/developing-ideas-3.mp3",
+          "bytes": 1211820
+        },
+        {
+          "id": "reading-for-writing",
+          "title": "Reading for writing",
+          "zh": "读写",
+          "file": "U3/reading-for-writing.mp3",
+          "bytes": 2227203
+        }
+      ]
+    },
+    {
+      "unit": "U4",
+      "label": "Unit 4",
+      "tracks": [
+        {
+          "id": "words",
+          "title": "Words",
+          "zh": "词汇",
+          "file": "U4/words.mp3",
+          "bytes": 1995420
+        },
+        {
+          "id": "understanding-ideas-2",
+          "title": "Understanding ideas 2",
+          "zh": "课文理解",
+          "file": "U4/understanding-ideas-2.mp3",
+          "bytes": 2530641
+        },
+        {
+          "id": "developing-ideas-1-2",
+          "title": "Developing ideas 1-2",
+          "zh": "拓展阅读",
+          "file": "U4/developing-ideas-1-2.mp3",
+          "bytes": 779232
+        },
+        {
+          "id": "developing-ideas-3",
+          "title": "Developing ideas 3",
+          "zh": "拓展阅读",
+          "file": "U4/developing-ideas-3.mp3",
+          "bytes": 1230210
+        },
+        {
+          "id": "reading-for-writing",
+          "title": "Reading for writing",
+          "zh": "读写",
+          "file": "U4/reading-for-writing.mp3",
+          "bytes": 2287229
+        }
+      ]
+    },
+    {
+      "unit": "U5",
+      "label": "Unit 5",
+      "tracks": [
+        {
+          "id": "words",
+          "title": "Words",
+          "zh": "词汇",
+          "file": "U5/words.mp3",
+          "bytes": 1953206
+        }
+      ]
+    }
+  ]
+}

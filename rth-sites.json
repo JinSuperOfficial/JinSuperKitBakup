@@ -1,0 +1,14 @@
+{
+  "sites": [
+    {
+      "site": "jinsuper",
+      "label": "主站（热铁盒默认域名）",
+      "domains": ["jinsuper.rth1.xyz"]
+    },
+    {
+      "site": "jinsuper.cn",
+      "label": "自有域名",
+      "domains": ["jinsuper.cn", "www.jinsuper.cn"]
+    }
+  ]
+}

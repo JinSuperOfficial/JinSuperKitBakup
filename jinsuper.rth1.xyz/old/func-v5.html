@@ -1,0 +1,2057 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>函数显示器 · Plot</title>
+<style>
+  :root{
+    --bg:      #0E1214;
+    --panel:   #13181B;
+    --raised:  #191F23;
+    --line:    #232C31;
+    --ink:     #E7E9E6;
+    --dim:     #7E8A90;
+    --faint:   #566168;
+    --accent:  #D97757;
+    --lime:    #E1FCAD;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+    --ease-out:    cubic-bezier(.2, .7, .2, 1);
+    --ease-in:     cubic-bezier(.4, 0, 1, 1);
+    --dur-fast: 140ms;
+    --dur-base: 240ms;
+    --dur-slow: 500ms;
+  }
+
+  *{ box-sizing: border-box; }
+  html, body{ height:100%; margin:0; }
+  body{
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Inter", "Segoe UI", -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .app{ display:flex; height:100dvh; }
+
+  /* ══════════ 左侧面板 ══════════ */
+  .panel{
+    width: 350px; flex:none;
+    display:flex; flex-direction:column; gap:22px;
+    padding: 24px 20px 20px;
+    background: linear-gradient(180deg,#14191C 0%, #101417 100%);
+    border-right: 1px solid var(--line);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .panel::-webkit-scrollbar{ width:8px; }
+  .panel::-webkit-scrollbar-thumb{ background:#222A2F; border-radius:4px; }
+
+  .head{ display:flex; gap:12px; align-items:center; }
+  .mark{
+    width:38px; height:38px; flex:none;
+    display:grid; place-items:center;
+    border-radius:6px;
+    background: rgba(215,119,87,.12);
+    border: 1px solid rgba(215,119,87,.28);
+    color: var(--accent);
+  }
+  .mark svg{ width:20px; height:20px; }
+  h1{ font-size:16px; font-weight:650; margin:0; letter-spacing:.01em; }
+  .head p{ margin:3px 0 0; font-size:12px; color:var(--faint); }
+
+  .label{
+    font-size:10.5px; font-weight:650;
+    letter-spacing:.11em; text-transform:uppercase;
+    color:var(--faint);
+    margin-bottom:10px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .label::after{ content:''; flex:1; height:1px; background:var(--line); }
+
+  /* ── 表达式行 ── */
+  .fn-list{ display:flex; flex-direction:column; }
+  .fn-slot{
+    display: grid;
+    grid-template-rows: 1fr;
+    margin-bottom: 8px;
+    transition:
+      grid-template-rows var(--dur-base) var(--ease-out),
+      margin-bottom       var(--dur-base) var(--ease-out),
+      opacity             var(--dur-fast) var(--ease-in);
+  }
+  .fn-slot:last-child{ margin-bottom: 0; }
+  .fn-slot.closing{
+    grid-template-rows: 0fr;
+    margin-bottom: 0;
+    opacity: 0;
+  }
+
+  .fn-row{
+    min-height: 0;
+    overflow: hidden;
+    display:flex; align-items:center; gap:7px;
+    background: var(--raised);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 5px 7px 5px 10px;
+    transition: border-color var(--dur-fast) var(--ease-out),
+                background   var(--dur-fast) var(--ease-out);
+  }
+  .fn-row:focus-within{ border-color:#39434A; background:#1C2328; }
+  .fn-row.error{ border-color: rgba(215,119,87,.6); }
+  .fn-row.error .fn-input{ color:#F0A98F; }
+  .fn-row.pen-made{ border-color: rgba(225,252,173,.28); }
+
+  @keyframes row-in{
+    from{ opacity:0; transform: translateY(-4px); }
+    to  { opacity:1; transform: translateY(0); }
+  }
+
+  .swatch{
+    width:13px; height:13px; flex:none;
+    border-radius:3px; padding:0; border:none;
+    background: var(--c);
+    cursor:pointer;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.10) inset;
+    transition: transform var(--dur-fast) var(--ease-out);
+  }
+  .swatch:hover{ transform: scale(1.18); }
+  .swatch:active{ transform: scale(1.02); }
+
+  .fn-input{
+    flex:1; min-width:0;
+    background:transparent; border:none; outline:none;
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 13.5px;
+    padding: 6px 0;
+  }
+  .fn-input::placeholder{ color:#4A555C; }
+
+  .icon-btn{
+    width:25px; height:25px; flex:none;
+    display:grid; place-items:center;
+    background:transparent; border:none; border-radius:4px;
+    color:#5C676E; cursor:pointer;
+    transition: color var(--dur-fast) var(--ease-out),
+                background var(--dur-fast) var(--ease-out),
+                transform var(--dur-fast) var(--ease-out);
+  }
+  .icon-btn svg{ width:15px; height:15px; }
+  .icon-btn:hover{ color:var(--ink); background: rgba(255,255,255,.07); }
+  .icon-btn:active{ transform: scale(.9); }
+  .icon-btn.off{ color:#333C42; }
+  .icon-btn.del:hover{ color:#E08A6C; }
+
+  .add-btn{
+    width:100%; margin-top:8px;
+    display:flex; align-items:center; justify-content:center; gap:7px;
+    padding:10px;
+    background:transparent;
+    border:1px dashed #2C363C;
+    border-radius:6px;
+    color:#78848A; font-size:12.5px; font-family:inherit;
+    cursor:pointer;
+    transition: all var(--dur-fast) var(--ease-out);
+  }
+  .add-btn:hover{
+    border-color: rgba(215,119,87,.55);
+    color: var(--accent);
+    background: rgba(215,119,87,.05);
+    transform: translateY(-1px);
+  }
+  .add-btn:active{ transform: translateY(0) scale(.99); }
+
+  .chips{ display:flex; flex-wrap:wrap; gap:6px; }
+  .chip{
+    font-family: var(--mono);
+    font-size: 11.5px;
+    padding: 5px 9px;
+    background: var(--raised);
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    color: #8B959B;
+    cursor:pointer;
+    transition: color var(--dur-fast) var(--ease-out),
+                border-color var(--dur-fast) var(--ease-out),
+                background var(--dur-fast) var(--ease-out),
+                transform var(--dur-fast) var(--ease-out);
+  }
+  .chip:hover{
+    color: var(--lime); border-color:#3E4A3A; background:#1A2019;
+    transform: translateY(-1px);
+  }
+  .chip:active{ transform: translateY(0) scale(.97); }
+
+  /* ── 画笔面板 ── */
+  .pen-panel{ display:flex; gap:8px; }
+
+  .pen-toggle{
+    flex: 1;
+    display:flex; align-items:center; justify-content:center; gap:7px;
+    padding: 9px 12px;
+    background: var(--raised);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: #8B959B;
+    font-size: 12.5px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all var(--dur-fast) var(--ease-out);
+  }
+  .pen-toggle:hover{
+    border-color: #3A464E;
+    color: var(--ink);
+    background: #1C2328;
+  }
+  .pen-toggle:active{ transform: scale(.98); }
+  .pen-toggle.on{
+    border-color: rgba(225,252,173,.55);
+    color: var(--lime);
+    background: rgba(225,252,173,.06);
+  }
+  .pen-toggle svg{ width:14px; height:14px; }
+
+  .pen-icon{
+    width: 38px;
+    display:grid; place-items:center;
+    background: transparent;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: #78848A;
+    cursor: pointer;
+    transition: all var(--dur-fast) var(--ease-out);
+  }
+  .pen-icon svg{ width:15px; height:15px; }
+  .pen-icon:hover{ color: var(--ink); border-color: #3A464E; }
+  .pen-icon:active{ transform: scale(.94); }
+
+  .pen-clear{
+    padding: 9px 12px;
+    background: transparent;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: #78848A;
+    font-size: 12.5px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all var(--dur-fast) var(--ease-out);
+  }
+  .pen-clear:hover{
+    color: #E08A6C;
+    border-color: rgba(215,119,87,.45);
+  }
+  .pen-clear:active{ transform: scale(.97); }
+
+  .pen-row{
+    display:flex; align-items:center; gap:10px;
+    margin-top: 12px;
+  }
+  .pen-row-label{
+    font-size: 10.5px;
+    color: var(--faint);
+    letter-spacing:.09em;
+    text-transform: uppercase;
+    flex: none;
+    width: 28px;
+  }
+  .pen-colors{ display:flex; gap:6px; flex:1; }
+  .pen-color{
+    width: 20px; height: 20px;
+    border-radius: 4px;
+    border: 2px solid transparent;
+    background: var(--c);
+    cursor: pointer;
+    padding: 0;
+    transition: transform var(--dur-fast) var(--ease-out),
+                box-shadow var(--dur-fast) var(--ease-out);
+  }
+  .pen-color:hover{ transform: scale(1.14); }
+  .pen-color:active{ transform: scale(1.02); }
+  .pen-color.on{
+    box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--ink);
+  }
+
+  .pen-size{
+    flex: 1;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: #2A343A;
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  .pen-size::-webkit-slider-thumb{
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--ink);
+    cursor: pointer;
+    transition: transform var(--dur-fast) var(--ease-out);
+  }
+  .pen-size::-webkit-slider-thumb:hover{ transform: scale(1.15); }
+  .pen-size::-moz-range-thumb{
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--ink);
+    border: none;
+    cursor: pointer;
+  }
+
+  /* ── 数据工具 ── */
+  .data-tools{ display:flex; gap:8px; }
+  .data-btn{
+    flex: 1;
+    display:flex; align-items:center; justify-content:center; gap:6px;
+    padding: 9px 12px;
+    background: var(--raised);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: #8B959B;
+    font-size: 12.5px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all var(--dur-fast) var(--ease-out);
+  }
+  .data-btn:hover{
+    border-color: #3A464E;
+    color: var(--ink);
+    background: #1C2328;
+  }
+  .data-btn:active{ transform: scale(.98); }
+  .data-btn svg{ width:13px; height:13px; }
+
+  .footnote{
+    margin-top:auto; padding-top:6px;
+    font-size: 11.5px; line-height: 1.75;
+    color: #4F5A61;
+    border-top: 1px solid var(--line);
+  }
+  .footnote code{
+    font-family: var(--mono);
+    color:#6E7A80;
+    background: rgba(255,255,255,.035);
+    padding: 1px 4px; border-radius:3px;
+  }
+
+  /* ══════════ 右侧画布 ══════════ */
+  .stage{ position:relative; flex:1; min-width:0; overflow:hidden; }
+  canvas{ display:block; cursor: crosshair; touch-action:none; }
+
+  .readout{
+    position:absolute; top:16px; right:16px;
+    display:flex; gap:16px;
+    padding: 8px 13px;
+    background: rgba(14,18,20,.82);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--dim);
+    pointer-events:none;
+    font-variant-numeric: tabular-nums;
+  }
+  .readout b{ color: var(--ink); font-weight:500; }
+
+  .zoombar{
+    position:absolute; left:16px; bottom:16px;
+    display:flex; gap:3px; padding:4px;
+    background: rgba(14,18,20,.82);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+  }
+  .zoombar button{
+    min-width:30px; height:28px; padding:0 9px;
+    display:grid; place-items:center;
+    background:transparent; border:none; border-radius:4px;
+    color:#8B959B; font-size:14px; font-family:inherit;
+    cursor:pointer;
+    transition: background var(--dur-fast) var(--ease-out),
+                color      var(--dur-fast) var(--ease-out),
+                transform  var(--dur-fast) var(--ease-out);
+  }
+  .zoombar button:hover{ background: rgba(255,255,255,.07); color:var(--ink); }
+  .zoombar button:active{ transform: scale(.92); }
+  .zoombar button.reset{ font-size:12px; color:#6E7A80; }
+
+  .legend{
+    position:absolute; right:16px; bottom:16px;
+    display:flex; flex-direction:column; gap:6px;
+    padding: 10px 13px;
+    min-width: 170px;
+    background: rgba(14,18,20,.86);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--line);
+    border-radius:6px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    opacity:0; transform: translateY(6px);
+    transition: opacity var(--dur-fast) var(--ease-out),
+                transform var(--dur-fast) var(--ease-out);
+    pointer-events:none;
+  }
+  .legend.show{ opacity:1; transform:none; }
+  .lg-row{ display:flex; align-items:center; gap:8px; }
+  .lg-row i{ width:8px; height:8px; border-radius:2px; flex:none; }
+  .lg-eq{
+    flex:1; min-width:0;
+    color:#8B959B;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    max-width:130px;
+  }
+  .lg-row b{ color: var(--ink); font-weight:500; font-variant-numeric: tabular-nums; }
+
+  /* ── 画笔模式指示 ── */
+  .pen-badge{
+    position:absolute; top:16px; left:16px;
+    display:flex; align-items:center; gap:8px;
+    padding: 7px 12px;
+    background: rgba(225,252,173,.10);
+    border: 1px solid rgba(225,252,173,.35);
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--lime);
+    pointer-events:none;
+    opacity: 0;
+    transform: translateY(-6px);
+    transition: opacity var(--dur-fast) var(--ease-out),
+                transform var(--dur-fast) var(--ease-out);
+  }
+  .pen-badge.show{ opacity:1; transform:none; }
+  .pen-badge svg{ width:13px; height:13px; flex:none; }
+  .pen-badge kbd{
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    background: rgba(225,252,173,.14);
+    color: var(--lime);
+  }
+
+  /* ── Toast ── */
+  .toast{
+    position: fixed;
+    left: 50%; bottom: 24px;
+    transform: translate(-50%, 10px);
+    padding: 9px 16px;
+    background: rgba(20,25,28,.96);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    font-size: 12.5px;
+    color: var(--ink);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--dur-base) var(--ease-out),
+                transform var(--dur-base) var(--ease-out);
+    z-index: 100;
+    max-width: 80vw;
+  }
+  .toast.show{ opacity:1; transform: translate(-50%, 0); }
+  .toast.error{
+    border-color: rgba(215,119,87,.6);
+    color: #F0A98F;
+  }
+
+  /* ══════════ 焦点可见 ══════════ */
+  button:focus-visible,
+  .add-btn:focus-visible,
+  .chip:focus-visible,
+  .fn-input:focus-visible,
+  .pen-toggle:focus-visible,
+  .pen-clear:focus-visible,
+  .pen-icon:focus-visible,
+  .data-btn:focus-visible{
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .fn-input:focus-visible{ outline-offset: 0; }
+
+  /* ══════════ 进入动效 ══════════ */
+  @keyframes rise-in{
+    from{ opacity:0; transform: translateY(8px); }
+    to  { opacity:1; transform: translateY(0); }
+  }
+
+  @media (prefers-reduced-motion: no-preference){
+    .reveal{
+      opacity: 0;
+      animation: rise-in var(--dur-slow) var(--ease-out) forwards;
+      animation-delay: calc(var(--i, 0) * 55ms);
+    }
+    .fn-row.is-new{ animation: row-in var(--dur-base) var(--ease-out); }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *, *::before, *::after{
+      animation-duration: .01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: .01ms !important;
+      scroll-behavior: auto !important;
+    }
+    .reveal{ opacity: 1; }
+  }
+
+  @media (max-width: 880px){
+    .app{ flex-direction:column; }
+    .panel{
+      width:100%; border-right:none;
+      border-bottom:1px solid var(--line);
+      max-height: 56dvh; padding: 18px 16px 14px;
+    }
+    .stage{ flex:1; min-height:0; }
+    .legend{ display:none; }
+    .pen-badge{ display:none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <aside class="panel">
+
+    <header class="head reveal" style="--i:0">
+      <div class="mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 17c2.6 0 3.4-10 6.6-10S13 15 16 15s2.4-4 5-4"/>
+        </svg>
+      </div>
+      <div>
+        <h1>函数显示器</h1>
+        <p>把公式丢进来，剩下的交给它</p>
+      </div>
+    </header>
+
+    <section class="reveal" style="--i:1">
+      <div class="label">表达式</div>
+      <div class="fn-list" id="fnList"></div>
+      <button class="add-btn" id="addBtn">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M12 5v14M5 12h14"/>
+        </svg>
+        再加一条
+      </button>
+    </section>
+
+    <section class="reveal" style="--i:2">
+      <div class="label">随手试试</div>
+      <div class="chips" id="chips"></div>
+    </section>
+
+    <section class="reveal" style="--i:3">
+      <div class="label">画笔 · 画直线</div>
+
+      <div class="pen-panel">
+        <button class="pen-toggle" id="penToggle" aria-pressed="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15.5 3.5a2.1 2.1 0 0 1 3 3L7 18l-4 1 1-4Z"/>
+          </svg>
+          <span id="penToggleText">开启画笔</span>
+        </button>
+        <button class="pen-icon" id="penUndo" title="撤销上一次画笔生成 · Ctrl+Z" aria-label="撤销上一次画笔生成">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 14 4 9l5-5"/>
+            <path d="M4 9h9a7 7 0 0 1 0 14h-3"/>
+          </svg>
+        </button>
+        <button class="pen-clear" id="penClear" title="清空所有画笔生成的内容">清空</button>
+      </div>
+
+      <div class="pen-row">
+        <span class="pen-row-label">色</span>
+        <div class="pen-colors" id="penColors"></div>
+      </div>
+
+      <div class="pen-row">
+        <span class="pen-row-label">点大小</span>
+        <input type="range" class="pen-size" id="penSize"
+               min="1" max="6" step="0.5" value="2.5" aria-label="点的大小">
+      </div>
+    </section>
+
+    <section class="reveal" style="--i:4">
+      <div class="label">数据</div>
+      <div class="data-tools">
+        <button class="data-btn" id="exportBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3v12"/>
+            <path d="m7 10 5 5 5-5"/>
+            <path d="M5 20h14"/>
+          </svg>
+          导出 JSON
+        </button>
+        <button class="data-btn" id="importBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 17V5"/>
+            <path d="m7 10 5-5 5 5"/>
+            <path d="M5 20h14"/>
+          </svg>
+          导入 JSON
+        </button>
+      </div>
+      <input type="file" id="fileInput" accept=".json,application/json" hidden>
+    </section>
+
+    <div class="footnote reveal" style="--i:5">
+      拖动平移，滚轮缩放。鼠标停在曲线上可以读值。<br>
+      认得 <code>sin cos tan ln log sqrt abs floor</code>，常数 <code>pi e</code>，
+      隐式乘法写 <code>2x</code>。条件用花括号：<code>x{0&lt;x&lt;1}</code>
+      只画中间那段。<br>
+      按 <code>B</code> 开画笔：<b>点两下</b>画一条直线，两下挨得特别近就当一个点。
+      生成的内容会作为表达式追加到列表末尾。
+    </div>
+
+  </aside>
+
+  <main class="stage" id="stage">
+    <canvas id="cv"></canvas>
+
+    <div class="pen-badge" id="penBadge">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M15.5 3.5a2.1 2.1 0 0 1 3 3L7 18l-4 1 1-4Z"/>
+      </svg>
+      <span id="penBadgeText">点一下设起点</span>
+      <kbd>Esc</kbd>
+    </div>
+
+    <div class="readout">
+      <span>x <b id="hudX">—</b></span>
+      <span>y <b id="hudY">—</b></span>
+    </div>
+
+    <div class="zoombar">
+      <button data-zoom="in"  title="放大">+</button>
+      <button data-zoom="out" title="缩小">−</button>
+      <button data-zoom="reset" class="reset">重置</button>
+    </div>
+
+    <div class="legend" id="legend"></div>
+  </main>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ═══════════════════════════════════════════
+   0. 动效前提
+   ═══════════════════════════════════════════ */
+
+const prefersReduced = matchMedia('(prefers-reduced-motion: reduce)');
+
+/* ═══════════════════════════════════════════
+   1. 表达式解析器
+   ═══════════════════════════════════════════ */
+
+const CONSTS = {
+  pi: Math.PI, PI: Math.PI,
+  e: Math.E, E: Math.E,
+  tau: Math.PI * 2,
+};
+
+const fn1 = f => ({ arity: 1, f });
+const fn2 = f => ({ arity: 2, f });
+const fnN = f => ({ arity: -1, f });
+
+const FUNCS = {
+  sin: fn1(Math.sin), cos: fn1(Math.cos), tan: fn1(Math.tan),
+  asin: fn1(Math.asin), arcsin: fn1(Math.asin),
+  acos: fn1(Math.acos), arccos: fn1(Math.acos),
+  atan: fn1(Math.atan), arctan: fn1(Math.atan),
+  sinh: fn1(Math.sinh), cosh: fn1(Math.cosh), tanh: fn1(Math.tanh),
+  ln: fn1(Math.log), log: fn1(Math.log10), log2: fn1(Math.log2), log10: fn1(Math.log10),
+  exp: fn1(Math.exp), sqrt: fn1(Math.sqrt), cbrt: fn1(Math.cbrt),
+  abs: fn1(Math.abs), floor: fn1(Math.floor), ceil: fn1(Math.ceil),
+  round: fn1(Math.round), sign: fn1(Math.sign),
+  min: fnN((...a) => Math.min(...a)),
+  max: fnN((...a) => Math.max(...a)),
+  pow: fn2(Math.pow), atan2: fn2(Math.atan2),
+};
+
+const COMPARISONS = new Set(['<', '>', '<=', '>=', '==', '!=']);
+
+function compare(a, b, op){
+  switch (op){
+    case '<':  return a < b;
+    case '>':  return a > b;
+    case '<=': return a <= b;
+    case '>=': return a >= b;
+    case '==': return a === b;
+    case '!=': return a !== b;
+  }
+  return false;
+}
+
+function truthy(v){
+  return v !== 0 && !Number.isNaN(v);
+}
+
+function tokenize(src){
+  const s = src.replace(/\s+/g, '');
+  const out = [];
+  let i = 0;
+  while (i < s.length){
+    const c = s[i];
+    const c2 = s[i + 1];
+
+    if ((c === '<' || c === '>') && c2 === '='){ out.push({ t: c + '=' }); i += 2; continue; }
+    if (c === '=' && c2 === '='){ out.push({ t: '==' }); i += 2; continue; }
+    if (c === '!' && c2 === '='){ out.push({ t: '!=' }); i += 2; continue; }
+    if (c === '&' && c2 === '&'){ out.push({ t: '&&' }); i += 2; continue; }
+    if (c === '|' && c2 === '|'){ out.push({ t: '||' }); i += 2; continue; }
+
+    if (/[0-9.]/.test(c)){
+      let j = i;
+      while (j < s.length && /[0-9.]/.test(s[j])) j++;
+      if (s[j] === 'e' || s[j] === 'E'){
+        let k = j + 1;
+        if (s[k] === '+' || s[k] === '-') k++;
+        if (/[0-9]/.test(s[k] || '')){
+          while (k < s.length && /[0-9]/.test(s[k])) k++;
+          j = k;
+        }
+      }
+      const num = parseFloat(s.slice(i, j));
+      if (!isFinite(num)) throw new Error('数字写错了');
+      out.push({ t:'num', v:num });
+      i = j;
+    } else if (/[a-zA-Z_]/.test(c)){
+      let j = i;
+      while (j < s.length && /[a-zA-Z_0-9]/.test(s[j])) j++;
+      out.push({ t:'id', v: s.slice(i, j) });
+      i = j;
+    } else if (c === '='){
+      out.push({ t:'==' }); i++;
+    } else if (c === '&'){
+      out.push({ t:'&&' }); i++;
+    } else if (c === '|'){
+      out.push({ t:'||' }); i++;
+    } else if ('+-*/^%(),{}<>!'.includes(c)){
+      out.push({ t:c }); i++;
+    } else {
+      throw new Error('看不懂这个符号：' + c);
+    }
+  }
+  return out;
+}
+
+function compile(src){
+  if (!src || !src.trim()) throw new Error('空的');
+  let s = src.trim().replace(/^\s*(y|f\s*\(\s*x\s*\))\s*=\s*/i, '');
+
+  const tokens = tokenize(s);
+  let pos = 0;
+
+  const peek = () => tokens[pos];
+  const next = () => tokens[pos++];
+  const need = t => {
+    if (!peek() || peek().t !== t) throw new Error('这里少了个 ' + t);
+    return next();
+  };
+
+  function parseOr(){
+    let left = parseAnd();
+    while (peek() && peek().t === '||'){
+      next();
+      const right = parseAnd();
+      const l = left, r = right;
+      left = x => (truthy(l(x)) || truthy(r(x))) ? 1 : 0;
+    }
+    return left;
+  }
+
+  function parseAnd(){
+    let left = parseComparison();
+    while (peek() && peek().t === '&&'){
+      next();
+      const right = parseComparison();
+      const l = left, r = right;
+      left = x => (truthy(l(x)) && truthy(r(x))) ? 1 : 0;
+    }
+    return left;
+  }
+
+  function parseComparison(){
+    const first = parseExpr();
+    const ops = [];
+    const vals = [first];
+    while (peek() && COMPARISONS.has(peek().t)){
+      ops.push(next().t);
+      vals.push(parseExpr());
+    }
+    if (ops.length === 0) return first;
+    if (ops.length === 1){
+      const a = vals[0], b = vals[1], op = ops[0];
+      return x => compare(a(x), b(x), op) ? 1 : 0;
+    }
+    const O = ops, V = vals;
+    return x => {
+      for (let i = 0; i < O.length; i++){
+        if (!compare(V[i](x), V[i+1](x), O[i])) return 0;
+      }
+      return 1;
+    };
+  }
+
+  function parseExpr(){
+    let left = parseTerm();
+    while (peek() && (peek().t === '+' || peek().t === '-')){
+      const op = next().t;
+      const right = parseTerm();
+      const l = left, r = right;
+      left = op === '+' ? (x => l(x) + r(x)) : (x => l(x) - r(x));
+    }
+    return left;
+  }
+
+  function parseTerm(){
+    let left = parseUnary();
+    for(;;){
+      const tk = peek();
+      if (!tk) break;
+      if (tk.t === '*' || tk.t === '/' || tk.t === '%'){
+        next();
+        const right = parseUnary();
+        const l = left, r = right;
+        if (tk.t === '*')      left = x => l(x) * r(x);
+        else if (tk.t === '/') left = x => l(x) / r(x);
+        else                   left = x => l(x) % r(x);
+      } else if (tk.t === 'num' || tk.t === 'id' || tk.t === '('){
+        const right = parseUnary();
+        const l = left, r = right;
+        left = x => l(x) * r(x);
+      } else break;
+    }
+    return left;
+  }
+
+  function parseUnary(){
+    const tk = peek();
+    if (tk && tk.t === '-'){ next(); const v = parseUnary(); return x => -v(x); }
+    if (tk && tk.t === '+'){ next(); return parseUnary(); }
+    if (tk && tk.t === '!'){ next(); const v = parseUnary(); return x => truthy(v(x)) ? 0 : 1; }
+    return parseConditional();
+  }
+
+  function parseConditional(){
+    const base = parsePower();
+    const conds = [];
+    while (peek() && peek().t === '{'){
+      next();
+      conds.push(parseOr());
+      need('}');
+    }
+    if (conds.length === 0) return base;
+    const C = conds;
+    return x => {
+      for (let i = 0; i < C.length; i++){
+        if (!truthy(C[i](x))) return NaN;
+      }
+      return base(x);
+    };
+  }
+
+  function parsePower(){
+    const base = parseAtom();
+    if (peek() && peek().t === '^'){
+      next();
+      const exp = parseUnary();
+      const b = base, e = exp;
+      return x => Math.pow(b(x), e(x));
+    }
+    return base;
+  }
+
+  function parseAtom(){
+    const tk = next();
+    if (!tk) throw new Error('表达式没写完');
+
+    if (tk.t === 'num'){ const v = tk.v; return () => v; }
+
+    if (tk.t === 'id'){
+      const name = tk.v;
+
+      if (peek() && peek().t === '('){
+        next();
+        const args = [];
+        if (peek() && peek().t !== ')'){
+          args.push(parseOr());
+          while (peek() && peek().t === ','){ next(); args.push(parseOr()); }
+        }
+        need(')');
+        const spec = FUNCS[name.toLowerCase()];
+        if (!spec) throw new Error('不认识的函数：' + name);
+        if (spec.arity >= 0 && args.length !== spec.arity)
+          throw new Error(`${name} 要 ${spec.arity} 个参数，你给了 ${args.length} 个`);
+        const A = args;
+        return x => spec.f(...A.map(g => g(x)));
+      }
+
+      if (name in CONSTS){ const v = CONSTS[name]; return () => v; }
+      if (name === 'x' || name === 'X') return x => x;
+      throw new Error('不认识的变量：' + name);
+    }
+
+    if (tk.t === '('){
+      const inner = parseOr();
+      need(')');
+      return inner;
+    }
+
+    throw new Error('这里多了个 ' + tk.t);
+  }
+
+  const fn = parseOr();
+  if (pos < tokens.length){
+    const t = tokens[pos];
+    throw new Error('多余的符号：' + (t.v !== undefined ? t.v : t.t));
+  }
+  return fn;
+}
+
+/* ═══════════════════════════════════════════
+   2. 状态
+   ═══════════════════════════════════════════ */
+
+const PALETTE = ['#D97757', '#E1FCAD', '#7EC8C8', '#C9A84C', '#C5B8D4', '#A8B89A'];
+const PEN_COLORS = ['#E1FCAD', '#D97757', '#7EC8C8', '#C9A84C', '#C5B8D4', '#E7E9E6'];
+
+const state = {
+  funcs: [],
+  view: { cx: 0, cy: 0, scale: 56 },
+};
+
+/* 画笔状态：现在只是一支"生成直线"的笔 */
+const pen = {
+  active: false,
+  color: PEN_COLORS[0],
+  size: 2.5,          // 点的视觉大小（px）
+  pending: null,      // { x, y } 世界坐标：第一个点
+  cursor: null,       // { x, y } 世界坐标：当前鼠标位置（用于预览）
+};
+
+let uid = 0;
+function addFunc(expr, colorIdx, source){
+  const f = {
+    id: ++uid,
+    expr,
+    fn: null,
+    error: null,
+    visible: true,
+    color: PALETTE[(colorIdx ?? state.funcs.length) % PALETTE.length],
+    alpha: 1,
+    source: source || 'manual',
+    _from: 1,
+    _start: 0,
+    _dur: 180,
+  };
+  try { f.fn = compile(expr); }
+  catch (e){ f.error = e.message; }
+  state.funcs.push(f);
+  return f;
+}
+
+addFunc('sin(x)', 0);
+addFunc('x^2/4 - 2', 1);
+
+/* ═══════════════════════════════════════════
+   3. DOM
+   ═══════════════════════════════════════════ */
+
+const stage    = document.getElementById('stage');
+const canvas   = document.getElementById('cv');
+const ctx      = canvas.getContext('2d');
+const fnList   = document.getElementById('fnList');
+const hudX     = document.getElementById('hudX');
+const hudY     = document.getElementById('hudY');
+const legendEl = document.getElementById('legend');
+const penBadge = document.getElementById('penBadge');
+const penBadgeText = document.getElementById('penBadgeText');
+const penToggle= document.getElementById('penToggle');
+const penToggleText = document.getElementById('penToggleText');
+const penColors= document.getElementById('penColors');
+const penSize  = document.getElementById('penSize');
+const toastEl  = document.getElementById('toast');
+
+const ICON_EYE_ON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="2.6"/></svg>`;
+const ICON_EYE_OFF= `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4l16 16"/><path d="M9.6 5.7A9.6 9.6 0 0 1 12 5.5c6.4 0 10 6.5 10 6.5a17 17 0 0 1-3.3 4"/><path d="M6.5 7.7A17 17 0 0 0 2 12s3.6 6.5 10 6.5a9.9 9.9 0 0 0 4-.8"/><path d="M10.2 10.3a2.6 2.6 0 0 0 3.6 3.6"/></svg>`;
+const ICON_X      = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>`;
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ── Toast ── */
+let toastTimer = null;
+function toast(msg, kind){
+  toastEl.textContent = msg;
+  toastEl.classList.toggle('error', kind === 'error');
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2400);
+}
+
+/* ═══════════════════════════════════════════
+   4. 表达式列表渲染
+   ═══════════════════════════════════════════ */
+
+function renderList(newId){
+  fnList.innerHTML = '';
+  state.funcs.forEach(f => {
+    const slot = document.createElement('div');
+    slot.className = 'fn-slot';
+
+    const row = document.createElement('div');
+    row.className = 'fn-row'
+      + (f.error && f.expr.trim() ? ' error' : '')
+      + (f.id === newId ? ' is-new' : '')
+      + (f.source === 'pen' ? ' pen-made' : '');
+    row.dataset.id = f.id;
+
+    row.innerHTML = `
+      <button class="swatch" style="--c:${f.color}" title="换个颜色" aria-label="切换颜色"></button>
+      <input class="fn-input" spellcheck="false" autocomplete="off"
+             value="${esc(f.expr)}" placeholder="sin(x)" aria-label="函数表达式">
+      <button class="icon-btn vis ${f.visible ? '' : 'off'}"
+              title="${f.visible ? '藏起来' : '显示出来'}"
+              aria-label="${f.visible ? '隐藏曲线' : '显示曲线'}"
+              aria-pressed="${f.visible}">
+        ${f.visible ? ICON_EYE_ON : ICON_EYE_OFF}
+      </button>
+      <button class="icon-btn del" title="删掉" aria-label="删除这条表达式">${ICON_X}</button>
+    `;
+
+    const input  = row.querySelector('.fn-input');
+    const swatch = row.querySelector('.swatch');
+    const visBtn = row.querySelector('.vis');
+    const delBtn = row.querySelector('.del');
+
+    input.addEventListener('input', e => {
+      f.expr = e.target.value;
+      try { f.fn = compile(f.expr); f.error = null; }
+      catch (err){ f.fn = null; f.error = err.message; }
+      const bad = !!f.error && f.expr.trim() !== '';
+      row.classList.toggle('error', bad);
+      row.title = bad ? f.error : '';
+      requestRender();
+      updateHUD();
+    });
+
+    swatch.addEventListener('click', () => {
+      const i = PALETTE.indexOf(f.color);
+      f.color = PALETTE[(i + 1) % PALETTE.length];
+      swatch.style.setProperty('--c', f.color);
+      requestRender();
+      updateHUD();
+    });
+
+    visBtn.addEventListener('click', () => {
+      const nextVisible = !f.visible;
+      if (prefersReduced.matches){
+        f.alpha = nextVisible ? 1 : 0;
+      } else {
+        f._from = f.alpha;
+        f._start = performance.now();
+        f._dur = 180;
+        ensureAnim();
+      }
+      f.visible = nextVisible;
+
+      visBtn.classList.toggle('off', !f.visible);
+      visBtn.innerHTML = f.visible ? ICON_EYE_ON : ICON_EYE_OFF;
+      visBtn.title = f.visible ? '藏起来' : '显示出来';
+      visBtn.setAttribute('aria-label', f.visible ? '隐藏曲线' : '显示曲线');
+      visBtn.setAttribute('aria-pressed', String(f.visible));
+
+      requestRender();
+      updateHUD();
+    });
+
+    delBtn.addEventListener('click', () => {
+      const finish = () => {
+        state.funcs = state.funcs.filter(x => x.id !== f.id);
+        if (state.funcs.length === 0) addFunc('', 0);
+        renderList();
+        requestRender();
+        updateHUD();
+      };
+
+      if (prefersReduced.matches){ finish(); return; }
+
+      slot.classList.add('closing');
+      let done = false;
+      const once = () => { if (done) return; done = true; finish(); };
+
+      slot.addEventListener('transitionend', e => {
+        if (e.propertyName === 'grid-template-rows') once();
+      });
+      setTimeout(once, 340);
+    });
+
+    slot.appendChild(row);
+    fnList.appendChild(slot);
+  });
+}
+renderList();
+
+document.getElementById('addBtn').addEventListener('click', () => {
+  const f = addFunc('', state.funcs.length);
+  if (prefersReduced.matches) f.alpha = 1;
+  renderList(f.id);
+  const inputs = fnList.querySelectorAll('.fn-input');
+  inputs[inputs.length - 1].focus();
+  requestRender();
+});
+
+/* ── 快捷示例 ── */
+const CHIPS = [
+  'sin(x)/x',
+  'e^(-x^2)',
+  'x{0<x<1}',
+  'x^2{x<0}',
+  'sin(x){abs(x)<pi}',
+  'x{x>=0} + (-x){x<0}',
+  'floor(x)',
+];
+const chipsEl = document.getElementById('chips');
+CHIPS.forEach(c => {
+  const b = document.createElement('button');
+  b.className = 'chip';
+  b.textContent = c;
+  b.addEventListener('click', () => {
+    const empty = state.funcs.find(f => f.expr.trim() === '');
+    if (empty){
+      empty.expr = c;
+      try { empty.fn = compile(c); empty.error = null; }
+      catch(e){ empty.fn = null; empty.error = e.message; }
+      renderList();
+    } else {
+      const f = addFunc(c, state.funcs.length);
+      f.alpha = 1;
+      renderList(f.id);
+    }
+    requestRender();
+    updateHUD();
+  });
+  chipsEl.appendChild(b);
+});
+
+/* ═══════════════════════════════════════════
+   5. 画笔 UI
+   ═══════════════════════════════════════════ */
+
+PEN_COLORS.forEach((c, i) => {
+  const b = document.createElement('button');
+  b.className = 'pen-color' + (i === 0 ? ' on' : '');
+  b.style.setProperty('--c', c);
+  b.dataset.color = c;
+  b.title = c;
+  b.setAttribute('aria-label', '画笔颜色 ' + c);
+  b.addEventListener('click', () => {
+    pen.color = c;
+    penColors.querySelectorAll('.pen-color').forEach(el =>
+      el.classList.toggle('on', el.dataset.color === c)
+    );
+  });
+  penColors.appendChild(b);
+});
+
+penSize.addEventListener('input', e => {
+  pen.size = parseFloat(e.target.value) || 2.5;
+});
+
+function updatePenBadge(){
+  if (!pen.active){
+    penBadge.classList.remove('show');
+    return;
+  }
+  penBadge.classList.add('show');
+  penBadgeText.textContent = pen.pending
+    ? '再点一下确定终点'
+    : '点一下设起点';
+}
+
+function setPenActive(v){
+  pen.active = v;
+  pen.pending = null;
+  pen.cursor = null;
+
+  penToggle.classList.toggle('on', v);
+  penToggle.setAttribute('aria-pressed', String(v));
+  penToggleText.textContent = v ? '画笔已开启' : '开启画笔';
+  canvas.style.cursor = v ? 'cell' : 'crosshair';
+
+  updatePenBadge();
+  requestRender();
+}
+
+penToggle.addEventListener('click', () => setPenActive(!pen.active));
+
+/* ── 撤销：删掉最近一次画笔生成的表达式 ── */
+function undoStroke(){
+  if (pen.pending){
+    pen.pending = null;
+    pen.cursor = null;
+    updatePenBadge();
+    requestRender();
+    toast('已取消起点');
+    return;
+  }
+
+  let idx = -1;
+  for (let i = state.funcs.length - 1; i >= 0; i--){
+    if (state.funcs[i].source === 'pen'){ idx = i; break; }
+  }
+  if (idx < 0){
+    toast('还没有画笔生成的内容');
+    return;
+  }
+  state.funcs.splice(idx, 1);
+  if (state.funcs.length === 0) addFunc('', 0);
+  renderList();
+  requestRender();
+  updateHUD();
+  toast('已撤销');
+}
+
+document.getElementById('penUndo').addEventListener('click', undoStroke);
+
+/* ── 清空：删掉所有画笔生成的内容 ── */
+document.getElementById('penClear').addEventListener('click', () => {
+  const before = state.funcs.length;
+  state.funcs = state.funcs.filter(f => f.source !== 'pen');
+  const removed = before - state.funcs.length;
+
+  pen.pending = null;
+  pen.cursor = null;
+
+  if (removed === 0){
+    toast('还没有画笔生成的内容');
+    updatePenBadge();
+    requestRender();
+    return;
+  }
+
+  if (state.funcs.length === 0) addFunc('', 0);
+  renderList();
+  requestRender();
+  updateHUD();
+  updatePenBadge();
+  toast('已清空 ' + removed + ' 条画笔内容');
+});
+
+/* ═══════════════════════════════════════════
+   6. 表达式生成：从两个点 → 一条直线的表达式
+   ═══════════════════════════════════════════ */
+
+/* 数字格式化：去掉尾部多余的 0 */
+function nf(v){
+  if (!isFinite(v)) return '0';
+  if (Math.abs(v) < 1e-9) return '0';
+  let s = v.toFixed(4);
+  if (s.includes('.')) s = s.replace(/0+$/, '').replace(/\.$/, '');
+  return s || '0';
+}
+
+/* 直线：过 p1、p2 两点，只在 [minX, maxX] 上绘制
+   返回形如 (k*x+b){minX<=x&&x<=maxX} 的表达式字符串
+   垂直线无法用 y=f(x) 表示，返回 null */
+function buildLineExpr(p1, p2){
+  const dx = p2.x - p1.x;
+  const dy = p2.y - p1.y;
+
+  if (Math.abs(dx) < 1e-9) return null;
+
+  const k = dy / dx;
+  const b = p1.y - k * p1.x;
+  const minX = Math.min(p1.x, p2.x);
+  const maxX = Math.max(p1.x, p2.x);
+
+  /* k*x 部分 */
+  let kPart = '';
+  if (Math.abs(k) > 1e-9){
+    if (Math.abs(k - 1) < 1e-9) kPart = 'x';
+    else if (Math.abs(k + 1) < 1e-9) kPart = '-x';
+    else kPart = nf(k) + '*x';
+  }
+
+  /* 常数项 */
+  let bPart = '';
+  if (Math.abs(b) > 1e-9){
+    if (kPart === '') bPart = nf(b);
+    else bPart = b > 0 ? ('+' + nf(b)) : ('-' + nf(-b));
+  }
+
+  let core;
+  if (kPart === '' && bPart === '') core = '0';
+  else if (kPart === '') core = bPart;
+  else if (bPart === '') core = kPart;
+  else core = kPart + bPart;
+
+  return `(${core}){${nf(minX)}<=x&&x<=${nf(maxX)}}`;
+}
+
+/* 单点：在 (px, py) 处画一小段水平短线，视觉上像一个点 */
+function buildDotExpr(p, sizePx){
+  const eps = Math.max(sizePx, 1) / state.view.scale;
+  const half = eps / 2;
+  const minX = p.x - half;
+  const maxX = p.x + half;
+  return `(${nf(p.y)}){${nf(minX)}<=x&&x<=${nf(maxX)}}`;
+}
+
+/* ═══════════════════════════════════════════
+   7. 画布尺寸 & 背景噪点
+   ═══════════════════════════════════════════ */
+
+let W = 0, H = 0;
+let noisePattern = null;
+
+function buildNoise(){
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const nx = c.getContext('2d');
+  const img = nx.createImageData(128, 128);
+  for (let i = 0; i < img.data.length; i += 4){
+    const v = 120 + Math.random() * 135;
+    img.data[i] = img.data[i+1] = img.data[i+2] = v;
+    img.data[i+3] = 255;
+  }
+  nx.putImageData(img, 0, 0);
+  noisePattern = ctx.createPattern(c, 'repeat');
+}
+
+function resize(){
+  const r = stage.getBoundingClientRect();
+  W = Math.max(1, Math.round(r.width));
+  H = Math.max(1, Math.round(r.height));
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width  = Math.round(W * dpr);
+  canvas.height = Math.round(H * dpr);
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (!noisePattern) buildNoise();
+  requestRender();
+}
+
+new ResizeObserver(resize).observe(stage);
+
+function screenToWorld(mx, my){
+  const { cx, cy, scale } = state.view;
+  return {
+    x: (mx - W / 2) / scale + cx,
+    y: cy - (my - H / 2) / scale,
+  };
+}
+function worldToScreenX(x){ return (x - state.view.cx) * state.view.scale + W / 2; }
+function worldToScreenY(y){ return H / 2 - (y - state.view.cy) * state.view.scale; }
+
+/* ═══════════════════════════════════════════
+   8. 渲染
+   ═══════════════════════════════════════════ */
+
+let needsRender = false;
+function requestRender(){
+  if (needsRender) return;
+  needsRender = true;
+  requestAnimationFrame(() => { needsRender = false; draw(); });
+}
+
+let animRaf = null;
+
+function updateAlphas(){
+  const now = performance.now();
+  let busy = false;
+  for (const f of state.funcs){
+    const target = f.visible ? 1 : 0;
+    if (f.alpha === target) continue;
+
+    const t = Math.min(1, (now - f._start) / f._dur);
+    const e = 1 - Math.pow(1 - t, 3);
+    f.alpha = f._from + (target - f._from) * e;
+
+    if (t < 1) busy = true;
+    else f.alpha = target;
+  }
+  return busy;
+}
+
+function ensureAnim(){
+  if (animRaf || prefersReduced.matches) return;
+  animRaf = requestAnimationFrame(function step(){
+    const busy = updateAlphas();
+    draw();
+    animRaf = busy ? requestAnimationFrame(step) : null;
+  });
+}
+
+function niceStep(scale, targetPx){
+  const raw = targetPx / scale;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const norm = raw / mag;
+  const mult = norm <= 1.5 ? 1 : norm <= 3.5 ? 2 : norm <= 7.5 ? 5 : 10;
+  return mult * mag;
+}
+
+function fmtTick(v, step){
+  if (Math.abs(v) < step * 0.001) return '0';
+  const a = Math.abs(v);
+  if (a >= 1e5 || a < 1e-3) return v.toExponential(0).replace('e+', 'e');
+  const dec = Math.max(0, -Math.floor(Math.log10(step)));
+  return v.toFixed(Math.min(dec, 6));
+}
+
+function draw(){
+  if (!W || !H) return;
+  const { cx, cy, scale } = state.view;
+
+  /* ---- 背景 ---- */
+  const g = ctx.createRadialGradient(W * 0.62, H * 0.12, 0, W * 0.62, H * 0.12, Math.max(W, H) * 0.95);
+  g.addColorStop(0, '#182026');
+  g.addColorStop(0.55, '#121819');
+  g.addColorStop(1, '#0C1012');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+
+  if (noisePattern){
+    ctx.globalAlpha = 0.028;
+    ctx.fillStyle = noisePattern;
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1;
+  }
+
+  /* ---- 网格 ---- */
+  const xMin = cx - W / 2 / scale;
+  const xMax = cx + W / 2 / scale;
+  const yMin = cy - H / 2 / scale;
+  const yMax = cy + H / 2 / scale;
+
+  const major = niceStep(scale, 88);
+  const minor = major / 5;
+
+  if (minor * scale >= 9){
+    ctx.strokeStyle = 'rgba(232,236,238,.045)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let k = Math.ceil(xMin / minor); k * minor <= xMax; k++){
+      const sx = Math.round((k * minor - cx) * scale + W / 2) + 0.5;
+      ctx.moveTo(sx, 0); ctx.lineTo(sx, H);
+    }
+    for (let k = Math.ceil(yMin / minor); k * minor <= yMax; k++){
+      const sy = Math.round(H / 2 - (k * minor - cy) * scale) + 0.5;
+      ctx.moveTo(0, sy); ctx.lineTo(W, sy);
+    }
+    ctx.stroke();
+  }
+
+  ctx.strokeStyle = 'rgba(232,236,238,.095)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let k = Math.ceil(xMin / major); k * major <= xMax; k++){
+    const sx = Math.round((k * major - cx) * scale + W / 2) + 0.5;
+    ctx.moveTo(sx, 0); ctx.lineTo(sx, H);
+  }
+  for (let k = Math.ceil(yMin / major); k * major <= yMax; k++){
+    const sy = Math.round(H / 2 - (k * major - cy) * scale) + 0.5;
+    ctx.moveTo(0, sy); ctx.lineTo(W, sy);
+  }
+  ctx.stroke();
+
+  /* ---- 坐标轴 ---- */
+  const y0 = H / 2 - (0 - cy) * scale;
+  const x0 = W / 2 + (0 - cx) * scale;
+
+  ctx.strokeStyle = 'rgba(232,236,238,.26)';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  if (y0 >= -1 && y0 <= H + 1){ ctx.moveTo(0, Math.round(y0) + .5); ctx.lineTo(W, Math.round(y0) + .5); }
+  if (x0 >= -1 && x0 <= W + 1){ ctx.moveTo(Math.round(x0) + .5, 0); ctx.lineTo(Math.round(x0) + .5, H); }
+  ctx.stroke();
+
+  /* ---- 刻度 ---- */
+  ctx.font = '11px ui-monospace, SFMono-Regular, Menlo, monospace';
+  ctx.fillStyle = '#57636A';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+
+  const labY = Math.min(Math.max(y0, 15), H - 7);
+  for (let k = Math.ceil(xMin / major); k * major <= xMax; k++){
+    const v = k * major;
+    if (Math.abs(v) < major * 0.001) continue;
+    const sx = (v - cx) * scale + W / 2;
+    ctx.fillText(fmtTick(v, major), sx + 4, labY - 6);
+  }
+
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  const labX = Math.min(Math.max(x0, 26), W - 8);
+  for (let k = Math.ceil(yMin / major); k * major <= yMax; k++){
+    const v = k * major;
+    if (Math.abs(v) < major * 0.001) continue;
+    const sy = H / 2 - (v - cy) * scale;
+    ctx.fillText(fmtTick(v, major), labX - 7, sy);
+  }
+
+  /* ---- 函数曲线 ---- */
+  for (const f of state.funcs){
+    if (f.alpha <= 0.002 || !f.fn) continue;
+
+    ctx.beginPath();
+    buildPath(f.fn);
+
+    ctx.globalAlpha = 0.14 * f.alpha;
+    ctx.lineWidth = 7;
+    ctx.strokeStyle = f.color;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.stroke();
+
+    ctx.globalAlpha = f.alpha;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  /* ---- 画笔预览 / 悬停十字 ---- */
+  if (pen.active){
+    drawPenPreview();
+  } else {
+    drawHover();
+  }
+}
+
+function buildPath(fn){
+  const { cx, cy, scale } = state.view;
+  let prevSy = null;
+  const n = Math.ceil(W);
+
+  for (let i = 0; i <= n; i++){
+    const px = i;
+    const x = (px - W / 2) / scale + cx;
+
+    let y;
+    try { y = fn(x); } catch { y = NaN; }
+    if (typeof y !== 'number' || !isFinite(y)){ prevSy = null; continue; }
+
+    let sy = H / 2 - (y - cy) * scale;
+    if (!isFinite(sy)){ prevSy = null; continue; }
+    if (sy < -6000) sy = -6000;
+    else if (sy > H + 6000) sy = H + 6000;
+
+    if (prevSy === null || Math.abs(sy - prevSy) > H * 3){
+      ctx.moveTo(px, sy);
+    } else {
+      ctx.lineTo(px, sy);
+    }
+    prevSy = sy;
+  }
+}
+
+/* ── 画笔预览：起点标记 + 到光标的虚线 ── */
+function drawPenPreview(){
+  if (!pen.cursor) return;
+
+  const { cx, cy, scale } = state.view;
+  const cursorPx = worldToScreenX(pen.cursor.x);
+  const cursorPy = worldToScreenY(pen.cursor.y);
+
+  if (!pen.pending){
+    /* 只有光标，没有起点：画一个小十字准星 */
+    ctx.strokeStyle = pen.color;
+    ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 0.85;
+
+    ctx.beginPath();
+    ctx.arc(cursorPx, cursorPy, 4, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(cursorPx - 8, cursorPy);
+    ctx.lineTo(cursorPx - 5, cursorPy);
+    ctx.moveTo(cursorPx + 5, cursorPy);
+    ctx.lineTo(cursorPx + 8, cursorPy);
+    ctx.moveTo(cursorPx, cursorPy - 8);
+    ctx.lineTo(cursorPx, cursorPy - 5);
+    ctx.moveTo(cursorPx, cursorPy + 5);
+    ctx.lineTo(cursorPx, cursorPy + 8);
+    ctx.stroke();
+
+    ctx.globalAlpha = 1;
+    return;
+  }
+
+  const startPx = worldToScreenX(pen.pending.x);
+  const startPy = worldToScreenY(pen.pending.y);
+
+  /* 到光标的虚线预览 */
+  ctx.save();
+  ctx.setLineDash([5, 5]);
+  ctx.strokeStyle = pen.color;
+  ctx.lineWidth = 1.8;
+  ctx.globalAlpha = 0.85;
+  ctx.beginPath();
+  ctx.moveTo(startPx, startPy);
+  ctx.lineTo(cursorPx, cursorPy);
+  ctx.stroke();
+  ctx.restore();
+
+  /* 光标处的小点 */
+  ctx.globalAlpha = 0.9;
+  ctx.beginPath();
+  ctx.arc(cursorPx, cursorPy, 3.2, 0, Math.PI * 2);
+  ctx.fillStyle = pen.color;
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  /* 起点标记：实心圆 + 外圈 */
+  ctx.beginPath();
+  ctx.arc(startPx, startPy, 4.5, 0, Math.PI * 2);
+  ctx.fillStyle = pen.color;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.arc(startPx, startPy, 9, 0, Math.PI * 2);
+  ctx.strokeStyle = pen.color;
+  ctx.lineWidth = 1.5;
+  ctx.globalAlpha = 0.55;
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  /* 起点附近的小坐标提示 */
+  const label = `(${nf(pen.pending.x)}, ${nf(pen.pending.y)})`;
+  ctx.font = '11px ui-monospace, SFMono-Regular, Menlo, monospace';
+  const tw = ctx.measureText(label).width;
+  let bx = startPx + 14;
+  let by = startPy - 12;
+  if (bx + tw + 12 > W) bx = startPx - tw - 20;
+  if (by < 12) by = startPy + 22;
+
+  ctx.fillStyle = 'rgba(14,18,20,.86)';
+  ctx.fillRect(bx - 4, by - 11, tw + 10, 18);
+
+  ctx.fillStyle = pen.color;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, bx, by - 1);
+}
+
+let hover = null;
+
+function drawHover(){
+  if (!hover) return;
+  const { cx, cy, scale } = state.view;
+  const { mx, my } = hover;
+
+  ctx.save();
+  ctx.setLineDash([3, 4]);
+  ctx.strokeStyle = 'rgba(232,236,238,.2)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(Math.round(mx) + .5, 0); ctx.lineTo(Math.round(mx) + .5, H);
+  ctx.moveTo(0, Math.round(my) + .5); ctx.lineTo(W, Math.round(my) + .5);
+  ctx.stroke();
+  ctx.restore();
+
+  const hx = (mx - W / 2) / scale + cx;
+
+  for (const f of state.funcs){
+    if (f.alpha <= 0.002 || !f.fn) continue;
+    let y;
+    try { y = f.fn(hx); } catch { continue; }
+    if (!isFinite(y)) continue;
+
+    const sy = H / 2 - (y - cy) * scale;
+    if (sy < -24 || sy > H + 24) continue;
+
+    ctx.globalAlpha = f.alpha;
+    ctx.beginPath();
+    ctx.arc(mx, sy, 6, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(12,16,18,.92)';
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(mx, sy, 3.6, 0, Math.PI * 2);
+    ctx.fillStyle = f.color;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+}
+
+/* ═══════════════════════════════════════════
+   9. HUD
+   ═══════════════════════════════════════════ */
+
+function fmtShort(v){
+  if (!isFinite(v)) return '∞';
+  if (Math.abs(v) < 1e-12) return '0';
+  const a = Math.abs(v);
+  if (a >= 1e6 || a < 1e-4) return v.toExponential(2);
+  return v.toFixed(4).replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
+}
+
+function updateHUD(){
+  const { cx, cy, scale } = state.view;
+
+  if (!hover){
+    hudX.textContent = '—';
+    hudY.textContent = '—';
+    legendEl.classList.remove('show');
+    return;
+  }
+
+  const hx = (hover.mx - W / 2) / scale + cx;
+  const hy = cy - (hover.my - H / 2) / scale;
+  hudX.textContent = fmtShort(hx);
+  hudY.textContent = fmtShort(hy);
+
+  const live = state.funcs.filter(f => f.visible && f.fn);
+  if (live.length === 0){ legendEl.classList.remove('show'); return; }
+
+  legendEl.innerHTML = live.map(f => {
+    let v;
+    try { v = f.fn(hx); } catch { v = NaN; }
+    const txt = (typeof v === 'number' && isFinite(v)) ? fmtShort(v) : '未定义';
+    return `<div class="lg-row">
+      <i style="background:${f.color}"></i>
+      <span class="lg-eq">${esc(f.expr || '—')}</span>
+      <b>${txt}</b>
+    </div>`;
+  }).join('');
+  legendEl.classList.add('show');
+}
+
+/* ═══════════════════════════════════════════
+   10. 画布交互
+   ═══════════════════════════════════════════ */
+
+let drag = null;
+
+/* 画笔点击：第一次设起点，第二次确定终点并生成表达式 */
+function handlePenClick(mx, my){
+  const world = screenToWorld(mx, my);
+  pen.cursor = world;
+
+  if (!pen.pending){
+    pen.pending = world;
+    updatePenBadge();
+    requestRender();
+    return;
+  }
+
+  /* 判断是"点"还是"线"：看两次点击的像素距离 */
+  const pixelDist = Math.hypot(
+    (world.x - pen.pending.x) * state.view.scale,
+    (world.y - pen.pending.y) * state.view.scale
+  );
+
+  let expr;
+  let isDot = false;
+  let msg;
+
+  if (pixelDist < 8){
+    isDot = true;
+    expr = buildDotExpr(pen.pending, pen.size);
+    msg = '已生成一个点';
+  } else {
+    expr = buildLineExpr(pen.pending, world);
+    if (!expr){
+      toast('垂直线没法写成 y=f(x)，换个不垂直的位置', 'error');
+      /* 保留 pending，用户可以重新点第二个点 */
+      requestRender();
+      return;
+    }
+    msg = '已生成一条线段';
+  }
+
+  const f = addFunc(expr, state.funcs.length, 'pen');
+  f.color = pen.color;
+
+  renderList(f.id);
+  toast(msg + ' · 已追加到列表末尾');
+
+  pen.pending = null;
+  pen.cursor = world;
+
+  updatePenBadge();
+  requestRender();
+  updateHUD();
+}
+
+canvas.addEventListener('pointerdown', e => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+
+  canvas.setPointerCapture(e.pointerId);
+  hover = { mx, my };
+
+  if (pen.active){
+    handlePenClick(mx, my);
+    return;
+  }
+
+  drag = {
+    px: e.clientX, py: e.clientY,
+    cx: state.view.cx, cy: state.view.cy,
+  };
+  canvas.style.cursor = 'grabbing';
+});
+
+canvas.addEventListener('pointermove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  hover = { mx, my };
+
+  if (pen.active){
+    pen.cursor = screenToWorld(mx, my);
+    requestRender();
+    updateHUD();
+    return;
+  }
+
+  if (drag){
+    const dx = e.clientX - drag.px;
+    const dy = e.clientY - drag.py;
+    state.view.cx = drag.cx - dx / state.view.scale;
+    state.view.cy = drag.cy + dy / state.view.scale;
+  }
+
+  requestRender();
+  updateHUD();
+});
+
+function endDrag(e){
+  try { canvas.releasePointerCapture(e.pointerId); } catch {}
+
+  if (pen.active) return;
+
+  if (drag){
+    drag = null;
+    canvas.style.cursor = 'crosshair';
+  }
+}
+canvas.addEventListener('pointerup', endDrag);
+canvas.addEventListener('pointercancel', endDrag);
+
+canvas.addEventListener('pointerleave', () => {
+  hover = null;
+  if (!pen.active) drag = null;
+  requestRender();
+  updateHUD();
+});
+
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  const unit = e.deltaMode === 1 ? 0.045 : 0.0018;
+  zoomAt(mx, my, Math.exp(-e.deltaY * unit));
+}, { passive: false });
+
+function zoomAt(mx, my, factor){
+  const { cx, cy, scale } = state.view;
+  const bx = (mx - W / 2) / scale + cx;
+  const by = cy - (my - H / 2) / scale;
+
+  const ns = Math.min(Math.max(scale * factor, 0.4), 4000);
+  state.view.scale = ns;
+  state.view.cx = bx - (mx - W / 2) / ns;
+  state.view.cy = by + (my - H / 2) / ns;
+
+  requestRender();
+  updateHUD();
+}
+
+document.querySelector('.zoombar').addEventListener('click', e => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  const mode = btn.dataset.zoom;
+
+  if (mode === 'reset'){
+    state.view.cx = 0;
+    state.view.cy = 0;
+    state.view.scale = 56;
+  } else {
+    zoomAt(W / 2, H / 2, mode === 'in' ? 1.25 : 0.8);
+    return;
+  }
+  requestRender();
+  updateHUD();
+});
+
+/* ═══════════════════════════════════════════
+   11. 导出 / 导入
+   ═══════════════════════════════════════════ */
+
+function exportJSON(){
+  const data = {
+    version: 2,
+    app: 'function-plot',
+    exported: new Date().toISOString(),
+    view: {
+      cx: +state.view.cx.toFixed(6),
+      cy: +state.view.cy.toFixed(6),
+      scale: +state.view.scale.toFixed(4),
+    },
+    functions: state.funcs.map(f => ({
+      expr: f.expr,
+      color: f.color,
+      visible: f.visible,
+      source: f.source,
+    })),
+  };
+
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+  a.href = url;
+  a.download = `plot-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+  toast('已导出 · ' + data.functions.length + ' 条表达式');
+}
+
+function importJSON(file){
+  const reader = new FileReader();
+  reader.onload = () => {
+    let data;
+    try {
+      data = JSON.parse(reader.result);
+    } catch (e){
+      toast('文件不是合法 JSON', 'error');
+      return;
+    }
+    if (!data || typeof data !== 'object'){
+      toast('文件结构不对', 'error');
+      return;
+    }
+
+    try {
+      if (data.view && typeof data.view === 'object'){
+        const cx = Number(data.view.cx);
+        const cy = Number(data.view.cy);
+        const sc = Number(data.view.scale);
+        if (isFinite(cx)) state.view.cx = cx;
+        if (isFinite(cy)) state.view.cy = cy;
+        if (isFinite(sc) && sc > 0) state.view.scale = Math.min(4000, Math.max(0.4, sc));
+      }
+
+      if (Array.isArray(data.functions)){
+        state.funcs = [];
+        for (const item of data.functions){
+          if (!item || typeof item.expr !== 'string') continue;
+          const src = item.source === 'pen' ? 'pen' : 'manual';
+          const nf2 = addFunc(item.expr, 0, src);
+          if (typeof item.color === 'string' && /^#[0-9a-f]{3,8}$/i.test(item.color)){
+            nf2.color = item.color;
+          }
+          if (item.visible === false){
+            nf2.visible = false;
+            nf2.alpha = 0;
+          }
+        }
+        if (state.funcs.length === 0) addFunc('', 0);
+      }
+
+      /* 清掉任何待定点 */
+      pen.pending = null;
+      pen.cursor = null;
+
+      renderList();
+      requestRender();
+      updateHUD();
+      updatePenBadge();
+      toast('导入成功 · ' + state.funcs.length + ' 条表达式');
+    } catch (e){
+      toast('导入出错：' + e.message, 'error');
+    }
+  };
+  reader.onerror = () => toast('读文件失败', 'error');
+  reader.readAsText(file);
+}
+
+document.getElementById('exportBtn').addEventListener('click', exportJSON);
+
+const fileInput = document.getElementById('fileInput');
+document.getElementById('importBtn').addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', e => {
+  const file = e.target.files && e.target.files[0];
+  if (file) importJSON(file);
+  fileInput.value = '';
+});
+
+/* ═══════════════════════════════════════════
+   12. 键盘快捷键
+   ═══════════════════════════════════════════ */
+
+window.addEventListener('keydown', e => {
+  const tag = (e.target && e.target.tagName) || '';
+  const inField = tag === 'INPUT' || tag === 'TEXTAREA';
+
+  /* Esc：取消待定的起点 */
+  if (e.key === 'Escape'){
+    if (pen.pending){
+      e.preventDefault();
+      pen.pending = null;
+      pen.cursor = null;
+      updatePenBadge();
+      requestRender();
+      toast('已取消起点');
+    }
+    return;
+  }
+
+  /* Ctrl/Cmd + 0：重置视图 */
+  if (e.key === '0' && (e.metaKey || e.ctrlKey)){
+    e.preventDefault();
+    state.view.cx = 0; state.view.cy = 0; state.view.scale = 56;
+    requestRender(); updateHUD();
+    return;
+  }
+
+  if (inField) return;
+
+  /* Ctrl/Cmd + Z：撤销 */
+  if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z')){
+    e.preventDefault();
+    undoStroke();
+    return;
+  }
+
+  /* B：切换画笔 */
+  if ((e.key === 'b' || e.key === 'B') && !e.metaKey && !e.ctrlKey && !e.altKey){
+    e.preventDefault();
+    setPenActive(!pen.active);
+  }
+});
+
+/* ═══════════════════════════════════════════
+   13. 启动
+   ═══════════════════════════════════════════ */
+
+resize();
+requestRender();
+</script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+{
+  "settings": {
+    "theme": "obsidian",
+    "uiTheme": "dark",
+    "editorFontSize": 14,
+    "autosaveMs": 1500,
+    "archiveDir": "p/archive",
+    "paraDir": "para",
+    "skPath": "sk.json",
+    "confirmDanger": true
+  },
+  "archiveMeta": {
+    "p/archive/TEST.html": {
+      "originalRel": "TEST.md",
+      "archivedPath": "p/archive/TEST.html",
+      "articlePath": "TEST.md",
+      "title": "测试文档",
+      "group": "启程",
+      "archivedAt": "2026-10-01T11:57:13.501Z"
+    }
+  },
+  "drafts": {}
+}

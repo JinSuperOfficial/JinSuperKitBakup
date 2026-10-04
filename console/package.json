@@ -1,0 +1,15 @@
+{
+  "name": "jinsuper-console",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "description": "JinSuper 发布控制台：本地 WebUI，负责写作、管理 /p 下的文章、按勾选归档并预渲染、拖拽入队发布。不发布、不进 dist。",
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node test/console.test.mjs"
+  },
+  "comment": "刻意没有任何依赖：预渲染复用 build/lib/markdown.cjs（服务端渲染核心），所以不需要在这里再装一遍 markdown-it / KaTeX。",
+  "engines": {
+    "node": ">=20"
+  }
+}

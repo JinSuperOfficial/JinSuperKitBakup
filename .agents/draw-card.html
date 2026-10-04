@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>多风格参考色卡 · Palette Atlas</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:#131315;
+    background-image:radial-gradient(900px 500px at 12% -8%, #232328 0%, transparent 60%),
+                     radial-gradient(800px 460px at 92% 4%, #1e2228 0%, transparent 55%);
+    color:#EDEDED;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    padding:56px 24px 96px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1440px;margin:0 auto}
+
+  /* ---------- 页头 ---------- */
+  .page-head{margin-bottom:14px}
+  .page-head h1{font-size:26px;font-weight:650;letter-spacing:-.01em}
+  .page-head h1 span{color:#D97757}
+  .page-head p{margin-top:10px;font-size:13px;line-height:1.7;color:#82828B;max-width:620px}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:22px;font-size:11px;color:#6E6E77}
+  .legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;vertical-align:middle}
+
+  /* ---------- 分组 ---------- */
+  .group{margin-top:54px}
+  .group > h2{
+    font-size:11.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;
+    color:#8A8A93;padding-bottom:11px;border-bottom:1px solid #26262B;
+    display:flex;align-items:center;gap:10px;
+  }
+  .group > h2 em{font-style:normal;font-size:10px;letter-spacing:.04em;color:#5A5A63;text-transform:none}
+
+  .grid{
+    display:grid;gap:18px;margin-top:20px;
+    grid-template-columns:repeat(auto-fill,minmax(332px,1fr));
+  }
+
+  /* ---------- 卡片 ---------- */
+  .card{
+    background:#1B1B1F;border:1px solid #26262B;border-radius:16px;padding:15px;
+    display:flex;flex-direction:column;gap:13px;
+    transition:border-color .18s ease, transform .18s ease;
+  }
+  .card:hover{border-color:#3A3A42;transform:translateY(-2px)}
+  .card-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+  .card-head h3{font-size:13.5px;font-weight:600;letter-spacing:.01em}
+  .src{font-size:9.5px;color:#6A6A73;letter-spacing:.05em;white-space:nowrap}
+
+  /* ---------- 迷你预览 ---------- */
+  .pv{
+    border-radius:10px;padding:13px 14px;min-height:98px;
+    display:flex;flex-direction:column;justify-content:space-between;gap:10px;
+    border:1px solid rgba(255,255,255,.07);
+    overflow:hidden;
+  }
+  .pv-t{font-size:15px;font-weight:650;line-height:1.25;letter-spacing:.01em}
+  .pv-d{font-size:10.5px;line-height:1.4}
+  .pv-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .btn{
+    font-size:10.5px;font-weight:600;padding:5.5px 12px;border-radius:999px;
+    white-space:nowrap;letter-spacing:.02em;
+  }
+  .tag{
+    font-size:9.5px;font-weight:600;padding:3px 8px;border-radius:999px;
+    white-space:nowrap;letter-spacing:.04em;
+  }
+  .rule{height:1px;width:100%}
+
+  /* ---------- 色板 ---------- */
+  .swatches{display:flex;gap:6px}
+  .sw{flex:1;min-width:0}
+  .chip{
+    height:44px;border-radius:9px;
+    border:1px solid rgba(255,255,255,.11);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
+  }
+  .sw .role{
+    display:block;margin-top:7px;font-size:8.5px;letter-spacing:.09em;
+    text-transform:uppercase;color:#5C5C65;
+  }
+  .sw b{
+    display:block;font-size:10.5px;font-weight:500;color:#C4C4CB;margin-top:2px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .sw code{
+    display:block;font-size:9.5px;color:#74747D;margin-top:2px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+
+  @media (max-width:420px){
+    body{padding:36px 16px 72px}
+    .grid{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="page-head">
+    <h1>多风格参考色卡 <span>/</span> Palette Atlas</h1>
+    <p>每一组配色都渲染成一个符合该风格的微型界面切片 —— 颜色、角色、比例、气质一次看完。色值可直接复制使用。</p>
+    <div class="legend">
+      <span><i style="background:#F8F3EC"></i>背景 / 基底</span>
+      <span><i style="background:#8E9867"></i>主色</span>
+      <span><i style="background:#E1937D"></i>强调 / CTA</span>
+      <span><i style="background:#8D6959"></i>文字 / 辅助</span>
+    </div>
+  </header>
+
+  <!-- ============ 一、暖调 · 大地系 ============ -->
+  <section class="group">
+    <h2>一、暖调 · 大地系 <em>家居 / 生活方式 / 茶 / 咖啡 / 手作 / 有机</em></h2>
+    <div class="grid">
+
+      <!-- 大地暖调 -->
+      <article class="card">
+        <div class="card-head"><h3>大地暖调</h3><span class="src">Framer Sereenity</span></div>
+        <div class="pv" style="background:#F8F3EC;border-left:3px solid #8E9867">
+          <div class="pv-t" style="color:#8D6959;font-family:Georgia,'Songti SC',serif;font-weight:500">慢一点，也很好</div>
+          <div class="pv-row">
+            <span class="pv-d" style="color:#8D6959;opacity:.85">手作 · 茶 · 自然</span>
+            <span class="btn" style="background:#E1937D;color:#FFF8F4">了解更多</span>
+          </div>
+        </div>
+        <div class="swatches">
+          <div class="sw"><div class="chip" style="background:#F8F3EC"></div><span class="role">背景</span><b>暖米色</b><code>#F8F3EC</code></div>
+          <div class="sw"><div class="chip" style="background:#8E9867"></div><span class="role">主色</span><b>橄榄绿</b><code>#8E9867</code></div>
+          <div class="sw"><div class="chip" style="background:#E1937D"></div><span class="role">强调</span><b>陶土橙</b><code>#E1937D</code></div>
+          <div class="sw"><div class="chip" style="background:#8D6959"></div><span class="role">文字</span><b>橡木棕</b><code>#8D6959</code></div>
+        </div>
+      </article>
+
+      <!-- 暖中性棕 -->
+      <article class="card">
+        <div class="card-head"><h3>暖中性棕</h3><span class="src">Framer Harper</span></div>
+        <div class="pv" style="background:#FFF3DB;border-left:3px solid #51301F">
+          <div class="pv-t" style="color:#51301F;font-family:Georgia,'Songti SC',serif;font-weight:500">深烘 · 手冲</div>
+          <div class="pv-row">
+            <span class="pv-d" style="color:#7A3110">每日 08:00 新鲜烘焙</span>
+            <span class="btn" style="background:#AA8867;color:#FFF3DB">立即选购</span>
+          </div>
+        </div>
+        <div class="swatches">
+          <div class="sw"><div class="chip" style="background:#FFF3DB"></div><span class="role">背景</span><b>奶油色</b><code>#FFF3DB</code></div>
+          <div class="sw"><div class="chip" style="background:#51301F"></div><span class="role">主色</span><b>皮革棕</b><code>#51301F</code></div>
+          <div class="sw"><div class="chip" style="background:#7A3110"></div><span class="role">辅助</span><b>赤褐色</b><code>#7A3110</code></div>
+          <div class="sw"><div class="chip" style="background:#AA8867"></div><span class="role">强调</span><b>卡布奇诺</b><code>#AA8867</code></div>
+        </div>
+      </article>
+
+      <!-- 现代暖调 -->
+      <article class="card">
+        <div class="card-head"><h3>现代暖调</h3><span class="src">DepositPhotos 2026 春</span></div>
+        <div class="pv" style="background:#F5EFE6">
+          <div class="pv-row">
+            <span class="pv-t" style="color:#2E2A24">2026 春季企划</span>
+            <span class="tag" style="background:#7EC8C8;color:#0F3B3B">NEW</span>
+          </div>
+          <div class="pv-row">
+            <span class="pv-d" style="color:#7A7166">把光留在画布上</span>
+            <span class="btn" style="background:#F5C542;color:#3A2E10">立即报名</span>
+          </div>
+        </div>
+        <div class="swatches">
+          <div class="sw"><div class="chip" style="background:#F5EFE6"></div><span class="role">背景</span><b>画布米</b><code>#F5EFE6</code></div>
+          <div class="sw"><div class="chip" style="background:#F5C542"></div><span class="role">主色</span><b>日光黄</b><code>#F5C542</code></div>
+          <div class="sw"><div class="chip" style="background:#7EC8C8"></div><span class="role">强调</span><b>薄荷蓝</b><code>#7EC8C8</code></div>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- ============ 二、冷调 · 自然系 ============ -->
+  <section class="group">
+    <h2>二、冷调 · 自然系 <em>科技 / 工具 / 开发者文档 / SaaS 后台</em></h2>
+    <div class="grid">
+
+      <!-- 墨绿系 -->
+      <article class="card">
+        <div class="card-head"><h3>墨绿系</h3><span class="src">Framer Hydra</span></div>
+        <div class="pv" style="background:#122023;border:1px solid #1E1E1F">
+          <div class="pv-row">
+            <span class="pv-t" style="color:#E9E9E9">Hydra API</span>
+            <span class="tag" style="color:#E1FCAD;border:1px solid #E1FCAD;background:transparent">v2.0</span>
+          </div>
+          <div class="pv-row">
+            <span class="pv-d" style="color:#8FA0A0">3 分钟接入你的服务</span>
+            <span class="btn" style="background:#E1FCAD;color:#122023">开始使用</span>
+          </div>
+        </div>
+        <div class="swatches">
+          <div class="sw"><div class="chip" style="background:#E9E9E9"></div><span class="role">背景</span><b>雾灰</b><code>#E9E9E9</code></div>
+          <div class="sw"><div class="chip" style="background:#122023"></div><span class="role">主色</span><b>深青</b><code>#122023</code></div>
+          <div class="sw"><div class="chip" style="background:#E1FCAD"></div><span class="role">强调</span><b>青柠</b><code>#E1FCAD</code></div>
+          <div class="sw"><div class="chip" style="background:#1E1E1F"></div><span class="role">深色</span><b>深海蓝</b><code>#1E1E1F</code></div>
+        </div>
+      </article>
+
+      <!-- 2026 夏季功能系 -->
+      <article class="card">
+        <div class="card-head"><h3>2026 夏季功能系</h3><span class="src">DepositPhotos 2026 夏</span></div>
+        <div class="pv" style="background:#D5D5D7">
+          <div class="pv-t" style="color:#3C7E97">把发布流程跑起来</div>
+          <div class="pv-row">
+            <span class="tag" style="background:#AEB73A;color:#1E2405">Beta</span>
+            <span class="btn" style="background:#FF5F21;color:#FFFFFF">免费试用</span>
+          </div>
+        </div>
+        <div class="swatches">
+          <div class="sw"><div class="chip" style="background:#D5D5D7"></div><span class="role">结构</span><b>混凝土灰</b><code>#D5D5D7</code></div>
+          <div class="sw"><div class="chip" style="background:#539DB6"></div><span class="role">主色</span><b>泳池蓝</b><code>#539DB6</code></div>
+          <div class="sw"><div class="chip" style="background:#AEB73A"></div><span class="role">强调</span><b>酸性绿</b><code>#AEB73A</code></div>
+          <div class="sw"><div class="chip" style="background:#FF5F21"></div><span class="role">CTA</span><b>日落橙</b><code>#FF5F21</code></div>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- ============ 三、传统 · 文化系 ============ -->
+  <section class="group">
+    <h2>三、传统 · 文化系 <em>国潮 / 文创 / 茶饮 / 博物馆 / 中式生活</em></h2>
+    <div class="grid">
+
+      <!-- 水墨网页 -->
+      <article class="card">
+        <div class="card-head"><h3>水墨网页</h3><span class="src">Chinese Color Atlas</span></div>
+        <div class="pv" style="background:#1A1A1A;border-left:3px solid #C43A2A">
+          <div class="pv-t" style="color:#F0F0E8;font-family:Georgia,'Songti SC',serif;font-weight:500;letter-spacing:.18em">山 水 有 声</div>
+          <div class="pv-row">
+            <span class="pv-d" style="color:#F0F0E8;opacity:.7">卷五 · 溪山行旅</span>
+            <span class="btn" style="background:#C43A2A;color:#FFF3EE">进 入</span>
+          </div>
+        </div>
+        <div class="swatches">
+          <div class="sw"><div class="chip" style="background:#1A1A1A"></div><span class="role">背景</span><b>墨色</b><code>#1A1A1A</code></div>
+          <div class="sw"><div class="chip" style="background:#F0F0E8"></div><span class="role">文字</span><b>月白</b><code>#F0F0E8</code></div>
+          <div class="sw"><div class="chip" style="background:#C43A2A"></div><span class="role">CTA</span><b>朱砂红</b><code>#C43A2A</code></div>
+        </div>
+      </article>
+
+      <!-- 国潮品牌 -->
+      <article class="card">
+        <div class="card-head"><h3>国潮品牌</h3><span class="src">Chinese Color Atlas</span></div>
+        <div class="pv" style="background:#C43A2A">
+          <div class="pv-t" style="color:#C9A84C;font-family:Georgia,'Songti SC',serif;font-weight:500;letter-spacing:.16em">东 方 有 礼</div>
+          <div class="pv-row">
+            <span class="pv-d" style="color:#FBEEDC;opacity:.9">朱砂 · 描金 · 墨</span>
+            <span class="btn" style="background:#2B2B2B;color:#C9A84C">立即选购</span>
+          </div>
+        </div>
+        <div class="swatches">
+          <div class="sw"><div class="chip" style="background:#C43A2A"></div><span class="role">底色</span><b>朱砂红</b><code>#C43A2A</code></div>
+          <div class="sw"><div class="chip" style="background:#C9A84C"></div><span class="role">辅助</span><b>描金</b><code>#C9A84C</code></div>
+          <div class="sw"><div class="chip" style="background:#2B2B2B"></div><span class="role">文字</span><b>墨色</b><code>#2B2B2B</code></div>
+        </div>
+      </article>
+
+      <!-- 敦煌丝路 -->
+      <article class="card">
+        <div class="card-head"><h3>敦煌丝路</h3><span class="src">Chinese Color Atlas</span></div>
+        <div class="pv" style="background:#F3EFE4;border-left:3px solid #6B7D5A">
+          <div class="pv-t" style="color:#3A6B8C;font-family:Georgia,'Songti SC',serif;font-weight:500">丝路 · 矿物色谱</div>
+          <div class="pv-row">
+            <span class="pv-d" style="color:#6B7D5A">砂绿 · 石青 · 赭</span>
+            <span class="btn" style="background:#A0522D;color:#FBF3E7">查看展览</span>
+          </div>
+        </div>
+        <div class="swatches">
+          <div class="sw"><div class="chip" style="background:#6B7D5A"></div><span class="role">主色</span><b>砂绿</b><code>#6B7D5A</code></div>
+          <div class="sw"><div class="chip" style="background:#3A6B8C"></div><span class="role">辅助</span><b>石青</b><code>#3A6B8C</code></div>
+          <div class="sw"><div class="chip" style="background:#A0522D"></div><span class="role">强调</span><b>赭色</b><code>#A0522D</code></div>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- ============ 四、现代 · 极简系 ============ -->
+  <section class="group">
+    <h2>四、现代 · 极简系 <em>企业官网 / 数据看板 / 设计工作室 / 编辑类页面</em></h2>
+    <div class="grid">
+
+      <!-- 石板灰 + 象牙白 -->
+      <article class="card">
+        <div class="card-head"><h3>石板灰 + 象牙白</h3><span class="src">Shopify · Silk &amp; Willow</span></div>
+        <div class="pv" style="background:#F5F0E8">
+          <div class="pv-t" style="color:#3A3A3A;font-family:Georgia,serif;font-weight:500;font-size:16px;letter-spacing:.02em">Silk &amp; Willow</div>
+          <div class="pv-row">
+            <span class="pv-d" style="color:#8C8C8C;letter-spacing:.2em;text-transform:uppercase;font-size:9px">Handcrafted</span>
+            <span class="btn" style="background:#3A3A3A;color:#F5F0E8">Shop →</span>
+          </div>
+        </div>
+        <div class="swatches">
+          <div class="sw"><div class="chip" style="background:#F5F0E8"></div><span class="role">背景</span><b>象牙白</b><code>#F5F0E8</code></div>
+          <div class="sw"><div class="chip" style="background:#3A3A3A"></div><span class="role">主色</span><b>木炭灰</b><code>#3A3A3A</code></div>
+          <div class="sw"><div class="chip" style="background:#8C8C8C"></div><span class="role">强调</span><b>暖灰</b><code>#8C8C8C</code></div>
+        </div>
+      </article>
+
+      <!-- 瑞士 / 国际主义 -->
+      <article class="card">
+        <div class="card-head"><h3>瑞士 / 国际主义</h3><span class="src">GitHub 设计风格库</span></div>
+        <div class="pv" style="background:#FAFAF8;border:1px solid #E0E0E0;gap:8px">
+          <div class="pv-t" style="color:#111111;font-family:Helvetica,Arial,sans-serif;font-weight:800;letter-spacing:-.03em;font-size:17px">Grid Systems</div>
+          <div class="rule" style="background:#E0E0E0"></div>
+          <div class="pv-row">
+            <span class="pv-d" style="color:#888888;font-family:Helvetica,Arial,sans-serif;letter-spacing:.06em">№ 04 — Typography</span>
+            <span class="btn" style="background:transparent;color:#111111;border:1px solid #111111;border-radius:0;padding:4px 10px">READ</span>
+          </div>
+        </div>
+        <div class="swatches">
+          <div class="sw"><div class="chip" style="background:#FAFAF8"></div><span class="role">背景</span><b>纸白</b><code>#FAFAF8</code></div>
+          <div class="sw"><div class="chip" style="background:#111111"></div><span class="role">文字</span><b>墨黑</b><code>#111111</code></div>
+          <div class="sw"><div class="chip" style="background:#888888"></div><span class="role">辅助</span><b>灰</b><code>#888888</code></div>
+          <div class="sw"><div class="chip" style="background:#E0E0E0"></div><span class="role">分割</span><b>浅线</b><code>#E0E0E0</code></div>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- ============ 五、趋势 · 2026 ============ -->
+  <section class="group">
+    <h2>五、趋势 · 2026 <em>体现当下设计趋势的页面</em></h2>
+    <div class="grid">
+
+      <!-- 摩卡慕斯 -->
+      <article class="card">
+        <div class="card-head"><h3>摩卡慕斯</h3><span class="src">Pantone 2025 延续</span></div>
+        <div class="pv" style="background:#A47864">
+          <div class="pv-t" style="color:#FBF4EE;font-family:Georgia,serif;font-weight:500">Mocha Mousse</div>
+          <div class="pv-row">
+            <span class="pv-d" style="color:#F4E6DD">安静的高级感</span>
+            <span class="btn" style="background:#FBF4EE;color:#6E4E3E">探索</span>
+          </div>
+        </div>
+        <div class="swatches">
+          <div class="sw"><div class="chip" style="background:#A47864"></div><span class="role">主色</span><b>摩卡慕斯</b><code>#A47864</code></div>
+          <div class="sw"><div class="chip" style="background:#F8F3EC"></div><span class="role">搭配</span><b>暖米色</b><code>#F8F3EC</code></div>
+          <div class="sw"><div class="chip" style="background:#8E9867"></div><span class="role">搭配</span><b>橄榄绿</b><code>#8E9867</code></div>
+          <div class="sw"><div class="chip" style="background:#E1937D"></div><span class="role">搭配</span><b>陶土橙</b><code>#E1937D</code></div>
+        </div>
+      </article>
+
+      <!-- 云舞者 -->
+      <article class="card">
+        <div class="card-head"><h3>云舞者</h3><span class="src">Pantone 2026 年度色</span></div>
+        <div class="pv" style="background:#F2F0EB">
+          <div class="pv-t" style="color:#3A3A38;font-weight:500">静默与明净</div>
+          <div class="pv-row">
+            <span class="pv-d" style="color:#8A8A84">2026 年度色 · 云舞者</span>
+            <span class="btn" style="background:#A47864;color:#FBF4EE">了解</span>
+          </div>
+        </div>
+        <div class="swatches">
+          <div class="sw"><div class="chip" style="background:#F2F0EB"></div><span class="role">背景</span><b>云舞者</b><code>#F2F0EB</code></div>
+          <div class="sw"><div class="chip" style="background:#A47864"></div><span class="role">强调</span><b>摩卡慕斯</b><code>#A47864</code></div>
+          <div class="sw"><div class="chip" style="background:#122023"></div><span class="role">文字</span><b>深青</b><code>#122023</code></div>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- ============ 六、高能量 · 大胆系 ============ -->
+  <section class="group">
+    <h2>六、高能量 · 大胆系 <em>活动页 / 创意机构 / 潮牌 / 音乐节</em></h2>
+    <div class="grid">
+
+      <!-- 日落能量 -->
+      <article class="card">
+        <div class="card-head"><h3>日落能量</h3><span class="src">DepositPhotos 2026 夏</span></div>
+        <div class="pv" style="background:#D5D5D7">
+          <div class="pv-t" style="color:#1E1E20;font-weight:800;letter-spacing:-.02em;font-size:17px">SUMMER DROP 26</div>
+          <div class="pv-row">
+            <span class="tag" style="background:#AEB73A;color:#1C2205">限 量</span>
+            <span class="btn" style="background:#FF5F21;color:#FFFFFF">马上抢购</span>
+          </div>
+        </div>
+        <div class="swatches">
+          <div class="sw"><div class="chip" style="background:#FF5F21"></div><span class="role">CTA</span><b>日落烈焰</b><code>#FF5F21</code></div>
+          <div class="sw"><div class="chip" style="background:#AEB73A"></div><span class="role">点缀</span><b>酸性绿</b><code>#AEB73A</code></div>
+          <div class="sw"><div class="chip" style="background:#D5D5D7"></div><span class="role">基底</span><b>混凝土灰</b><code>#D5D5D7</code></div>
+        </div>
+      </article>
+
+      <!-- 大胆复古 -->
+      <article class="card">
+        <div class="card-head"><h3>大胆复古</h3><span class="src">Shopify · Beefcake</span></div>
+        <div class="pv" style="background:#D6C9B0;border-left:3px solid #2D4A3E">
+          <div class="pv-t" style="color:#1B3A5C;font-family:Georgia,serif;font-weight:600">Wild Swim Club</div>
+          <div class="pv-row">
+            <span class="pv-d" style="color:#2D4A3E;letter-spacing:.04em">Outdoor · Retro · Fun</span>
+            <span class="btn" style="background:#B35A3E;color:#FBF1E4">Shop</span>
+          </div>
+        </div>
+        <div class="swatches">
+          <div class="sw"><div class="chip" style="background:#2D4A3E"></div><span class="role">主色</span><b>森林绿</b><code>#2D4A3E</code></div>
+          <div class="sw"><div class="chip" style="background:#1B3A5C"></div><span class="role">辅助</span><b>深蓝</b><code>#1B3A5C</code></div>
+          <div class="sw"><div class="chip" style="background:#B35A3E"></div><span class="role">强调</span><b>锈红</b><code>#B35A3E</code></div>
+          <div class="sw"><div class="chip" style="background:#D6C9B0"></div><span class="role">中性</span><b>沙色</b><code>#D6C9B0</code></div>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- ============ 七、柔和 · 舒适系 ============ -->
+  <section class="group">
+    <h2>七、柔和 · 舒适系 <em>健康 / 美妆 / 母婴 / 心理咨询 / 温和品牌</em></h2>
+    <div class="grid">
+
+      <!-- 柔和暖调 -->
+      <article class="card">
+        <div class="card-head"><h3>柔和暖调</h3><span class="src">Shopify · Kulala</span></div>
+        <div class="pv" style="background:#F0D9A0;border-left:3px solid #7A2E2E">
+          <div class="pv-t" style="color:#2C3E5C;font-weight:550">晚安，慢慢睡</div>
+          <div class="pv-row">
+            <span class="tag" style="background:#C5B8D4;color:#3A2E4A">助 眠</span>
+            <span class="btn" style="background:#E8703A;color:#FFF6F0">立即体验</span>
+          </div>
+        </div>
+        <div class="swatches">
+          <div class="sw"><div class="chip" style="background:#F0D9A0"></div><span class="role">背景</span><b>琥珀黄</b><code>#F0D9A0</code></div>
+          <div class="sw"><div class="chip" style="background:#2C3E5C"></div><span class="role">主色</span><b>海军蓝</b><code>#2C3E5C</code></div>
+          <div class="sw"><div class="chip" style="background:#7A2E2E"></div><span class="role">辅助</span><b>深夜红</b><code>#7A2E2E</code></div>
+          <div class="sw"><div class="chip" style="background:#C5B8D4"></div><span class="role">点缀</span><b>薰衣草</b><code>#C5B8D4</code></div>
+          <div class="sw"><div class="chip" style="background:#E8703A"></div><span class="role">强调</span><b>生动橙</b><code>#E8703A</code></div>
+        </div>
+      </article>
+
+      <!-- 复古中性 -->
+      <article class="card">
+        <div class="card-head"><h3>复古中性</h3><span class="src">Shopify · Adorned Vintage</span></div>
+        <div class="pv" style="background:#F5EFE4">
+          <div class="pv-t" style="color:#4A4A3E;font-family:Georgia,serif;font-weight:500">Adorned Vintage</div>
+          <div class="pv-row">
+            <span class="tag" style="background:#E8DFD0;color:#5A6B4C">SS26</span>
+            <span class="btn" style="background:#A8B89A;color:#2F3A26">Collection</span>
+          </div>
+        </div>
+        <div class="swatches">
+          <div class="sw"><div class="chip" style="background:#F5EFE4"></div><span class="role">背景</span><b>奶油色</b><code>#F5EFE4</code></div>
+          <div class="sw"><div class="chip" style="background:#E8DFD0"></div><span class="role">辅助</span><b>淡米色</b><code>#E8DFD0</code></div>
+          <div class="sw"><div class="chip" style="background:#A8B89A"></div><span class="role">点缀</span><b>浅绿色</b><code>#A8B89A</code></div>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,140 @@
+{
+  "jobs": [
+    {
+      "id": "2026-10-03T0555-iucz",
+      "label": "一键部署（构建 → 自检 → 组装 → 热铁盒 → GitHub）",
+      "pipeline": "full",
+      "flags": {
+        "noBuild": false,
+        "noCheck": false,
+        "noGh": false
+      },
+      "state": "done",
+      "startedAt": 1791006931763,
+      "endedAt": 1791006980787,
+      "ms": 48772,
+      "exitCode": 0,
+      "ok": true,
+      "steps": [
+        {
+          "id": "build",
+          "label": "构建（docs.html / docs-md.js / docs-md.css / 字体）",
+          "soft": false,
+          "state": "ok",
+          "ms": 1666,
+          "code": 0
+        },
+        {
+          "id": "check-manifests",
+          "label": "自检 · 清单与生成物",
+          "soft": false,
+          "state": "ok",
+          "ms": 389,
+          "code": 0
+        },
+        {
+          "id": "check-manifest-render",
+          "label": "自检 · 卡片渲染",
+          "soft": false,
+          "state": "ok",
+          "ms": 10217,
+          "code": 0
+        },
+        {
+          "id": "check-render",
+          "label": "自检 · 渲染语法",
+          "soft": false,
+          "state": "ok",
+          "ms": 1303,
+          "code": 0
+        },
+        {
+          "id": "check-artifacts",
+          "label": "自检 · 产物结构",
+          "soft": false,
+          "state": "ok",
+          "ms": 277,
+          "code": 0
+        },
+        {
+          "id": "prep",
+          "label": "组装 dist/",
+          "soft": false,
+          "state": "ok",
+          "ms": 2792,
+          "code": 0
+        },
+        {
+          "id": "rth",
+          "label": "传热铁盒（rth-sites.json 里的每个站点）",
+          "soft": false,
+          "state": "ok",
+          "ms": 21912,
+          "code": 0
+        },
+        {
+          "id": "gh",
+          "label": "推 GitHub Pages",
+          "soft": false,
+          "state": "ok",
+          "ms": 10206,
+          "code": 0
+        }
+      ],
+      "error": null,
+      "mode": "pipe",
+      "pid": 3132,
+      "logFile": "F:\\@Project\\node\\console\\logs\\2026-10-03T0555-iucz.log",
+      "logBytes": 83765,
+      "domains": [
+        "jinsuper.rth1.xyz",
+        "jinsuper.cn",
+        "www.jinsuper.cn"
+      ],
+      "changed": [
+        "p/archive/TEST.html"
+      ]
+    },
+    {
+      "id": "2026-10-03T0553-ia5v",
+      "label": "看会提交什么（不推）",
+      "pipeline": "diff",
+      "flags": {
+        "noBuild": false,
+        "noCheck": false,
+        "noGh": false
+      },
+      "state": "done",
+      "startedAt": 1791006837629,
+      "endedAt": 1791006843075,
+      "ms": 5204,
+      "exitCode": 0,
+      "ok": true,
+      "steps": [
+        {
+          "id": "diff",
+          "label": "看会提交什么（不推）",
+          "soft": false,
+          "state": "ok",
+          "ms": 5197,
+          "code": 0
+        }
+      ],
+      "error": null,
+      "mode": "pipe",
+      "pid": 14412,
+      "logFile": "F:\\@Project\\node\\console\\logs\\2026-10-03T0553-ia5v.log",
+      "logBytes": 576,
+      "domains": [
+        "jinsuper.rth1.xyz",
+        "jinsuper.cn",
+        "www.jinsuper.cn"
+      ],
+      "changed": [
+        "docs/info/site-index.js",
+        "p/archive/.versions/TEST.html.2026-10-03T05-32-24-020Z.bak",
+        "p/archive/TEST.html"
+      ]
+    }
+  ]
+}

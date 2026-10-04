@@ -1,0 +1,3420 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="../../favicon.svg">
+<link rel="apple-touch-icon" href="../../apple-touch-icon.svg">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HTML 在线运行</title>
+<style>
+  :root{
+    --bg:#1e1e1e;
+    --panel:#252526;
+    --panel2:#2d2d30;
+    --border:#3e3e42;
+    --ink:#d4d4d4;
+    --dim:#8d8d8d;
+    --faint:#8d8d8d;
+    --accent:#d97757;
+    --accent2:#4ec9b0;
+    --red:#f48771;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --editor-font:13px;
+    --editor-line:1.7;
+  }
+
+  *{box-sizing:border-box}
+
+  html,body{
+    margin:0;
+    height:100%;
+  }
+
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
+    overflow:hidden;
+    height:100dvh;
+    font-size:13px;
+  }
+
+  /* ═══ 布局 ═══ */
+
+  .app{
+    display:flex;
+    height:100dvh;
+    width:100%;
+    min-width:0;
+  }
+
+  /* ═══ 左侧编辑器 ═══ */
+
+  .editor-pane{
+    width:50%;
+    min-width:200px;
+    flex:none;
+    display:flex;
+    flex-direction:column;
+    background:var(--bg);
+    border-right:1px solid var(--border);
+    min-height:0;
+  }
+
+  .toolbar{
+    display:flex;
+    align-items:center;
+    gap:4px;
+    padding:8px 12px;
+    background:var(--panel);
+    border-bottom:1px solid var(--border);
+    flex-wrap:wrap;
+    min-height:44px;
+    flex:none;
+  }
+
+  .tabs{
+    display:flex;
+    gap:2px;
+  }
+
+  .tab{
+    padding:5px 14px;
+    font-family:var(--mono);
+    font-size:12px;
+    background:transparent;
+    border:1px solid transparent;
+    border-radius:4px;
+    color:#6b6b6b;
+    cursor:pointer;
+    transition:all .15s ease;
+  }
+
+  .tab:hover{
+    color:#ccc;
+    background:rgba(255,255,255,.04);
+  }
+
+  .tab.on{
+    color:var(--accent);
+    background:rgba(217,119,87,.1);
+    border-color:rgba(217,119,87,.25);
+  }
+
+  .tab:focus-visible{
+    outline:2px solid var(--accent);
+    outline-offset:1px;
+  }
+
+  .spacer{
+    flex:1;
+  }
+
+  .btn{
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    padding:5px 12px;
+    background:transparent;
+    border:1px solid var(--border);
+    border-radius:4px;
+    color:#8a8a8a;
+    font-family:var(--mono);
+    font-size:11.5px;
+    cursor:pointer;
+    transition:all .15s ease;
+    white-space:nowrap;
+  }
+
+  .btn:hover{
+    border-color:#555;
+    color:#d4d4d4;
+    background:rgba(255,255,255,.03);
+  }
+
+  .btn:active{
+    transform:scale(.97);
+  }
+
+  .btn:focus-visible{
+    outline:2px solid var(--accent);
+    outline-offset:2px;
+  }
+
+  .btn svg{
+    width:12px;
+    height:12px;
+  }
+
+  .btn.primary{
+    color:var(--accent);
+    border-color:rgba(217,119,87,.4);
+  }
+
+  .btn.primary:hover{
+    background:rgba(217,119,87,.1);
+    border-color:rgba(217,119,87,.6);
+  }
+
+  /* ═══ 编辑器主体 ═══ */
+
+  .editor-wrap{
+    flex:1;
+    min-height:0;
+    display:flex;
+    position:relative;
+  }
+
+  .gutter{
+    flex:none;
+    width:44px;
+    padding:12px 0;
+    font-family:var(--mono);
+    font-size:var(--editor-font);
+    line-height:var(--editor-line);
+    text-align:right;
+    color:#3a3a3a;
+    background:var(--panel);
+    border-right:1px solid var(--border);
+    user-select:none;
+    -webkit-user-select:none;
+    overflow:hidden;
+    white-space:pre;
+  }
+
+  .gutter .ln{
+    display:block;
+    padding-right:10px;
+    height:calc(var(--editor-font) * var(--editor-line));
+  }
+
+  .editor{
+    flex:1;
+    min-width:0;
+    min-height:0;
+    padding:12px 16px;
+    background:var(--bg);
+    border:none;
+    outline:none;
+    resize:none;
+    color:var(--ink);
+    font-family:var(--mono);
+    font-size:var(--editor-font);
+    line-height:var(--editor-line);
+    tab-size:2;
+    white-space:pre;
+    overflow:auto;
+    caret-color:var(--accent);
+  }
+
+  .editor::placeholder{
+    color:#3a3a3a;
+  }
+
+  .editor::-webkit-scrollbar{
+    width:10px;
+    height:10px;
+  }
+
+  .editor::-webkit-scrollbar-thumb{
+    background:#3a3a3a;
+    border-radius:5px;
+    border:2px solid var(--bg);
+  }
+
+  .editor::-webkit-scrollbar-thumb:hover{
+    background:#4a4a4a;
+  }
+
+  .editor::selection{
+    background:rgba(217,119,87,.25);
+  }
+
+  /* ═══ 分隔条 ═══ */
+
+  .splitter{
+    width:5px;
+    height:100%;
+    background:var(--border);
+    cursor:col-resize;
+    flex:none;
+    transition:background .15s ease;
+    position:relative;
+    z-index:10;
+  }
+
+  .splitter:hover,
+  .splitter.dragging{
+    background:var(--accent);
+  }
+
+  .splitter::after{
+    content:'';
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    width:2px;
+    height:28px;
+    border-radius:1px;
+    background:rgba(255,255,255,.1);
+  }
+
+  .splitter:focus-visible{
+    outline:2px solid var(--accent);
+    outline-offset:-2px;
+  }
+
+  /* ═══ 右侧预览 ═══ */
+
+  .preview-pane{
+    flex:1;
+    min-width:200px;
+    min-height:0;
+    display:flex;
+    flex-direction:column;
+    background:#fff;
+  }
+
+  .preview-bar{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:8px 12px;
+    background:var(--panel);
+    border-bottom:1px solid var(--border);
+    min-height:44px;
+    flex:none;
+  }
+
+  .preview-url{
+    flex:1;
+    min-width:0;
+    padding:5px 10px;
+    background:var(--bg);
+    border:1px solid var(--border);
+    border-radius:4px;
+    font-family:var(--mono);
+    font-size:11.5px;
+    color:#5a5a5a;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  .status-dot{
+    width:7px;
+    height:7px;
+    border-radius:50%;
+    background:#3a3a3a;
+    flex:none;
+    transition:background .2s;
+  }
+
+  .status-dot.live{
+    background:var(--accent2);
+  }
+
+  .status-dot.error{
+    background:var(--red);
+  }
+
+  .preview-frame{
+    flex:1;
+    min-height:0;
+    width:100%;
+    border:none;
+    background:#fff;
+    display:block;
+  }
+
+  /* ═══ 状态栏 ═══ */
+
+  .status-bar{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    padding:4px 12px;
+    background:var(--panel);
+    border-top:1px solid var(--border);
+    font-family:var(--mono);
+    font-size:11px;
+    color:#5a5a5a;
+    min-height:28px;
+    flex-wrap:wrap;
+    flex:none;
+  }
+
+  .status-bar b{
+    color:#8a8a8a;
+    font-weight:500;
+  }
+
+  .switch{
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    cursor:pointer;
+    color:#5a5a5a;
+  }
+
+  .switch input{
+    appearance:none;
+    -webkit-appearance:none;
+    width:22px;
+    height:13px;
+    background:#3a3a3a;
+    border:1px solid var(--border);
+    border-radius:7px;
+    position:relative;
+    cursor:pointer;
+    margin:0;
+  }
+
+  .switch input::after{
+    content:'';
+    position:absolute;
+    top:1px;
+    left:1px;
+    width:9px;
+    height:9px;
+    border-radius:50%;
+    background:#6a6a6a;
+    transition:transform .15s,background .15s;
+  }
+
+  .switch input:checked{
+    background:rgba(217,119,87,.3);
+    border-color:rgba(217,119,87,.5);
+  }
+
+  .switch input:checked::after{
+    transform:translateX(9px);
+    background:var(--accent);
+  }
+
+  .switch input:focus-visible{
+    outline:2px solid var(--accent);
+    outline-offset:2px;
+  }
+
+  /* ═══ 控制台 ═══ */
+
+  .console{
+    border-top:1px solid var(--border);
+    background:#1a1a1a;
+    display:flex;
+    flex-direction:column;
+    max-height:0;
+    overflow:hidden;
+    transition:max-height .2s ease;
+    flex:none;
+  }
+
+  .console.show{
+    max-height:200px;
+  }
+
+  .console-bar{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:5px 12px;
+    border-bottom:1px solid #2a2a2a;
+    font-family:var(--mono);
+    font-size:11px;
+    color:#5a5a5a;
+    min-height:30px;
+  }
+
+  .console-bar .badge{
+    padding:1px 6px;
+    border-radius:3px;
+    background:rgba(255,255,255,.05);
+    font-size:10px;
+  }
+
+  .console-bar .badge.err{
+    color:var(--red);
+    background:rgba(244,135,113,.1);
+  }
+
+  .console-body{
+    flex:1;
+    min-height:0;
+    overflow-y:auto;
+    padding:4px 0 8px;
+    font-family:var(--mono);
+    font-size:11.5px;
+    line-height:1.6;
+  }
+
+  .console-body::-webkit-scrollbar{
+    width:6px;
+  }
+
+  .console-body::-webkit-scrollbar-thumb{
+    background:#333;
+    border-radius:3px;
+  }
+
+  .log{
+    display:flex;
+    gap:8px;
+    padding:2px 12px;
+    border-left:2px solid transparent;
+    white-space:pre-wrap;
+    word-break:break-word;
+  }
+
+  .log .lv{
+    flex:none;
+    width:40px;
+    color:#5a5a5a;
+    font-size:10px;
+    text-transform:uppercase;
+  }
+
+  .log .msg{
+    flex:1;
+    min-width:0;
+    color:#aaa;
+  }
+
+  .log.warn{
+    border-left-color:rgba(201,168,76,.5);
+  }
+
+  .log.warn .lv{
+    color:#c9a84c;
+  }
+
+  .log.warn .msg{
+    color:#d8c99a;
+  }
+
+  .log.error{
+    border-left-color:rgba(244,135,113,.5);
+    background:rgba(244,135,113,.03);
+  }
+
+  .log.error .lv{
+    color:var(--red);
+  }
+
+  .log.error .msg{
+    color:#e8a88c;
+  }
+
+  .log.system{
+    border-left-color:#383838;
+  }
+
+  .log.system .lv{
+    color:#666;
+  }
+
+  .log.system .msg{
+    color:#777;
+    font-style:italic;
+  }
+
+  .console-empty{
+    padding:16px;
+    text-align:center;
+    color:#3a3a3a;
+    font-size:11px;
+  }
+
+  /* ═══ 提示 ═══ */
+
+  .toast{
+    position:fixed;
+    right:16px;
+    bottom:16px;
+    z-index:300;
+    padding:8px 14px;
+    border-radius:5px;
+    font-family:var(--mono);
+    font-size:12px;
+    background:#2d2d30;
+    border:1px solid var(--border);
+    color:var(--ink);
+    opacity:0;
+    transform:translateY(6px);
+    pointer-events:none;
+    transition:opacity .15s ease,transform .15s ease;
+    max-width:60vw;
+  }
+
+  .toast.show{
+    opacity:1;
+    transform:none;
+  }
+
+  .toast.error{
+    border-color:rgba(244,135,113,.6);
+    color:#f0a98f;
+  }
+
+  /* ═══ 拖放视觉提示 ═══ */
+
+  body.drag-over .editor-wrap::after{
+    content:'松手即可导入 HTML';
+    position:absolute;
+    inset:12px;
+    z-index:20;
+    display:grid;
+    place-items:center;
+    border:2px dashed var(--accent);
+    border-radius:8px;
+    background:rgba(30,30,30,.92);
+    color:#d4d4d4;
+    font-family:var(--mono);
+    font-size:13px;
+    pointer-events:none;
+  }
+
+  body.drag-over.reject-file .editor-wrap::after{
+    content:'仅支持 .html / .htm 文件';
+    border-color:var(--red);
+    color:var(--red);
+  }
+
+  /* ═══ 响应式 ═══ */
+
+  @media (max-width:720px){
+    .app{
+      flex-direction:column;
+    }
+
+    .editor-pane{
+      width:100%;
+      height:50%;
+      min-height:150px;
+      border-right:none;
+      border-bottom:1px solid var(--border);
+    }
+
+    .splitter{
+      width:100%;
+      height:5px;
+      min-height:5px;
+      cursor:row-resize;
+    }
+
+    .splitter::after{
+      width:28px;
+      height:2px;
+    }
+
+    .preview-pane{
+      flex:1;
+      min-height:150px;
+    }
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    *,
+    *::before,
+    *::after{
+      transition-duration:.01ms !important;
+      animation-duration:.01ms !important;
+    }
+  }
+</style>
+</head>
+
+<body>
+
+<div class="app" id="app">
+
+  <!-- ═══ 左侧编辑器 ═══ -->
+
+  <section class="editor-pane" id="editorPane">
+
+    <div class="toolbar">
+
+      <div class="tabs" role="tablist" aria-label="代码标签页">
+
+        <button class="tab on"
+                data-lang="html"
+                role="tab"
+                aria-selected="true">
+          HTML
+        </button>
+
+        <button class="tab"
+                data-lang="css"
+                role="tab"
+                aria-selected="false">
+          CSS
+        </button>
+
+        <button class="tab"
+                data-lang="js"
+                role="tab"
+                aria-selected="false">
+          JS
+        </button>
+
+      </div>
+
+      <div class="spacer"></div>
+
+      <button class="btn"
+              id="btnImport"
+              title="导入 HTML 文件">
+        <svg viewBox="0 0 24 24"
+             fill="none"
+             stroke="currentColor"
+             stroke-width="2"
+             stroke-linecap="round"
+             stroke-linejoin="round">
+          <path d="M12 17V5"/>
+          <path d="m7 10 5-5 5 5"/>
+          <path d="M5 20h14"/>
+        </svg>
+        导入
+      </button>
+
+      <button class="btn"
+              id="btnExport"
+              title="导出为独立 HTML">
+        <svg viewBox="0 0 24 24"
+             fill="none"
+             stroke="currentColor"
+             stroke-width="2"
+             stroke-linecap="round"
+             stroke-linejoin="round">
+          <path d="M12 3v12"/>
+          <path d="m7 10 5 5 5-5"/>
+          <path d="M5 20h14"/>
+        </svg>
+        导出
+      </button>
+
+      <button class="btn primary"
+              id="btnRun"
+              title="运行 (Ctrl+Enter)">
+        <svg viewBox="0 0 24 24"
+             fill="none"
+             stroke="currentColor"
+             stroke-width="2"
+             stroke-linecap="round"
+             stroke-linejoin="round">
+          <polygon points="6 3 20 12 6 21 6 3"/>
+        </svg>
+        运行
+      </button>
+
+    </div>
+
+    <div class="editor-wrap">
+
+      <div class="gutter"
+           id="gutter"
+           aria-hidden="true"></div>
+
+      <textarea class="editor"
+                id="editor"
+                spellcheck="false"
+                autocomplete="off"
+                autocapitalize="off"
+                autocorrect="off"
+                aria-label="代码编辑器"></textarea>
+
+    </div>
+
+    <div class="status-bar">
+
+      <span>
+        行 <b id="statLine">1</b>
+        ·
+        列 <b id="statCol">1</b>
+      </span>
+
+      <span>
+        共 <b id="statChars">0</b> 字符
+      </span>
+
+      <label class="switch"
+             title="输入后自动运行（800ms 防抖）">
+
+        <input type="checkbox"
+               id="chkAuto"
+               checked>
+
+        自动运行
+
+      </label>
+
+      <span style="margin-left:auto">
+        Ctrl+Enter 运行
+      </span>
+
+    </div>
+
+  </section>
+
+
+  <!-- ═══ 分隔条 ═══ -->
+
+  <div class="splitter"
+       id="splitter"
+       role="separator"
+       aria-orientation="vertical"
+       tabindex="0"
+       aria-label="调整编辑器和预览区域大小"></div>
+
+
+  <!-- ═══ 右侧预览 ═══ -->
+
+  <section class="preview-pane"
+           id="previewPane">
+
+    <div class="preview-bar">
+
+      <div class="preview-url"
+           id="previewUrl">
+        about:srcdoc
+      </div>
+
+      <span class="status-dot"
+            id="statusDot"
+            title="预览状态"></span>
+
+      <button class="btn"
+              id="btnConsole"
+              title="控制台 (Ctrl+`)">
+
+        <svg viewBox="0 0 24 24"
+             fill="none"
+             stroke="currentColor"
+             stroke-width="2"
+             stroke-linecap="round"
+             stroke-linejoin="round">
+          <path d="m7 8 4 4-4 4"/>
+          <path d="M13 16h4"/>
+        </svg>
+
+        控制台
+
+      </button>
+
+      <button class="btn"
+              id="btnClear"
+              title="清空预览">
+        清空
+      </button>
+
+    </div>
+
+
+    <iframe class="preview-frame"
+            id="preview"
+            sandbox="allow-scripts allow-modals allow-forms allow-popups allow-presentation"
+            title="预览"></iframe>
+
+
+    <div class="console"
+         id="console">
+
+      <div class="console-bar">
+
+        <span>控制台</span>
+
+        <span class="badge"
+              id="logBadge">
+          0
+        </span>
+
+        <span class="badge err"
+              id="errBadge"
+              style="display:none">
+          0
+        </span>
+
+        <button class="btn"
+                id="btnClearLog"
+                style="margin-left:auto;padding:2px 8px;font-size:10px">
+          清空
+        </button>
+
+      </div>
+
+      <div class="console-body"
+           id="consoleBody">
+
+        <div class="console-empty">
+          暂无输出
+        </div>
+
+      </div>
+
+    </div>
+
+  </section>
+
+</div>
+
+
+<div class="toast"
+     id="toast"></div>
+
+
+<input type="file"
+       id="fileInput"
+       accept=".html,.htm,text/html"
+       hidden>
+
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   HTML 在线运行工具 · 修正版
+
+   本轮重点：
+   1. 修复 Flex 布局下分隔条拖拽无效的问题
+   2. 完整 HTML 不再丢失 head / style / script / html 属性
+   3. Console level 不再通过用户可控字符串写入 innerHTML
+   4. Console 限制最大 DOM 日志数量，避免无限刷屏
+   5. 发生错误时改为“确保打开控制台”，不再误关
+   6. 清空/重新运行会取消旧的延迟运行任务
+   7. runId + contentWindow 双重校验
+   8. 导入与拖放共用文件类型校验
+   9. 增加拖放视觉提示
+═══════════════════════════════════════════════════════════════ */
+
+
+/* ══ 默认内容 ══ */
+
+const DEFAULT = {
+
+  html: `<div class="box">
+  <h1>Hello</h1>
+  <p>左边改代码，右边看效果。</p>
+  <button id="btn">点我</button>
+</div>`,
+
+  css: `body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: #0d1117;
+  font-family: system-ui, sans-serif;
+}
+
+.box {
+  padding: 32px 40px;
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 10px;
+  text-align: center;
+  color: #e6edf3;
+}
+
+h1 {
+  margin: 0 0 8px;
+  font-size: 22px;
+}
+
+p {
+  margin: 0 0 20px;
+  color: #8b949e;
+  font-size: 14px;
+}
+
+button {
+  padding: 8px 20px;
+  background: #d97757;
+  color: #0d1117;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}`,
+
+  js: `const btn = document.getElementById('btn');
+let n = 0;
+
+btn.addEventListener('click', () => {
+  n++;
+  btn.textContent = '点了 ' + n + ' 下';
+  console.log('clicked', n);
+});`
+
+};
+
+
+/* ══ 状态 ══ */
+
+const code = {
+  html: DEFAULT.html,
+  css: DEFAULT.css,
+  js: DEFAULT.js
+};
+
+let currentLang = 'html';
+
+let autoRun = true;
+
+let runId = 0;
+
+let debounceTimer = null;
+
+let readyTimer = null;
+
+let lastLineCount = -1;
+
+let logCount = 0;
+
+let errCount = 0;
+
+let dragDepth = 0;
+
+let toastTimer = null;
+
+const MAX_CONSOLE_NODES = 500;
+
+const MAX_CONSOLE_TEXT = 20000;
+
+
+/* ══ DOM ══ */
+
+const app =
+  document.getElementById('app');
+
+const editorPane =
+  document.getElementById('editorPane');
+
+const editor =
+  document.getElementById('editor');
+
+const gutter =
+  document.getElementById('gutter');
+
+const preview =
+  document.getElementById('preview');
+
+const splitter =
+  document.getElementById('splitter');
+
+const toastEl =
+  document.getElementById('toast');
+
+const statLine =
+  document.getElementById('statLine');
+
+const statCol =
+  document.getElementById('statCol');
+
+const statChars =
+  document.getElementById('statChars');
+
+const chkAuto =
+  document.getElementById('chkAuto');
+
+const consoleEl =
+  document.getElementById('console');
+
+const consoleBody =
+  document.getElementById('consoleBody');
+
+const logBadge =
+  document.getElementById('logBadge');
+
+const errBadge =
+  document.getElementById('errBadge');
+
+const statusDot =
+  document.getElementById('statusDot');
+
+const previewUrl =
+  document.getElementById('previewUrl');
+
+const fileInput =
+  document.getElementById('fileInput');
+
+const btnImport =
+  document.getElementById('btnImport');
+
+const btnExport =
+  document.getElementById('btnExport');
+
+const btnRun =
+  document.getElementById('btnRun');
+
+const btnConsole =
+  document.getElementById('btnConsole');
+
+const btnClear =
+  document.getElementById('btnClear');
+
+const btnClearLog =
+  document.getElementById('btnClearLog');
+
+
+/* ═══════════════════════════════════════════════════════════════
+   Toast
+═══════════════════════════════════════════════════════════════ */
+
+function toast(msg, isErr){
+
+  toastEl.textContent =
+    String(msg);
+
+  toastEl.classList.toggle(
+    'error',
+    !!isErr
+  );
+
+  toastEl.classList.add(
+    'show'
+  );
+
+  clearTimeout(
+    toastTimer
+  );
+
+  toastTimer =
+    setTimeout(
+      () => {
+        toastEl.classList.remove(
+          'show'
+        );
+      },
+      2000
+    );
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   Console
+═══════════════════════════════════════════════════════════════ */
+
+function openConsole(){
+
+  consoleEl.classList.add(
+    'show'
+  );
+}
+
+function closeConsole(){
+
+  consoleEl.classList.remove(
+    'show'
+  );
+}
+
+function toggleConsole(){
+
+  consoleEl.classList.toggle(
+    'show'
+  );
+}
+
+
+function normalizeConsoleText(text){
+
+  let value;
+
+  try {
+    value = String(text);
+  } catch {
+    value = '[无法转换为文本]';
+  }
+
+  if (
+    value.length >
+    MAX_CONSOLE_TEXT
+  ){
+    return (
+      value.slice(
+        0,
+        MAX_CONSOLE_TEXT
+      ) +
+      '\n…[输出已截断]'
+    );
+  }
+
+  return value;
+}
+
+
+function appendLog(level, text){
+
+  const safeLevel =
+    ['log','info','warn','error','debug','system']
+      .includes(level)
+      ? level
+      : 'log';
+
+  const safeText =
+    normalizeConsoleText(text);
+
+  const empty =
+    consoleBody.querySelector(
+      '.console-empty'
+    );
+
+  if (empty){
+    empty.remove();
+  }
+
+
+  /*
+    不使用 innerHTML 写入任何
+    用户可控的 level / text。
+  */
+  const div =
+    document.createElement('div');
+
+  div.className =
+    'log ' +
+    (
+      safeLevel === 'warn'
+        ? 'warn'
+        : safeLevel === 'error'
+          ? 'error'
+          : safeLevel === 'system'
+            ? 'system'
+            : ''
+    );
+
+
+  const lv =
+    document.createElement('span');
+
+  lv.className =
+    'lv';
+
+  lv.textContent =
+    safeLevel === 'system'
+      ? '·'
+      : safeLevel;
+
+
+  const msg =
+    document.createElement('span');
+
+  msg.className =
+    'msg';
+
+  msg.textContent =
+    safeText;
+
+
+  div.appendChild(lv);
+
+  div.appendChild(msg);
+
+  consoleBody.appendChild(div);
+
+
+  /*
+    限制 Console DOM 节点数量。
+    Badge 统计仍记录实际收到的数量。
+  */
+  while (
+    consoleBody.children.length >
+    MAX_CONSOLE_NODES
+  ){
+
+    const first =
+      consoleBody.firstElementChild;
+
+    if (!first){
+      break;
+    }
+
+    first.remove();
+  }
+
+
+  consoleBody.scrollTop =
+    consoleBody.scrollHeight;
+
+
+  if (safeLevel === 'error'){
+
+    errCount++;
+
+    errBadge.textContent =
+      String(errCount);
+
+    errBadge.style.display =
+      '';
+
+    statusDot.classList.add(
+      'error'
+    );
+
+  } else {
+
+    logCount++;
+
+    logBadge.textContent =
+      String(logCount);
+  }
+}
+
+
+function clearConsole(){
+
+  consoleBody.innerHTML =
+    '<div class="console-empty">暂无输出</div>';
+
+  logCount = 0;
+
+  errCount = 0;
+
+  logBadge.textContent =
+    '0';
+
+  errBadge.textContent =
+    '0';
+
+  errBadge.style.display =
+    'none';
+
+  statusDot.classList.remove(
+    'error'
+  );
+}
+
+
+btnConsole.addEventListener(
+  'click',
+  toggleConsole
+);
+
+btnClearLog.addEventListener(
+  'click',
+  clearConsole
+);
+
+
+/* ═══════════════════════════════════════════════════════════════
+   编辑器
+═══════════════════════════════════════════════════════════════ */
+
+function switchTab(lang){
+
+  if (
+    lang === currentLang
+  ){
+    return;
+  }
+
+  code[currentLang] =
+    editor.value;
+
+  currentLang =
+    lang;
+
+  editor.value =
+    code[lang] || '';
+
+
+  document
+    .querySelectorAll('.tab')
+    .forEach(t => {
+
+      const on =
+        t.dataset.lang === lang;
+
+      t.classList.toggle(
+        'on',
+        on
+      );
+
+      t.setAttribute(
+        'aria-selected',
+        String(on)
+      );
+
+    });
+
+
+  editor.placeholder =
+    lang === 'html'
+      ? '<div>写点什么…</div>'
+      : lang === 'css'
+        ? 'body { … }'
+        : 'console.log("hi")';
+
+
+  refreshEditor();
+
+  editor.focus();
+}
+
+
+document
+  .querySelectorAll('.tab')
+  .forEach(
+    t => {
+
+      t.addEventListener(
+        'click',
+        () =>
+          switchTab(
+            t.dataset.lang
+          )
+      );
+
+    }
+  );
+
+
+editor.addEventListener(
+  'input',
+  () => {
+
+    code[currentLang] =
+      editor.value;
+
+    refreshEditor();
+
+    if (autoRun){
+      scheduleRun();
+    }
+  }
+);
+
+
+/* ══ Tab / Shift+Tab / Ctrl+Enter ══ */
+
+editor.addEventListener(
+  'keydown',
+  e => {
+
+    if (
+      e.key === 'Tab'
+    ){
+
+      e.preventDefault();
+
+      const s =
+        editor.selectionStart;
+
+      const en =
+        editor.selectionEnd;
+
+      const v =
+        editor.value;
+
+      const ls =
+        v.lastIndexOf(
+          '\n',
+          s - 1
+        ) + 1;
+
+      const multi =
+        s !== en &&
+        v
+          .slice(s, en)
+          .includes('\n');
+
+
+      if (
+        e.shiftKey
+      ){
+
+        if (multi){
+
+          const b =
+            v.slice(
+              ls,
+              en
+            );
+
+          const sh =
+            b.replace(
+              /^[ \t]{1,2}/gm,
+              ''
+            );
+
+          editor.value =
+            v.slice(0, ls) +
+            sh +
+            v.slice(en);
+
+          editor.selectionStart =
+            ls;
+
+          editor.selectionEnd =
+            ls + sh.length;
+
+        } else {
+
+          const le =
+            v.indexOf(
+              '\n',
+              s
+            );
+
+          const lt =
+            v.slice(
+              ls,
+              le === -1
+                ? v.length
+                : le
+            );
+
+          const m =
+            lt.match(
+              /^[ \t]{0,2}/
+            );
+
+          const strip =
+            m
+              ? m[0].length
+              : 0;
+
+          if (strip > 0){
+
+            editor.value =
+              v.slice(0, ls) +
+              v.slice(
+                ls + strip
+              );
+
+            editor.selectionStart =
+              editor.selectionEnd =
+                Math.max(
+                  ls,
+                  s - strip
+                );
+          }
+        }
+
+      } else {
+
+        if (multi){
+
+          const b =
+            v.slice(
+              ls,
+              en
+            );
+
+          const sh =
+            b.replace(
+              /^/gm,
+              '  '
+            );
+
+          editor.value =
+            v.slice(0, ls) +
+            sh +
+            v.slice(en);
+
+          editor.selectionStart =
+            ls;
+
+          editor.selectionEnd =
+            ls + sh.length;
+
+        } else {
+
+          editor.value =
+            v.slice(0, s) +
+            '  ' +
+            v.slice(en);
+
+          editor.selectionStart =
+            editor.selectionEnd =
+              s + 2;
+        }
+      }
+
+
+      code[currentLang] =
+        editor.value;
+
+      refreshEditor();
+
+      if (autoRun){
+        scheduleRun();
+      }
+
+      return;
+    }
+
+
+    if (
+      e.key === 'Enter' &&
+      (e.ctrlKey || e.metaKey)
+    ){
+
+      e.preventDefault();
+
+      run(true);
+    }
+
+  }
+);
+
+
+/* ══ 行号 ══ */
+
+function refreshEditor(){
+
+  const val =
+    editor.value;
+
+  const count =
+    val.split('\n').length;
+
+
+  if (
+    count !== lastLineCount
+  ){
+
+    let g = '';
+
+    for (
+      let i = 1;
+      i <= count;
+      i++
+    ){
+
+      g +=
+        `<span class="ln">${i}</span>`;
+    }
+
+    gutter.innerHTML =
+      g;
+
+    lastLineCount =
+      count;
+  }
+
+
+  gutter.scrollTop =
+    editor.scrollTop;
+
+
+  const upto =
+    val.slice(
+      0,
+      editor.selectionStart
+    );
+
+  const lineNo =
+    upto.split('\n').length;
+
+  const colText =
+    upto.slice(
+      upto.lastIndexOf('\n') + 1
+    );
+
+  const colNo =
+    [...colText].length + 1;
+
+  const chars =
+    [...val].length;
+
+
+  statLine.textContent =
+    String(lineNo);
+
+  statCol.textContent =
+    String(colNo);
+
+  statChars.textContent =
+    chars.toLocaleString();
+}
+
+
+editor.addEventListener(
+  'scroll',
+  () => {
+    gutter.scrollTop =
+      editor.scrollTop;
+  }
+);
+
+editor.addEventListener(
+  'click',
+  refreshEditor
+);
+
+editor.addEventListener(
+  'keyup',
+  refreshEditor
+);
+
+
+/* ═══════════════════════════════════════════════════════════════
+   HTML 判断 / 解析
+═══════════════════════════════════════════════════════════════ */
+
+function looksLikeFullDocument(src){
+
+  if (!src){
+    return false;
+  }
+
+  const stripped =
+    String(src)
+      .replace(
+        /<!--[\s\S]*?-->/g,
+        ''
+      );
+
+  return (
+    /<!doctype\s+html\b/i.test(
+      stripped
+    ) ||
+    /<html[\s>]/i.test(
+      stripped
+    )
+  );
+}
+
+
+function parseHTML(src){
+
+  return new DOMParser()
+    .parseFromString(
+      String(src || ''),
+      'text/html'
+    );
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   安全字符串处理
+═══════════════════════════════════════════════════════════════ */
+
+function safeScript(s){
+
+  return String(s)
+    .replace(
+      /<\/script/gi,
+      '<\\/script'
+    );
+}
+
+
+function safeStyle(s){
+
+  return String(s)
+    .replace(
+      /<\/style/gi,
+      '<\\/style'
+    );
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   JS 模式
+   自动：出现 import/export 时作为 module
+═══════════════════════════════════════════════════════════════ */
+
+function detectModule(js){
+
+  if (!js){
+    return false;
+  }
+
+  /*
+    这是启发式检测，不宣称能完整分析 JavaScript grammar。
+  */
+  return /^\s*(?:import|export)\b/m.test(
+    js
+  );
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   错误 Hook
+═══════════════════════════════════════════════════════════════ */
+
+function buildHook(id){
+
+  return `
+(function(){
+  var __id =
+    ${JSON.stringify(String(id))};
+
+  function send(type, data){
+
+    try{
+
+      parent.postMessage(
+        {
+          __hr: true,
+          runId: __id,
+          type: type,
+          data: data
+        },
+        '*'
+      );
+
+    }catch(e){}
+  }
+
+
+  window.addEventListener(
+    'error',
+    function(e){
+
+      send(
+        'error',
+        {
+          message:
+            e.message ||
+            String(e.message || e),
+
+          line:
+            e.lineno,
+
+          col:
+            e.colno,
+
+          stack:
+            e.error &&
+            e.error.stack
+              ? String(e.error.stack)
+              : null
+        }
+      );
+    }
+  );
+
+
+  window.addEventListener(
+    'unhandledrejection',
+    function(e){
+
+      var reason =
+        e.reason;
+
+      send(
+        'error',
+        {
+          message:
+            'Unhandled rejection: ' +
+            String(reason),
+
+          stack:
+            reason &&
+            reason.stack
+              ? String(reason.stack)
+              : null
+        }
+      );
+    }
+  );
+
+
+  [
+    'log',
+    'info',
+    'warn',
+    'error',
+    'debug'
+  ].forEach(
+    function(level){
+
+      var original =
+        console[level];
+
+
+      console[level] =
+        function(){
+
+          var args =
+            Array.prototype.slice.call(
+              arguments
+            );
+
+
+          var text =
+            args
+              .map(
+                function(a){
+
+                  try{
+
+                    if (
+                      a === undefined
+                    ){
+                      return 'undefined';
+                    }
+
+                    if (
+                      a === null
+                    ){
+                      return 'null';
+                    }
+
+                    if (
+                      typeof a === 'object'
+                    ){
+
+                      try{
+                        return JSON.stringify(
+                          a
+                        );
+                      }catch(_){
+                        return String(a);
+                      }
+                    }
+
+                    return String(a);
+
+                  }catch(e){
+
+                    return '[无法序列化]';
+                  }
+                }
+              )
+              .join(' ');
+
+
+          send(
+            'console',
+            {
+              level:
+                level,
+
+              text:
+                text
+            }
+          );
+
+
+          try{
+
+            original.apply(
+              console,
+              arguments
+            );
+
+          }catch(e){}
+        };
+    }
+  );
+
+
+  send(
+    'ready',
+    {}
+  );
+
+})();
+`;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   文档构建
+══════════════════════════════════════════════════════════════ */
+
+function buildDocument(
+  withHook,
+  id
+){
+
+  const h =
+    code.html || '';
+
+  const c =
+    code.css || '';
+
+  const j =
+    code.js || '';
+
+  let doc;
+
+
+  /*
+    完整 HTML：
+    直接解析整个文档。
+    不再自己复制 body/head，
+    因此不会主动丢失：
+    - html 属性
+    - title
+    - meta
+    - link
+    - base
+    - style
+    - script
+    - 其他 head 内容
+  */
+  if (
+    looksLikeFullDocument(h)
+  ){
+
+    doc =
+      parseHTML(h);
+
+  } else {
+
+    /*
+      Fragment：
+      创建标准 HTML 骨架。
+    */
+    doc =
+      parseHTML(
+        `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+</head>
+<body></body>
+</html>`
+      );
+
+    doc.body.innerHTML =
+      h;
+  }
+
+
+  /*
+    确保 head / body 存在。
+  */
+
+  if (
+    !doc.head
+  ){
+
+    const head =
+      doc.createElement('head');
+
+    doc.documentElement
+      .insertBefore(
+        head,
+        doc.documentElement.firstChild
+      );
+  }
+
+
+  if (
+    !doc.body
+  ){
+
+    const body =
+      doc.createElement('body');
+
+    doc.documentElement
+      .appendChild(body);
+  }
+
+
+  /*
+    Hook 必须放在 head 最前面，
+    让运行器尽可能早地开始监听错误。
+  */
+  if (
+    withHook &&
+    id != null
+  ){
+
+    const hook =
+      doc.createElement(
+        'script'
+      );
+
+    hook.textContent =
+      buildHook(id);
+
+    doc.head.insertBefore(
+      hook,
+      doc.head.firstChild
+    );
+  }
+
+
+  /*
+    CSS：
+    使用 DOM API 创建 style。
+    safeStyle 防止 outerHTML 再解析时
+    </style> 提前结束。
+  */
+  if (
+    c.trim()
+  ){
+
+    const style =
+      doc.createElement(
+        'style'
+      );
+
+    style.textContent =
+      safeStyle(c);
+
+    doc.head.appendChild(
+      style
+    );
+  }
+
+
+  /*
+    JS：
+    根据 import/export 做启发式 module 检测。
+  */
+  if (
+    j.trim()
+  ){
+
+    const script =
+      doc.createElement(
+        'script'
+      );
+
+    if (
+      detectModule(j)
+    ){
+
+      script.type =
+        'module';
+    }
+
+    script.textContent =
+      safeScript(j);
+
+    doc.body.appendChild(
+      script
+    );
+  }
+
+
+  return (
+    '<!DOCTYPE html>\n' +
+    doc.documentElement.outerHTML
+  );
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   运行
+═══════════════════════════════════════════════════════════════ */
+
+function run(manual){
+
+  /*
+    如果之前有自动运行排队，
+    当前显式运行优先。
+  */
+  clearTimeout(
+    debounceTimer
+  );
+
+  code[currentLang] =
+    editor.value;
+
+  clearConsole();
+
+
+  /*
+    生成新的运行 ID。
+  */
+  runId += 1;
+
+  const myId =
+    runId;
+
+
+  preview.dataset.runId =
+    String(myId);
+
+  delete preview.dataset.ready;
+
+
+  clearTimeout(
+    readyTimer
+  );
+
+
+  /*
+    构建当前运行文档。
+  */
+  let doc;
+
+  try{
+
+    doc =
+      buildDocument(
+        true,
+        myId
+      );
+
+  }catch(err){
+
+    appendLog(
+      'error',
+      '构建预览失败：' +
+      String(
+        err &&
+        err.message
+          ? err.message
+          : err
+      )
+    );
+
+    openConsole();
+
+    statusDot.classList.remove(
+      'live'
+    );
+
+    statusDot.classList.add(
+      'error'
+    );
+
+    return;
+  }
+
+
+  preview.srcdoc =
+    doc;
+
+  previewUrl.textContent =
+    'about:srcdoc';
+
+
+  statusDot.classList.remove(
+    'error'
+  );
+
+  statusDot.classList.add(
+    'live'
+  );
+
+
+  setTimeout(
+    () => {
+
+      statusDot.classList.remove(
+        'live'
+      );
+
+    },
+    700
+  );
+
+
+  /*
+    运行超时提示。
+  */
+  readyTimer =
+    setTimeout(
+      () => {
+
+        if (
+          preview.dataset.runId ===
+            String(myId) &&
+          !preview.dataset.ready
+        ){
+
+          appendLog(
+            'system',
+            '预览 5s 未响应，代码可能陷入了死循环或被页面策略阻止执行。'
+          );
+
+          openConsole();
+        }
+
+      },
+      5000
+    );
+
+
+  if (manual){
+    toast('已运行');
+  }
+}
+
+
+function scheduleRun(){
+
+  clearTimeout(
+    debounceTimer
+  );
+
+  debounceTimer =
+    setTimeout(
+      () => run(false),
+      800
+    );
+}
+
+
+btnRun.addEventListener(
+  'click',
+  () => run(true)
+);
+
+
+/* ═══════════════════════════════════════════════════════════════
+   清空预览
+═══════════════════════════════════════════════════════════════ */
+
+btnClear.addEventListener(
+  'click',
+  () => {
+
+    /*
+      取消待执行的自动运行。
+    */
+    clearTimeout(
+      debounceTimer
+    );
+
+    clearTimeout(
+      readyTimer
+    );
+
+
+    /*
+      让之前所有消息失效。
+    */
+    runId += 1;
+
+    preview.dataset.runId =
+      String(runId);
+
+    delete preview.dataset.ready;
+
+
+    preview.srcdoc =
+      `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+</head>
+<body style="
+  margin:0;
+  min-height:100vh;
+  display:grid;
+  place-items:center;
+  background:#1e1e1e;
+  color:#5a5a5a;
+  font-family:system-ui;
+  font-size:13px;
+">
+已清空
+</body>
+</html>`;
+
+
+    statusDot.classList.remove(
+      'error',
+      'live'
+    );
+
+    clearConsole();
+  }
+);
+
+
+/* ═══════════════════════════════════════════════════════════════
+   自动运行
+═══════════════════════════════════════════════════════════════ */
+
+chkAuto.addEventListener(
+  'change',
+  () => {
+
+    autoRun =
+      chkAuto.checked;
+
+    if (
+      autoRun
+    ){
+      scheduleRun();
+    } else {
+      clearTimeout(
+        debounceTimer
+      );
+    }
+  }
+);
+
+
+/* ═══════════════════════════════════════════════════════════════
+   iframe 消息
+═══════════════════════════════════════════════════════════════ */
+
+window.addEventListener(
+  'message',
+  e => {
+
+    /*
+      第一层：
+      必须来自当前 iframe。
+    */
+    if (
+      !preview.contentWindow ||
+      e.source !==
+        preview.contentWindow
+    ){
+      return;
+    }
+
+
+    const m =
+      e.data;
+
+
+    if (
+      !m ||
+      m.__hr !== true
+    ){
+      return;
+    }
+
+
+    /*
+      第二层：
+      必须属于当前运行。
+    */
+    if (
+      String(m.runId) !==
+      String(
+        preview.dataset.runId ||
+        ''
+      )
+    ){
+      return;
+    }
+
+
+    switch (
+      m.type
+    ){
+
+      case 'ready':{
+
+        preview.dataset.ready =
+          '1';
+
+        clearTimeout(
+          readyTimer
+        );
+
+        break;
+      }
+
+
+      case 'console':{
+
+        const d =
+          m.data || {};
+
+        appendLog(
+          d.level || 'log',
+          d.text || ''
+        );
+
+        break;
+      }
+
+
+      case 'error':{
+
+        const d =
+          m.data || {};
+
+        let text =
+          d.message ||
+          '未知错误';
+
+
+        if (
+          d.line != null
+        ){
+
+          text +=
+            ` (行 ${d.line}` +
+            (
+              d.col != null
+                ? ':' + d.col
+                : ''
+            ) +
+            ')';
+        }
+
+
+        if (
+          d.stack
+        ){
+
+          text +=
+            '\n' +
+            d.stack;
+        }
+
+
+        appendLog(
+          'error',
+          text
+        );
+
+
+        /*
+          这里必须是“确保打开”，
+          不能 toggle。
+        */
+        openConsole();
+
+
+        break;
+      }
+
+    }
+  }
+);
+
+
+/* ═══════════════════════════════════════════════════════════════
+   导入
+═══════════════════════════════════════════════════════════════ */
+
+btnImport.addEventListener(
+  'click',
+  () => fileInput.click()
+);
+
+
+fileInput.addEventListener(
+  'change',
+  e => {
+
+    const f =
+      e.target.files &&
+      e.target.files[0];
+
+    if (f){
+      loadFile(f);
+    }
+
+    /*
+      允许重新选择同一个文件。
+    */
+    fileInput.value =
+      '';
+  }
+);
+
+
+function isAcceptableFile(
+  file
+){
+
+  if (!file){
+    return false;
+  }
+
+
+  const name =
+    String(
+      file.name || ''
+    );
+
+
+  /*
+    扩展名优先。
+  */
+  if (
+    /\.(html?|htm)$/i.test(
+      name
+    )
+  ){
+
+    return true;
+  }
+
+
+  return (
+    file.type ===
+    'text/html'
+  );
+}
+
+
+async function loadFile(
+  file
+){
+
+  if (!file){
+    return;
+  }
+
+
+  if (
+    !isAcceptableFile(file)
+  ){
+
+    toast(
+      '只支持 .html / .htm 文件',
+      true
+    );
+
+    return;
+  }
+
+
+  if (
+    file.size >
+    5 * 1024 * 1024
+  ){
+
+    toast(
+      '文件太大（超过 5MB）',
+      true
+    );
+
+    return;
+  }
+
+
+  try{
+
+    const text =
+      await readFileText(
+        file
+      );
+
+
+    /*
+      导入完整源码。
+      不主动拆分。
+    */
+    code.html =
+      text;
+
+    code.css =
+      '';
+
+    code.js =
+      '';
+
+
+    currentLang =
+      'html';
+
+
+    document
+      .querySelectorAll('.tab')
+      .forEach(t => {
+
+        const on =
+          t.dataset.lang ===
+          'html';
+
+        t.classList.toggle(
+          'on',
+          on
+        );
+
+        t.setAttribute(
+          'aria-selected',
+          String(on)
+        );
+      });
+
+
+    editor.value =
+      code.html;
+
+    refreshEditor();
+
+
+    if (
+      autoRun
+    ){
+
+      scheduleRun();
+
+    }
+
+
+    toast(
+      '已导入 ' +
+      file.name
+    );
+
+
+  }catch(err){
+
+    toast(
+      '读取失败：' +
+      String(
+        err &&
+        err.message
+          ? err.message
+          : err
+      ),
+      true
+    );
+  }
+}
+
+
+/* ══ 文件编码 ══ */
+
+async function readFileText(
+  file
+){
+
+  const buf =
+    await file.arrayBuffer();
+
+  const b =
+    new Uint8Array(buf);
+
+
+  /*
+    UTF-8 BOM
+  */
+  if (
+    b.length >= 3 &&
+    b[0] === 0xEF &&
+    b[1] === 0xBB &&
+    b[2] === 0xBF
+  ){
+
+    return new TextDecoder(
+      'utf-8'
+    ).decode(buf);
+  }
+
+
+  /*
+    UTF-16 LE BOM
+  */
+  if (
+    b.length >= 2 &&
+    b[0] === 0xFF &&
+    b[1] === 0xFE
+  ){
+
+    return new TextDecoder(
+      'utf-16le'
+    ).decode(buf);
+  }
+
+
+  /*
+    UTF-16 BE BOM
+  */
+  if (
+    b.length >= 2 &&
+    b[0] === 0xFE &&
+    b[1] === 0xFF
+  ){
+
+    return new TextDecoder(
+      'utf-16be'
+    ).decode(buf);
+  }
+
+
+  /*
+    严格 UTF-8。
+  */
+  try{
+
+    return new TextDecoder(
+      'utf-8',
+      {
+        fatal:true
+      }
+    ).decode(buf);
+
+  }catch{
+
+
+    /*
+      UTF-8 解码失败，
+      国内旧网页常见 GBK。
+    */
+    try{
+
+      return new TextDecoder(
+        'gbk'
+      ).decode(buf);
+
+    }catch{
+
+      return new TextDecoder(
+        'utf-8'
+      ).decode(buf);
+    }
+  }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   导出
+═══════════════════════════════════════════════════════════════ */
+
+btnExport.addEventListener(
+  'click',
+  () => {
+
+    code[currentLang] =
+      editor.value;
+
+
+    let doc;
+
+    try{
+
+      /*
+        导出不加入 ERROR_HOOK。
+      */
+      doc =
+        buildDocument(
+          false,
+          null
+        );
+
+    }catch(err){
+
+      toast(
+        '导出失败：' +
+        String(
+          err &&
+          err.message
+            ? err.message
+            : err
+        ),
+        true
+      );
+
+      return;
+    }
+
+
+    const blob =
+      new Blob(
+        [doc],
+        {
+          type:
+            'text/html;charset=utf-8'
+        }
+      );
+
+
+    const url =
+      URL.createObjectURL(
+        blob
+      );
+
+
+    const a =
+      document.createElement(
+        'a'
+      );
+
+    a.href =
+      url;
+
+    a.download =
+      'preview.html';
+
+
+    document.body.appendChild(
+      a
+    );
+
+    a.click();
+
+    document.body.removeChild(
+      a
+    );
+
+
+    setTimeout(
+      () => {
+        URL.revokeObjectURL(
+          url
+        );
+      },
+      800
+    );
+
+
+    toast(
+      '已导出 preview.html'
+    );
+  }
+);
+
+
+/* ═══════════════════════════════════════════════════════════════
+   拖放
+═══════════════════════════════════════════════════════════════ */
+
+function isFileDrag(e){
+
+  return !!(
+    e.dataTransfer &&
+    e.dataTransfer.types &&
+    [...e.dataTransfer.types]
+      .includes('Files')
+  );
+}
+
+
+function previewDropType(e){
+
+  const files =
+    e.dataTransfer &&
+    e.dataTransfer.files;
+
+  if (
+    !files ||
+    !files.length
+  ){
+    return;
+  }
+
+
+  const file =
+    files[0];
+
+
+  if (
+    isAcceptableFile(file)
+  ){
+
+    document.body.classList.remove(
+      'reject-file'
+    );
+
+  }else{
+
+    document.body.classList.add(
+      'reject-file'
+    );
+  }
+}
+
+
+window.addEventListener(
+  'dragenter',
+  e => {
+
+    if (
+      !isFileDrag(e)
+    ){
+      return;
+    }
+
+    e.preventDefault();
+
+    dragDepth += 1;
+
+    document.body.classList.add(
+      'drag-over'
+    );
+
+    previewDropType(e);
+  }
+);
+
+
+window.addEventListener(
+  'dragover',
+  e => {
+
+    if (
+      !isFileDrag(e)
+    ){
+      return;
+    }
+
+    e.preventDefault();
+
+    e.dataTransfer.dropEffect =
+      'copy';
+
+    previewDropType(e);
+  }
+);
+
+
+window.addEventListener(
+  'dragleave',
+  e => {
+
+    if (
+      !isFileDrag(e)
+    ){
+      return;
+    }
+
+    e.preventDefault();
+
+    dragDepth =
+      Math.max(
+        0,
+        dragDepth - 1
+      );
+
+
+    if (
+      dragDepth === 0
+    ){
+
+      document.body.classList.remove(
+        'drag-over',
+        'reject-file'
+      );
+    }
+  }
+);
+
+
+window.addEventListener(
+  'drop',
+  e => {
+
+    if (
+      !isFileDrag(e)
+    ){
+      return;
+    }
+
+    e.preventDefault();
+
+    dragDepth = 0;
+
+    document.body.classList.remove(
+      'drag-over',
+      'reject-file'
+    );
+
+
+    const f =
+      e.dataTransfer.files &&
+      e.dataTransfer.files[0];
+
+    if (f){
+      loadFile(f);
+    }
+  }
+);
+
+
+/* ═══════════════════════════════════════════════════════════════
+   分隔条拖拽
+   —— 当前 .app 是 Flex，所以直接调整 editorPane
+═══════════════════════════════════════════════════════════════ */
+
+(function initSplitter(){
+
+  let dragging = false;
+
+  let startPos = 0;
+
+  let startSize = 0;
+
+
+  function isNarrow(){
+
+    return (
+      window.innerWidth <=
+      720
+    );
+  }
+
+
+  function paneSize(){
+
+    const rect =
+      editorPane.getBoundingClientRect();
+
+    return isNarrow()
+      ? rect.height
+      : rect.width;
+  }
+
+
+  function setSize(
+    px
+  ){
+
+    if (
+      isNarrow()
+    ){
+
+      const total =
+        window.innerHeight;
+
+      const min =
+        150;
+
+      const max =
+        Math.max(
+          min,
+          total - 155
+        );
+
+
+      px =
+        Math.max(
+          min,
+          Math.min(
+            px,
+            max
+          )
+        );
+
+
+      editorPane.style.height =
+        `${px}px`;
+
+      editorPane.style.width =
+        '100%';
+
+    }else{
+
+      const total =
+        window.innerWidth;
+
+      const min =
+        200;
+
+      const max =
+        Math.max(
+          min,
+          total - 205
+        );
+
+
+      px =
+        Math.max(
+          min,
+          Math.min(
+            px,
+            max
+          )
+        );
+
+
+      editorPane.style.width =
+        `${px}px`;
+
+      editorPane.style.height =
+        '';
+    }
+  }
+
+
+  splitter.addEventListener(
+    'pointerdown',
+    e => {
+
+      dragging = true;
+
+      splitter.classList.add(
+        'dragging'
+      );
+
+      splitter.setPointerCapture(
+        e.pointerId
+      );
+
+
+      startPos =
+        isNarrow()
+          ? e.clientY
+          : e.clientX;
+
+      startSize =
+        paneSize();
+    }
+  );
+
+
+  splitter.addEventListener(
+    'pointermove',
+    e => {
+
+      if (
+        !dragging
+      ){
+        return;
+      }
+
+
+      const current =
+        isNarrow()
+          ? e.clientY
+          : e.clientX;
+
+
+      setSize(
+        startSize +
+        (
+          current -
+          startPos
+        )
+      );
+    }
+  );
+
+
+  function stop(e){
+
+    if (
+      !dragging
+    ){
+      return;
+    }
+
+    dragging =
+      false;
+
+    splitter.classList.remove(
+      'dragging'
+    );
+
+
+    try{
+
+      splitter.releasePointerCapture(
+        e.pointerId
+      );
+
+    }catch{}
+  }
+
+
+  splitter.addEventListener(
+    'pointerup',
+    stop
+  );
+
+
+  splitter.addEventListener(
+    'pointercancel',
+    stop
+  );
+
+
+  /*
+    键盘调整。
+  */
+  splitter.addEventListener(
+    'keydown',
+    e => {
+
+      if (
+        !(
+          e.key === 'ArrowLeft' ||
+          e.key === 'ArrowRight' ||
+          e.key === 'ArrowUp' ||
+          e.key === 'ArrowDown'
+        )
+      ){
+        return;
+      }
+
+
+      e.preventDefault();
+
+
+      const step =
+        e.shiftKey
+          ? 40
+          : 10;
+
+
+      let cur =
+        paneSize();
+
+
+      if (
+        e.key === 'ArrowLeft' ||
+        e.key === 'ArrowUp'
+      ){
+
+        cur -= step;
+
+      }else{
+
+        cur += step;
+      }
+
+
+      setSize(
+        cur
+      );
+    }
+  );
+
+
+})();
+
+
+/* ══ 跨断点处理 ══ */
+
+let lastNarrow =
+  window.innerWidth <= 720;
+
+
+window.addEventListener(
+  'resize',
+  () => {
+
+    const narrow =
+      window.innerWidth <= 720;
+
+
+    if (
+      narrow ===
+      lastNarrow
+    ){
+      return;
+    }
+
+
+    /*
+      从桌面 ↔ 移动端切换时，
+      清掉手动尺寸。
+    */
+    editorPane.style.width =
+      '';
+
+    editorPane.style.height =
+      '';
+
+
+    splitter.setAttribute(
+      'aria-orientation',
+      narrow
+        ? 'horizontal'
+        : 'vertical'
+    );
+
+
+    lastNarrow =
+      narrow;
+  }
+);
+
+
+/* ═══════════════════════════════════════════════════════════════
+   快捷键
+═══════════════════════════════════════════════════════════════ */
+
+window.addEventListener(
+  'keydown',
+  e => {
+
+    const meta =
+      e.metaKey ||
+      e.ctrlKey;
+
+
+    /*
+      Ctrl+S 导出
+    */
+    if (
+      meta &&
+      (
+        e.key === 's' ||
+        e.key === 'S'
+      )
+    ){
+
+      e.preventDefault();
+
+      btnExport.click();
+
+      return;
+    }
+
+
+    /*
+      Ctrl+O 导入
+    */
+    if (
+      meta &&
+      (
+        e.key === 'o' ||
+        e.key === 'O'
+      )
+    ){
+
+      e.preventDefault();
+
+      btnImport.click();
+
+      return;
+    }
+
+
+    /*
+      Ctrl+`
+    */
+    if (
+      meta &&
+      e.key === '`'
+    ){
+
+      e.preventDefault();
+
+      toggleConsole();
+
+      return;
+    }
+
+
+    /*
+      1/2/3 切换 Tab。
+      仅在焦点位于 body 时触发。
+    */
+    if (
+      e.target ===
+      document.body
+    ){
+
+      if (
+        e.key === '1'
+      ){
+        switchTab('html');
+
+      }else if (
+        e.key === '2'
+      ){
+        switchTab('css');
+
+      }else if (
+        e.key === '3'
+      ){
+        switchTab('js');
+      }
+    }
+  }
+);
+
+
+/* ═══════════════════════════════════════════════════════════════
+   启动
+═══════════════════════════════════════════════════════════════ */
+
+editor.value =
+  code.html;
+
+refreshEditor();
+
+run(false);
+
+</script>
+
+</body>
+</html>

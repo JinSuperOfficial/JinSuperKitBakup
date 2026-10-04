@@ -1,0 +1,16 @@
+{
+  "items": [
+    {
+      "file": "func-v5.html",
+      "title": "函数显示器-OLD-VER5",
+      "desc": "画函数、隐式、极坐标、参数方程，两点定直线画笔，网格吸附，六套配色，全套 JSON 导入导出。",
+      "kind": "canvas"
+    },
+    {
+      "file": "func-v4.html",
+      "title": "函数显示器-OLD-VER4",
+      "desc": "三栏编辑器，HTML / CSS / JS 分标签编写，实时预览，带控制台和错误提示，支持导入导出 HTML。",
+      "kind": "tool"
+    }
+  ]
+}

@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="../favicon.svg">
+<link rel="apple-touch-icon" href="../apple-touch-icon.svg">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>目录</title>
+<style>
+  :root{
+    --bg:#0E1214; --raised:#151B1E; --line:#212A2F; --line-soft:#1A2226;
+    --ink:#E7E9E6; --dim:#7E8A90; --faint:#7A868C;
+    --accent:#D97757; --lime:#E1FCAD;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --ease-out:cubic-bezier(.2,.7,.2,1);
+    --dur-fast:130ms; --dur-base:220ms;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:"Inter","Segoe UI",-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    font-size:14px;
+    -webkit-font-smoothing:antialiased;
+    min-height:100dvh;
+  }
+
+  .bg{
+    position:fixed; inset:0; z-index:-1; pointer-events:none;
+    background:
+      radial-gradient(900px 520px at 88% -12%, #1A2328 0%, transparent 62%),
+      radial-gradient(700px 480px at 0% 110%, #141C20 0%, transparent 58%),
+      linear-gradient(180deg,#0F1316 0%,#0C1012 100%);
+  }
+  .bg::after{
+    content:''; position:absolute; inset:0; opacity:.028;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/></filter><rect width='140' height='140' filter='url(%23n)'/></svg>");
+  }
+
+  .shell{
+    max-width:940px; margin:0 auto;
+    padding:clamp(28px,5vh,56px) clamp(20px,5vw,40px) 80px;
+  }
+
+  .head{
+    display:flex; align-items:flex-end; justify-content:space-between;
+    gap:24px; padding-bottom:22px;
+    border-bottom:1px solid var(--line);
+    margin-bottom:22px;
+  }
+  @media (max-width:560px){
+    .head{flex-direction:column; align-items:flex-start; gap:14px}
+  }
+
+  .path{
+    display:flex; flex-wrap:wrap; align-items:center; gap:8px;
+    font-family:var(--mono); font-size:12px; color:var(--faint);
+    letter-spacing:.02em; margin-bottom:10px;
+    min-height:16px;
+  }
+  .path b{color:#8B959B;font-weight:500}
+  .path .sep{color:#2A343A}
+  .path .root{color:var(--accent)}
+
+  h1{
+    margin:0;
+    font-size:clamp(22px,3.4vw,30px);
+    font-weight:640; letter-spacing:-.014em;
+    line-height:1.15;
+  }
+  h1 em{
+    font-style:normal; color:var(--accent);
+    font-family:var(--mono);
+    font-weight:600; letter-spacing:-.02em;
+  }
+
+  .counter{
+    display:flex; align-items:baseline; gap:7px;
+    font-family:var(--mono); color:var(--faint);
+    font-size:11.5px; letter-spacing:.04em;
+  }
+  .counter b{
+    font-size:26px; color:var(--ink); font-weight:600;
+    letter-spacing:-.03em; line-height:1;
+    font-variant-numeric:tabular-nums;
+  }
+  .counter .ms{color:#3D474D}
+
+  .bar{
+    display:flex; align-items:center; gap:10px;
+    margin-bottom:14px;
+  }
+  .search{flex:1; position:relative}
+  .search svg{
+    position:absolute; left:11px; top:50%; transform:translateY(-50%);
+    width:13px; height:13px; color:#4A555C; pointer-events:none;
+  }
+  .search input{
+    width:100%; padding:9px 12px 9px 32px;
+    background:var(--raised); border:1px solid var(--line); border-radius:5px;
+    color:var(--ink); font-family:var(--mono); font-size:12.5px;
+    outline:none;
+    transition:border-color var(--dur-fast) var(--ease-out),
+               background var(--dur-fast) var(--ease-out);
+  }
+  .search input::placeholder{color:#464F55}
+  .search input:focus{border-color:#39444B;background:#1A2125}
+  .search input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+
+  .btn{
+    display:inline-flex; align-items:center; gap:6px;
+    padding:9px 12px;
+    background:var(--raised); border:1px solid var(--line); border-radius:5px;
+    color:#8B959B; font-family:var(--mono); font-size:12px;
+    cursor:pointer;
+    transition:border-color var(--dur-fast) var(--ease-out),
+               color var(--dur-fast) var(--ease-out),
+               background var(--dur-fast) var(--ease-out),
+               transform var(--dur-fast) var(--ease-out);
+  }
+  .btn:hover{border-color:#3A464E;color:var(--ink);background:#1A2125}
+  .btn:active{transform:scale(.97)}
+  .btn:disabled{opacity:.5;cursor:wait}
+  .btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .btn svg{width:12px;height:12px}
+  .btn.spin svg{animation:spin .9s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .list{
+    list-style:none; margin:0; padding:0;
+    border-top:1px solid var(--line);
+  }
+
+  .row{
+    display:grid;
+    grid-template-columns:28px 22px minmax(120px,auto) minmax(0,1fr) auto 14px;
+    align-items:center;
+    gap:14px;
+    padding:13px 6px 13px 4px;
+    border-bottom:1px solid var(--line-soft);
+    color:inherit; text-decoration:none;
+    position:relative;
+    transition:background var(--dur-fast) var(--ease-out),
+               padding var(--dur-fast) var(--ease-out);
+  }
+  .row::before{
+    content:''; position:absolute; left:-20px; top:0; bottom:0;
+    width:1px; background:var(--line);
+    opacity:.5;
+    transition:background var(--dur-fast) var(--ease-out);
+  }
+  .row:hover{
+    background:linear-gradient(90deg,rgba(215,119,87,.045),transparent 60%);
+    padding-left:8px;
+  }
+  .row:hover::before{background:var(--accent)}
+  .row:focus-visible{
+    outline:2px solid var(--accent); outline-offset:-2px;
+    border-radius:3px;
+  }
+  .row:active{padding-left:6px}
+
+  .num{
+    font-family:var(--mono); font-size:11.5px;
+    color:#39434A; text-align:right;
+    font-variant-numeric:tabular-nums;
+    transition:color var(--dur-fast) var(--ease-out);
+  }
+  .row:hover .num{color:var(--accent)}
+
+  .ico{
+    width:22px; height:22px;
+    display:grid; place-items:center;
+    color:#5E6A70;
+    transition:color var(--dur-fast) var(--ease-out),
+               transform var(--dur-fast) var(--ease-out);
+  }
+  .ico svg{width:16px;height:16px}
+  .row:hover .ico{color:var(--accent);transform:translateX(1px)}
+
+  .name{
+    font-family:var(--mono); font-size:13px;
+    color:var(--ink); letter-spacing:-.005em;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+
+  .label{
+    font-size:13px; color:var(--dim);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    min-width:0;
+  }
+  .label::before{
+    content:'·'; color:#2E383E;
+    margin:0 10px 0 4px;
+  }
+  .label.empty{color:#3E484E;font-style:italic}
+  .label.empty::before{color:#2A343A}
+
+  .kind{
+    font-family:var(--mono); font-size:10px; letter-spacing:.1em;
+    text-transform:uppercase; color:#4C565C;
+    padding:3px 7px; border-radius:3px;
+    background:rgba(255,255,255,.02);
+    transition:color var(--dur-fast) var(--ease-out),
+               background var(--dur-fast) var(--ease-out);
+  }
+  .row:hover .kind{color:#98A3A9;background:rgba(255,255,255,.04)}
+
+  .arrow{
+    color:#39434A;
+    display:grid; place-items:center;
+    transition:color var(--dur-fast) var(--ease-out),
+               transform var(--dur-fast) var(--ease-out);
+  }
+  .arrow svg{width:13px;height:13px}
+  .row:hover .arrow{color:var(--accent);transform:translateX(3px)}
+
+  @media (max-width:560px){
+    .row{
+      grid-template-columns:22px 20px minmax(0,1fr) auto 12px;
+      gap:11px;
+    }
+    .label{display:none}
+  }
+
+  .skel{
+    height:48px;
+    border-bottom:1px solid var(--line-soft);
+    background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.025) 40%,transparent 80%);
+    background-size:200% 100%;
+    animation:shimmer 1.4s linear infinite;
+  }
+  @keyframes shimmer{to{background-position:-200% 0}}
+
+  .empty{
+    padding:52px 24px;
+    text-align:center;
+    border-bottom:1px solid var(--line-soft);
+  }
+  .empty h3{
+    margin:0 0 8px; font-size:14px; font-weight:600;
+    color:#B0B8BD;
+  }
+  .empty p{
+    margin:0 auto; font-size:12.5px; color:var(--faint);
+    line-height:1.8; max-width:52ch;
+  }
+  .empty code{
+    font-family:var(--mono); font-size:11.5px; color:#8B959B;
+    background:rgba(255,255,255,.04); padding:2px 5px; border-radius:3px;
+  }
+  .empty pre{
+    font-family:var(--mono); font-size:11px; line-height:1.65;
+    color:#7E8A90; background:rgba(255,255,255,.022);
+    border:1px solid var(--line); border-radius:5px;
+    padding:12px 14px; margin:16px auto 0;
+    max-width:400px; text-align:left; overflow-x:auto;
+  }
+
+  .foot{
+    display:flex; flex-wrap:wrap; gap:10px; justify-content:space-between;
+    margin-top:20px;
+    font-family:var(--mono); font-size:11px; color:#3B454B;
+    letter-spacing:.02em;
+  }
+  .foot a{
+    color:#5E6A70; text-decoration:none;
+    border-bottom:1px solid transparent;
+    transition:color var(--dur-fast) var(--ease-out),
+               border-color var(--dur-fast) var(--ease-out);
+  }
+  .foot a:hover{color:var(--accent);border-bottom-color:rgba(215,119,87,.35)}
+
+  /* ── 自定义右键菜单 ── */
+  .ctx{
+    position:fixed; z-index:200;
+    min-width:200px; max-width:280px;
+    padding:5px;
+    background:rgba(20,25,28,.98);
+    backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+    border:1px solid var(--line); border-radius:7px;
+    box-shadow:0 16px 40px -12px rgba(0,0,0,.7),
+               0 0 0 1px rgba(255,255,255,.02) inset;
+    opacity:0; transform:translateY(-4px) scale(.97);
+    transform-origin:top left;
+    pointer-events:none;
+    transition:opacity 140ms var(--ease-out),
+               transform 140ms var(--ease-out);
+  }
+  .ctx.show{opacity:1; transform:none; pointer-events:auto}
+
+  .ctx-item{
+    display:flex; align-items:center; gap:11px;
+    padding:8px 11px; border-radius:5px;
+    color:#A8B2B7; font-size:12.5px;
+    cursor:pointer; user-select:none;
+    transition:background 100ms var(--ease-out),
+               color 100ms var(--ease-out);
+  }
+  .ctx-item:hover{background:rgba(255,255,255,.055); color:var(--ink)}
+  .ctx-item:active{background:rgba(255,255,255,.09)}
+  .ctx-item.disabled{
+    color:#3A444A; cursor:not-allowed;
+    pointer-events:none;
+  }
+  .ctx-item .ico{
+    width:15px; height:15px; flex:none;
+    display:grid; place-items:center; color:#5E6A70;
+    transition:color 100ms var(--ease-out);
+  }
+  .ctx-item:hover .ico{color:var(--accent)}
+  .ctx-item .ico svg{width:14px;height:14px}
+  .ctx-item .label{flex:1; min-width:0;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .ctx-item .label::before{content:none}
+  .ctx-item .key{
+    font-family:var(--mono); font-size:10.5px;
+    color:#3E484E; letter-spacing:.04em; flex:none;
+  }
+  .ctx-item:hover .key{color:#5E6A70}
+
+  .ctx-sep{
+    height:1px; margin:4px 8px;
+    background:var(--line);
+  }
+
+  .ctx-head{
+    padding:7px 11px 8px;
+    font-family:var(--mono); font-size:10px;
+    letter-spacing:.11em; text-transform:uppercase;
+    color:#3E484E; user-select:none;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+
+  @keyframes row-in{
+    from{opacity:0;transform:translateY(6px)}
+    to{opacity:1;transform:translateY(0)}
+  }
+  @keyframes fade-in{
+    from{opacity:0}
+    to{opacity:1}
+  }
+  @media (prefers-reduced-motion:no-preference){
+    .head{animation:fade-in 400ms var(--ease-out) both}
+    .bar{animation:fade-in 400ms 80ms var(--ease-out) both}
+    .list .row,
+    .list .skel,
+    .list .empty{
+      animation:row-in 300ms var(--ease-out) both;
+    }
+    .list > *:nth-child(1){animation-delay:140ms}
+    .list > *:nth-child(2){animation-delay:170ms}
+    .list > *:nth-child(3){animation-delay:200ms}
+    .list > *:nth-child(4){animation-delay:230ms}
+    .list > *:nth-child(5){animation-delay:260ms}
+    .list > *:nth-child(n+6){animation-delay:290ms}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{
+      animation-duration:.01ms !important;
+      animation-iteration-count:1 !important;
+      transition-duration:.01ms !important;
+    }
+    .ctx, .ctx-item, .ctx-item .ico{
+      transition-duration:.01ms !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="bg"></div>
+
+<div class="shell">
+
+  <header class="head">
+    <div>
+      <div class="path" id="path"></div>
+      <h1>「<em id="dirName">/</em>」里有什么</h1>
+    </div>
+    <div class="counter">
+      <b id="count">—</b>
+      <span>个文件</span>
+      <span class="ms" id="time"></span>
+    </div>
+  </header>
+
+  <div class="bar">
+    <div class="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round">
+        <circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>
+      </svg>
+      <input id="q" type="search" placeholder="过滤文件名或描述…"
+             autocomplete="off" aria-label="过滤文件">
+    </div>
+    <button class="btn" id="reload" aria-label="重新读取">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12a9 9 0 1 1-2.6-6.4"/>
+        <path d="M21 4v5h-5"/>
+      </svg>
+      读取
+    </button>
+  </div>
+
+  <ol class="list" id="list"></ol>
+
+  <div class="foot">
+    <span>数据来自 <a id="manifestLink" href="#">skills.json</a></span>
+    <span id="footHint">加文件 = 丢进来 + 清单写一行</span>
+  </div>
+
+</div>
+
+<div class="ctx" id="ctx" role="menu" aria-hidden="true"></div>
+
+<script src="/lib/manifest.js"></script>
+<script>
+/* ═══════════════════════════════════════════════════
+   目录地图 · 自动检测当前目录
+   ═══════════════════════════════════════════════════
+
+   这个 index.html 放在哪，就以哪里为根。
+   路径全部从 URL 推导，用绝对路径访问。
+*/
+
+/* ── 从当前 URL 反推目录 ── */
+function detectDir(){
+  let p = window.location.pathname;
+
+  /* 末尾是文件名（xxx.html / xxx.php …），去掉它 */
+  if (/\.[a-z0-9]+$/i.test(p)){
+    p = p.replace(/\/[^\/]*$/, '');
+  }
+
+  /* 保证末尾带 / */
+  if (!p.endsWith('/')) p += '/';
+
+  if (p === '') p = '/';
+
+  return p;
+}
+
+const DIR = detectDir();                  // 例：'/Skills/' 或 '/'
+const MANIFEST = DIR + 'skills.json';     // 例：'/Skills/skills.json'
+
+/* 站点运行时：清单归一 / 排序 / 图标 / 路径编码都在里面（见 MANIFEST.md） */
+const M = window.JSManifest;
+
+/** 列表里显示用的路径：Skills 自己的文件去掉前缀，站里其它位置显示完整路径 */
+function shownPath(href){
+  const p = M.sitePath(href);
+  return p.indexOf('Skills/') === 0 ? p.slice('Skills/'.length) : p;
+}
+
+/* ── 面包屑 ── */
+function renderPath(){
+  const segs = DIR.split('/').filter(Boolean);
+  const pathEl = document.getElementById('path');
+  const nameEl = document.getElementById('dirName');
+
+  let html = `<b class="root">/</b>`;
+  segs.forEach(s => {
+    html += `<span class="sep">›</span><b>${esc(s)}</b>`;
+  });
+  pathEl.innerHTML = html;
+
+  nameEl.textContent = segs.length ? (segs[segs.length - 1] + '/') : '/';
+
+  const link = document.getElementById('manifestLink');
+  link.href = MANIFEST;
+  link.textContent = MANIFEST;
+  document.getElementById('footHint').textContent =
+    '加文件 = 丢进 ' + DIR + ' + 清单写一行';
+}
+
+/* ── 图标 / kind / 路径 ──
+   以前这里有一份 ICONS + RULES + guessKind + titleFromFile + encPath，五个页面各抄一份。
+   现在由站点运行时统一提供：M.iconSvg(name, 1.8) / it.kind / M.sitePath(href)。 */
+
+function tick(el, to, dur = 600){
+  const from = Number(el.dataset.from || 0);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce || from === to){
+    el.textContent = String(to);
+    el.dataset.from = String(to);
+    return;
+  }
+  const t0 = performance.now();
+  (function loop(now){
+    const t = Math.min(1, (now - t0) / dur);
+    const e = 1 - Math.pow(1 - t, 3);
+    el.textContent = String(Math.round(from + (to - from) * e));
+    if (t < 1) requestAnimationFrame(loop);
+    else el.dataset.from = String(to);
+  })(t0);
+}
+
+/* ── DOM ── */
+const listEl   = document.getElementById('list');
+const qEl      = document.getElementById('q');
+const countEl  = document.getElementById('count');
+const timeEl   = document.getElementById('time');
+const reloadBtn= document.getElementById('reload');
+
+let items = [];
+
+/* ── 读取清单 ── */
+async function readManifest(){
+  try{
+    const res = await fetch(MANIFEST, { cache:'no-store' });
+    if (!res.ok) return null;
+
+    /* 先读文本，防止 404 返回 HTML 被当成 JSON */
+    const text = await res.text();
+    const head = text.trim().slice(0, 40);
+    if (!head.startsWith('{') && !head.startsWith('[')) return null;
+
+    let data;
+    try { data = JSON.parse(text); }
+    catch { return null; }
+
+    if (!data || (!Array.isArray(data) && !Array.isArray(data.items))) return null;
+
+    /* 归一交给站点运行时：hidden 过滤、order 排序、id 去重、图标与路径换算都在里面 */
+    const col = M.normalizeCollection(data, { base: DIR, collection: 'skills' });
+    M.logProblems(col.problems, 'Skills');
+    return col.items;
+  } catch {
+    return null;
+  }
+}
+
+/* ── 主流程 ── */
+async function reload(){
+  setBusy(true);
+  const t0 = performance.now();
+
+  const data = await readManifest();
+  items = data || [];
+
+  const ms = Math.round(performance.now() - t0);
+  tick(countEl, items.length);
+  timeEl.textContent = ms + 'ms';
+
+  render();
+  setBusy(false);
+}
+
+function setBusy(on){
+  reloadBtn.classList.toggle('spin', on);
+  reloadBtn.disabled = on;
+  if (on){
+    listEl.innerHTML = Array.from({ length: 4 }, () =>
+      '<li class="skel"></li>').join('');
+  }
+}
+
+/* ── 渲染 ── */
+const esc = s => String(s).replace(/[&<>"]/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function render(){
+  const q = qEl.value.trim().toLowerCase();
+
+  const rows = !q ? items : items.filter(it =>
+    (it.href + ' ' + it.id + ' ' + it.title + ' ' + it.desc + ' ' + it.kind + ' ' + it.tags.join(' '))
+      .toLowerCase().includes(q)
+  );
+
+  if (rows.length === 0){
+    listEl.innerHTML = items.length === 0
+      ? `<li class="empty">
+           <h3>目录里还没有登记文件</h3>
+           <p>在 <code>${esc(DIR)}</code> 下建一个 <code>skills.json</code>，
+              把文件写进去。格式如下。</p>
+           <pre>{
+  "collection": "skills",
+  "title": "工具站",
+  "root": "/Skills/",
+  "items": [
+    {
+      "id": "function",
+      "title": "函数显示器",
+      "desc": "一句话介绍",
+      "href": "/Skills/standalone/function.html",
+      "icon": "curve",
+      "kind": "canvas"
+    }
+  ]
+}</pre>
+         </li>`
+      : `<li class="empty">
+           <h3>没有匹配的</h3>
+           <p>换个词试试，或者清空过滤框。</p>
+         </li>`;
+    return;
+  }
+
+  listEl.innerHTML = rows.map((it, i) => {
+    const icon = M.iconSvg(it.icon, 1.8);      /* 1.8：和这一页原来的描边粗细一致 */
+    const num  = String(i + 1).padStart(2, '0');
+
+    return `
+      <li>
+        <a class="row" href="${it.href}" target="_blank" rel="noopener"
+           data-id="${esc(it.id)}" data-key="${esc(it.key)}" data-href="${esc(it.href)}">
+          <span class="num">${num}</span>
+          <span class="ico" aria-hidden="true">${icon}</span>
+          <span class="name">${esc(shownPath(it.href))}</span>
+          <span class="label${it.title ? '' : ' empty'}">${
+            esc(it.title || '（还没写描述）')
+          }</span>
+          <span class="kind">${esc(it.kind)}</span>
+          <span class="arrow" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12h13"/><path d="m13 6 6 6-6 6"/>
+            </svg>
+          </span>
+        </a>
+      </li>`;
+  }).join('');
+}
+
+/* ── 事件 ── */
+let qTimer = null;
+qEl.addEventListener('input', () => {
+  clearTimeout(qTimer);
+  qTimer = setTimeout(render, 90);
+});
+
+reloadBtn.addEventListener('click', reload);
+
+/* ═══════════════════════════════════════════════════
+   自定义右键菜单
+   ═══════════════════════════════════════════════════ */
+
+const ctxEl = document.getElementById('ctx');
+
+const CTX_ICONS = {
+  open:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6"/><path d="M20 4 10 14"/><path d="M20 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5"/></svg>`,
+  copy:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/></svg>`,
+  link:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>`,
+  code:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m9 8-4 4 4 4"/><path d="m15 8 4 4-4 4"/></svg>`,
+  file:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v6h6"/></svg>`,
+  reload: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 4v5h-5"/></svg>`,
+  search: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>`,
+  top:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V6"/><path d="m6 12 6-6 6 6"/></svg>`,
+  home:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1Z"/></svg>`,
+};
+
+/* 在卡片行上右键 */
+function menuForRow(rowData){
+  return [
+    { head: rowData.path },
+
+    { icon: CTX_ICONS.open, label: '在新标签页打开',
+      key: '↵', action: () => window.open(rowData.href, '_blank', 'noopener') },
+
+    { icon: CTX_ICONS.link, label: '复制链接',
+      action: () => copyText(new URL(rowData.href, location.origin).href, '链接已复制') },
+
+    { icon: CTX_ICONS.code, label: '复制文件名',
+      action: () => copyText(rowData.path, '文件名已复制') },
+
+    { icon: CTX_ICONS.file, label: '查看源码',
+      action: () => window.open(
+        DIR + 'viewer.html?f=' + encodeURIComponent(rowData.href),
+        '_blank',
+        'noopener'
+      ) },
+
+    { sep: true },
+
+    { icon: CTX_ICONS.search, label: '过滤此文件',
+      action: () => { qEl.value = rowData.path; render(); qEl.focus(); } },
+
+    { icon: CTX_ICONS.reload, label: '重新读取清单',
+      key: 'R', action: reload },
+  ];
+}
+
+/* 在空白处右键 */
+function menuForBlank(){
+  return [
+    { head: DIR },
+
+    { icon: CTX_ICONS.reload, label: '重新读取清单',
+      key: 'R', action: reload },
+
+    { icon: CTX_ICONS.link, label: '复制当前地址',
+      action: () => copyText(location.href, '地址已复制') },
+
+    { icon: CTX_ICONS.file, label: '打开 skills.json',
+      action: () => window.open(MANIFEST, '_blank', 'noopener') },
+
+    { sep: true },
+
+    { icon: CTX_ICONS.search, label: '聚焦搜索框',
+      key: '/', action: () => qEl.focus() },
+
+    { icon: CTX_ICONS.top, label: '回到顶部',
+      key: '↑', action: () => window.scrollTo({ top: 0, behavior: 'smooth' }) },
+
+    { icon: CTX_ICONS.home, label: '回到网站根目录',
+      action: () => location.href = '/' },
+  ];
+}
+
+/* ── 通用 ── */
+
+async function copyText(text, tip){
+  try{
+    await navigator.clipboard.writeText(text);
+    flash(tip);
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;top:-1000px;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); flash(tip); }
+    catch { flash('复制失败', true); }
+    document.body.removeChild(ta);
+  }
+}
+
+let flashTimer = null;
+function flash(msg, isErr){
+  let el = document.getElementById('flash');
+  if (!el){
+    el = document.createElement('div');
+    el.id = 'flash';
+    el.style.cssText = `
+      position:fixed; right:20px; bottom:20px; z-index:300;
+      padding:9px 14px; border-radius:6px;
+      font-family:var(--mono); font-size:12px;
+      background:rgba(20,25,28,.96);
+      border:1px solid var(--line);
+      color:var(--ink);
+      opacity:0; transform:translateY(6px);
+      pointer-events:none;
+      transition:opacity 160ms cubic-bezier(.2,.7,.2,1),
+                 transform 160ms cubic-bezier(.2,.7,.2,1);
+    `;
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.style.borderColor = isErr ? 'rgba(215,119,87,.6)' : 'var(--line)';
+  el.style.color = isErr ? '#F0A98F' : 'var(--ink)';
+  requestAnimationFrame(() => {
+    el.style.opacity = '1';
+    el.style.transform = 'none';
+  });
+  clearTimeout(flashTimer);
+  flashTimer = setTimeout(() => {
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(6px)';
+  }, 1800);
+}
+
+/* ── 渲染并定位菜单 ── */
+
+function openCtx(x, y, items){
+  ctxEl.innerHTML = items.map(it => {
+    if (it.sep) return '<div class="ctx-sep"></div>';
+    if (it.head) return `<div class="ctx-head">${esc(it.head)}</div>`;
+    return `
+      <div class="ctx-item${it.disabled ? ' disabled' : ''}" role="menuitem" tabindex="0">
+        <span class="ico">${it.icon || ''}</span>
+        <span class="label">${esc(it.label)}</span>
+        ${it.key ? `<span class="key">${esc(it.key)}</span>` : ''}
+      </div>`;
+  }).join('');
+
+  const realItems = items.filter(it => !it.sep && !it.head);
+  ctxEl.querySelectorAll('.ctx-item').forEach((el, i) => {
+    const it = realItems[i];
+    if (!it) return;
+    el.addEventListener('click', e => {
+      e.stopPropagation();
+      closeCtx();
+      if (it.action) it.action();
+    });
+  });
+
+  ctxEl.classList.add('show');
+  ctxEl.setAttribute('aria-hidden', 'false');
+
+  const rect = ctxEl.getBoundingClientRect();
+  const pad = 10;
+
+  let left = x, top = y;
+  if (left + rect.width + pad > innerWidth)  left = x - rect.width;
+  if (top  + rect.height + pad > innerHeight) top  = y - rect.height;
+  left = Math.max(pad, Math.min(left, innerWidth  - rect.width  - pad));
+  top  = Math.max(pad, Math.min(top,  innerHeight - rect.height - pad));
+
+  ctxEl.style.left = left + 'px';
+  ctxEl.style.top  = top  + 'px';
+}
+
+function closeCtx(){
+  ctxEl.classList.remove('show');
+  ctxEl.setAttribute('aria-hidden', 'true');
+}
+
+/* ── 事件绑定 ── */
+
+document.addEventListener('contextmenu', e => {
+  const tag = (e.target && e.target.tagName) || '';
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+  e.preventDefault();
+
+  const row = e.target.closest('.row');
+  if (row){
+    const href = row.dataset.href || row.getAttribute('href');
+    openCtx(e.clientX, e.clientY, menuForRow({ href, path: shownPath(href) }));
+  } else {
+    openCtx(e.clientX, e.clientY, menuForBlank());
+  }
+});
+
+document.addEventListener('pointerdown', e => {
+  if (!ctxEl.contains(e.target)) closeCtx();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeCtx();
+
+  const tag = (e.target && e.target.tagName) || '';
+  const inField = tag === 'INPUT' || tag === 'TEXTAREA';
+  if (!inField && e.key === '/'){
+    e.preventDefault();
+    qEl.focus();
+  }
+  if (!inField && (e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey){
+    e.preventDefault();
+    reload();
+  }
+});
+
+window.addEventListener('scroll', closeCtx, { passive: true });
+window.addEventListener('resize', closeCtx);
+
+/* ── 启动 ── */
+renderPath();
+document.title = DIR + ' · 目录';
+reload();
+</script>
+</body>
+</html>
