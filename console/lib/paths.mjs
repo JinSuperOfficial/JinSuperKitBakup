@@ -75,6 +75,18 @@ export const DEFAULT_SETTINGS = {
   skPath: 'sk.json',
   /** 危险操作（删除 / 覆盖 / 回滚）要不要二次确认 */
   confirmDanger: true,
+
+  /* ── 预览 ── */
+  /** 预览服务端口（控制台自己是 8791，刻意错开） */
+  previewPort: 8790,
+  /** 进「预览」面板就自动开服务 */
+  previewAutoStart: false,
+  /** 服务开起来之后自动打开首页 */
+  previewOpenAfterStart: true,
+  /** 点页面时的默认行为：auto=没开就先开再打开 / server=只打开（服务得先开着）/ path=只复制路径 */
+  previewClickMode: 'auto',
+  /** 页面清单来源：auto=清单优先目录兜底 / manifest=只看清单 / dir=只扫目录 */
+  previewTreeSource: 'auto',
 };
 
 /* ── 路径解析 ── */

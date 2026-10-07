@@ -15,6 +15,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { siteRoot } from '../paths.mjs';
 import { loadManifestLib, readCollection } from './site-lib.mjs';
+import { listPosts, listArchivedDocs } from './posts.mjs';
 
 /* 扫盘时跳过的目录（构建工具、依赖、版本库） */
 const SKIP_DIRS = new Set(['node_modules', '.git', 'build', 'dist', '.npm-cache', '.deno-cache']);
@@ -44,15 +45,17 @@ export function readAllCollections(site) {
    ═══════════════════════════════════════════════════ */
 
 export function buildSitemap(site, collections) {
-  /* 顺序：首页 → 各 collection 落地页 → 各条目 → site.json 里的额外条目。
+  /* 顺序：首页 → 各 collection 落地页 → 各条目 → 博客文章页 → site.json 里的额外条目。
      同一地址重复出现时后面的覆盖前面的，所以手工条目能抬优先级。 */
   const order = [];
   const priority = new Map();
-  const push = (loc, p) => {
+  const lastmod = new Map();
+  const push = (loc, p, mod) => {
     if (!loc) return;
     if (/^[a-z][a-z0-9+.-]*:/i.test(loc) || loc.startsWith('//')) return;   /* 外链不进 sitemap */
     if (!priority.has(loc)) order.push(loc);
     priority.set(loc, p);
+    if (mod) lastmod.set(loc, mod);
   };
 
   push('/', 1.0);
@@ -60,10 +63,26 @@ export function buildSitemap(site, collections) {
   for (const col of collections) {
     for (const it of col.items) push(it.href, it.priority == null ? 0.6 : it.priority);
   }
+
+  /* 博客文章：每篇 .md 都有自己的静态页（/p/post/…），那才是能被单独收录的
+     地址 —— /p/docs.html#xxx 在搜索引擎眼里和 /p/docs.html 是同一个页面。
+     lastmod 取 frontmatter 的 updated / date，没有就不写这一项。 */
+  const posts = listPosts();
+  for (const post of posts) {
+    push(post.href, 0.7, post.updated || post.date || '');
+  }
+
+  /* 归档稿：发布控制台烘出来的独立页面，也是文章，同样要能被搜到。
+     （和活着的 .md 同名的那几篇会被 listArchivedDocs 排掉，避免重复内容。） */
+  for (const doc of listArchivedDocs(posts)) {
+    push(doc.href, 0.6);
+  }
+
   for (const ex of site.extraUrls || []) push(ex.loc, ex.priority == null ? 0.6 : ex.priority);
 
   const body = order.map((loc) =>
     `  <url><loc>https://jinsuper{$rthSuffix}${loc}</loc>` +
+    (lastmod.get(loc) ? `<lastmod>${lastmod.get(loc)}</lastmod>` : '') +
     `<priority>${Number(priority.get(loc)).toFixed(1)}</priority></url>`).join('\n');
 
   return '<?xml version="1.0" encoding="UTF-8"?>\n' +

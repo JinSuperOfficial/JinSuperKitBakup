@@ -1,13 +1,11 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-theme="obsidian" data-glass="mica" data-outline="docked">
+<html lang="zh-CN" data-theme="obsidian" data-glass="mica" data-outline="on">
 <head>
 <meta charset="UTF-8">
 <!-- __FAVICON__ -->
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="JinSuper 网站文档栏目，读取 sk.json 清单，集中阅读 Markdown、HTML 与文本资料。">
-<title>文档 · JinSuper</title>
-
-<!-- Markdown 渲染：markdown-it + 插件 + KaTeX，均为外部文件 -->
+<!-- __SEO__ -->
+<!-- 正文渲染：markdown-it + 插件 + KaTeX，构建时全部本地化（下面几行外链会被换掉） -->
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css">
@@ -39,7 +37,8 @@
     var g = localStorage.getItem('docs.glass');
     if (g) d.setAttribute('data-glass', g);
     var o = localStorage.getItem('docs.outline');
-    if (o) d.setAttribute('data-outline', o);
+    /* 老版本存的是 'docked' / 'float'（目录跟着滚动走），现在只有显示/隐藏 */
+    if (o) d.setAttribute('data-outline', o === 'off' ? 'off' : 'on');
     var a = parseInt(localStorage.getItem('docs.barOpacity'), 10);
     if (a) d.style.setProperty('--bar-alpha', a + '%');
     if (localStorage.getItem('docs.sideCollapsed') === 'true') d.classList.add('side-collapsed');
@@ -82,8 +81,10 @@
      不支持就当它不存在，圆角退回上面这几档 */
   --curve:squircle;
 
-  --sidebar-w:280px;
+  --sidebar-w:300px;
   --bar-h:52px;
+  /* 站点顶栏高度：main-bar 的 sticky 偏移、目录跳转的落点都按它算 */
+  --nav-h:40px;
   --fs-md:15px;
 
   /* 顶栏半透明：不透明度 + 光学参数，各效果在 html[data-glass] 里覆盖 */
@@ -269,7 +270,7 @@
   --shadow:0 20px 50px -32px rgba(50,60,35,.28), 0 2px 10px -6px rgba(50,60,35,.12);
 }
 
-html,body{margin:0;height:100%}
+html,body{margin:0}
 
 body{
   background:var(--bg);
@@ -278,31 +279,72 @@ body{
   font-size:14px;
   -webkit-font-smoothing:antialiased;
   -moz-osx-font-smoothing:grayscale;
-  overflow:hidden;
-  height:100dvh;
+  overflow-x:hidden;
   transition:background-color .22s var(--ease),color .22s var(--ease);
 }
 
-.app{display:flex;height:100dvh}
+/* ═══════════ 站点顶栏 ═══════════
+   常驻导航：侧栏不再跟随滚动，翻到文章中间就得靠它。 */
+.topnav{
+  position:sticky; top:0; z-index:120;
+  display:flex; align-items:center; gap:14px;
+  min-height:var(--nav-h);
+  padding:0 20px;
+  border-bottom:1px solid var(--line);
+  background:var(--bar-bg);
+  background-color:color-mix(in srgb,var(--panel) var(--bar-alpha),transparent);
+  background-image:var(--glass-sheen);
+  background-blend-mode:var(--glass-blend);
+  -webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat)) brightness(var(--glass-bright));
+  backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat)) brightness(var(--glass-bright));
+}
+.topnav .brand{
+  display:flex; align-items:center; gap:8px;
+  min-width:0; white-space:nowrap;
+  color:var(--ink); text-decoration:none; font-weight:640;
+  font-size:13.5px; letter-spacing:-.01em;
+}
+.topnav .brand .mark{
+  width:22px;height:22px;flex:none;
+  display:grid;place-items:center;
+  border-radius:var(--radius-control);
+  background:var(--accent-soft);
+  border:1px solid var(--accent-line);
+  color:var(--accent);
+}
+.topnav .brand .mark svg{width:12px;height:12px}
+.topnav .brand-name{overflow:hidden;text-overflow:ellipsis}
+.topnav .nav{
+  margin-left:auto;
+  display:flex; align-items:center; gap:2px;
+  font-size:12.5px;
+}
+.topnav .nav a{
+  padding:5px 9px;
+  border-radius:var(--radius-control);
+  color:var(--dim); text-decoration:none;
+  transition:color .14s var(--ease), background .14s var(--ease);
+}
+.topnav .nav a:hover{ color:var(--ink); background:color-mix(in srgb,var(--ink) 6%,transparent) }
+.topnav .nav a.on{ color:var(--accent); background:var(--accent-soft) }
+
+.app{display:flex;align-items:flex-start;min-height:calc(100dvh - var(--nav-h))}
 
 /* ═══════════ 侧栏 ═══════════ */
 .sidebar{
   width:var(--sidebar-w); flex:none;
-  overflow:hidden;
+  /* 嵌入式：不占独立滚动条、不描边、不铺底色 ——
+     它就是正文左边的一栏内容，跟着页面一起滚上去。 */
+  overflow:visible;
   display:flex; flex-direction:column;
-  background:linear-gradient(180deg,
-    color-mix(in srgb,var(--panel) 92%,var(--ink) 3%) 0%,
-    var(--panel) 100%);
-  border-right:1px solid var(--line);
-  min-height:0;
-  transition:width .24s var(--ease),opacity .18s var(--ease),
-             background-color .22s var(--ease),border-color .22s var(--ease);
+  background:transparent;
+  padding:18px 0 60px;
+  transition:width .24s var(--ease),opacity .18s var(--ease);
 }
 
 .side-head{
   flex:none;
-  padding:16px 16px 12px;
-  border-bottom:1px solid var(--line);
+  padding:0 16px 10px;
 }
 .side-title{display:flex;align-items:center;gap:9px}
 .side-title .mark{
@@ -314,9 +356,12 @@ body{
   color:var(--accent);
 }
 .side-title .mark svg{width:14px;height:14px}
-.side-title h1{
-  margin:0;font-size:14px;font-weight:640;
-  letter-spacing:-.005em;
+.side-label{
+  font-family:var(--mono);
+  font-size:10.5px;font-weight:600;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--faint);
 }
 .side-collapse{
   flex:none;
@@ -337,7 +382,7 @@ body{
 .side-collapse svg{width:11px;height:11px}
 
 /* ── 侧栏收起 ── */
-html.side-collapsed .sidebar{width:0;opacity:0;border-right-width:0;pointer-events:none}
+html.side-collapsed .sidebar{width:0;opacity:0;pointer-events:none;overflow:hidden}
 
 .searchbox{padding:10px 12px 8px;flex:none;position:relative}
 .searchbox input{
@@ -394,11 +439,8 @@ x
 .search-clear:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 
 .filelist{
-  flex:1;min-height:0;
-  overflow-y:auto;
+  overflow:visible;
   padding:4px 8px 8px;
-  scrollbar-width:thin;
-  scrollbar-color:var(--line) transparent;
 }
 .filelist::-webkit-scrollbar{width:8px}
 .filelist::-webkit-scrollbar-thumb{background:var(--line);border-radius:var(--radius-badge)}
@@ -470,6 +512,16 @@ x
   padding:0 1px;
   border-radius:var(--radius-badge);
 }
+/* 文章日期：来自正文顶部的 frontmatter（date / updated）。
+   没写日期的条目没有这一段，列表不会参差不齐。 */
+.file-date{
+  flex:none;
+  font-family:var(--mono);
+  font-size:10.5px;
+  color:var(--faint);
+  opacity:.85;
+  letter-spacing:-.02em;
+}
 
 .empty-side{
   padding:40px 20px;
@@ -489,11 +541,11 @@ x
 .main{
   flex:1;min-width:0;
   display:flex;flex-direction:column;
-  background:var(--bg);
+  background:transparent;
 }
 
 .main-bar{
-  position:absolute;top:0;left:0;right:0;
+  position:sticky;top:var(--nav-h);
   display:flex;align-items:center;gap:10px;
   padding:11px 16px 11px 20px;
   background:var(--bar-bg);
@@ -590,14 +642,10 @@ html[data-glass="acrylic"]{
 /* 窄屏上按钮只留图标的规则，统一放在文件末尾的响应式区 */
 
 .content{
-  flex:1;min-height:0;
-  overflow:auto;
+  flex:1;min-width:0;
+  overflow:visible;
   position:relative;
-  scrollbar-width:thin;
-  scrollbar-color:var(--line) transparent;
 }
-/* 顶栏悬浮在正文之上，正文从这里开始往下排，滚动时从顶栏后面穿过 */
-.content{padding-top:var(--bar-h)}
 .content::-webkit-scrollbar{width:11px;height:11px}
 .content::-webkit-scrollbar-thumb{
   background:var(--line);border-radius:var(--radius-control);
@@ -620,97 +668,9 @@ html[data-glass="acrylic"]{
   .md{padding:28px 20px 80px;font-size:14.5px}
 }
 
-.md h1,.md h2,.md h3,.md h4,.md h5,.md h6{
-  color:var(--ink);
-  font-weight:640;
-  line-height:1.3;
-  letter-spacing:-.012em;
-  margin:1.8em 0 .7em;
-}
-.md h1{font-size:1.85em;margin-top:0;padding-bottom:.35em;border-bottom:1px solid var(--line)}
-.md h2{font-size:1.4em;padding-bottom:.3em;border-bottom:1px solid var(--line-soft)}
-.md h3{font-size:1.15em}
-.md h4{font-size:1em}
-.md h5,.md h6{font-size:.92em;color:var(--md-dim)}
-
-.md p{margin:1em 0}
-.md a{
-  color:var(--accent);
-  text-decoration:none;
-  border-bottom:1px solid var(--accent-line);
-  transition:border-color .13s var(--ease);
-}
-.md a:hover{border-bottom-color:var(--accent)}
-.md strong{color:var(--ink);font-weight:640}
-.md em{color:var(--md-ink);font-style:italic}
-.md del{color:var(--md-dim)}
-
-.md code{
-  font-family:var(--mono);
-  font-size:.86em;
-  background:var(--md-code-inline);
-  color:var(--accent);
-  padding:.15em .4em;
-  border-radius:var(--radius-badge);
-  word-break:break-word;
-}
-.md pre{
-  background:var(--md-code-bg);
-  border:1px solid var(--line);
-  border-radius:var(--radius-card);
-  padding:14px 18px;
-  overflow-x:auto;
-  margin:1.2em 0;
-  font-size:13px;
-  line-height:1.65;
-}
-.md pre code{
-  background:transparent;
-  color:var(--md-ink);
-  padding:0;
-  font-size:inherit;
-  white-space:pre;
-  /* 内容自带底色时按同心公式收敛一圈；外层 pre 已经兜住圆角，这里只做兜底 */
-  border-radius:var(--radius-inner);
-}
-.md blockquote{
-  margin:1.2em 0;
-  padding:.2em 0 .2em 1.2em;
-  border-left:3px solid var(--accent-line);
-  color:var(--md-dim);
-  font-style:italic;
-}
-.md blockquote p{margin:.5em 0}
-.md ul,.md ol{padding-left:1.6em;margin:1em 0}
-.md li{margin:.35em 0}
-.md li > p{margin:.4em 0}
-.md hr{
-  border:none;height:1px;
-  background:var(--line);
-  margin:2.4em 0;
-}
-.md table{
-  border-collapse:collapse;
-  width:100%;
-  margin:1.2em 0;
-  font-size:13.5px;
-  display:block;
-  overflow-x:auto;
-}
-.md table thead{background:color-mix(in srgb,var(--ink) 3%,transparent)}
-.md table th,.md table td{
-  padding:9px 14px;
-  border:1px solid var(--line);
-  text-align:left;
-  vertical-align:top;
-}
-.md table th{font-weight:640;color:var(--ink)}
-.md img{
-  max-width:100%;
-  border-radius:var(--radius-control);
-  border:1px solid var(--line);
-  margin:1em 0;
-}
+/* 正文排版（标题 / 段落 / 列表 / 表格 / 代码块 / 图片）不在这里 ——
+   它在 docs-md.css，阅读器与 /p/post/ 的静态文章页共用同一份。
+   唯一的源文件是 build/template/docs-content.css，改那里。 */
 
 /* ═══════════ 源码视图 ═══════════ */
 .code-view{
@@ -1034,25 +994,30 @@ input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:4
 /* ═══════════ 主区域：内容 + 本页目录 ═══════════ */
 .main{position:relative}
 
-.main-body{flex:1;min-height:0;display:flex;min-width:0}
+.main-body{display:block;min-width:0}
 
 .outline{
-  width:226px;flex:none;
+  flex:none;
   display:none;
-  overflow-y:auto;
-  padding:30px 14px 64px 10px;
-  border-left:1px solid var(--line-soft);
-  scrollbar-width:thin;
-  scrollbar-color:var(--line) transparent;
+  overflow:visible;
+  padding:18px 8px 8px;
 }
 .outline.on{display:block}
 
-/* ── 本页目录：停靠 / 悬浮 / 关闭 ── */
-.outline-head{display:flex;align-items:center;gap:8px;margin:0 0 12px}
+/* ── 本页目录：嵌在侧栏里，只有「显示 / 隐藏」两态 ── */
+.outline-head{display:flex;align-items:center;gap:8px;margin:0 0 10px}
 .outline-head .outline-title{margin:0;flex:1;min-width:0}
+.outline-badge{
+  flex:none;
+  font-family:var(--mono);font-size:10.5px;
+  color:var(--faint);
+  padding:1px 6px;
+  border-radius:var(--radius-badge);
+  background:color-mix(in srgb,var(--ink) 5%,transparent);
+}
 .outline-x{
-  flex:none;width:20px;height:20px;margin-right:8px;
-  display:none;place-items:center;
+  flex:none;width:20px;height:20px;
+  display:grid;place-items:center;
   border:0;background:transparent;padding:0;
   color:var(--faint);cursor:pointer;border-radius:var(--radius-sm);
   transition:color .13s var(--ease),background .13s var(--ease);
@@ -1063,55 +1028,8 @@ input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:4
 
 html[data-outline="off"] .outline{display:none}
 
-html[data-outline="float"] .outline{
-  position:fixed;
-  top:calc(var(--bar-h) + 14px);
-  right:16px;
-  width:min(268px,calc(100vw - 32px));
-  max-height:min(62vh,520px);
-  z-index:105;
-  padding:12px 6px 14px;
-  border:1px solid var(--line);
-  border-radius:var(--radius-window);
-  background:color-mix(in srgb,var(--panel) var(--bar-alpha),transparent);
-  -webkit-backdrop-filter:blur(20px) saturate(150%);
-  backdrop-filter:blur(20px) saturate(150%);
-  box-shadow:var(--shadow);
-}
-html[data-outline="float"] .outline.on{display:block}
-html[data-outline="float"] .outline.on.hide{display:none}
-html[data-outline="float"] .outline-x{display:grid}
-html[data-outline="float"] .outline-head{margin-bottom:8px}
-
-.outline-pill{
-  position:fixed;
-  top:calc(var(--bar-h) + 14px);
-  right:16px;
-  z-index:104;
-  display:none;align-items:center;gap:5px;
-  padding:5px 10px;
-  border:1px solid var(--line);
-  border-radius:var(--radius-pill-ctl);
-  background:color-mix(in srgb,var(--panel) 88%,transparent);
-  -webkit-backdrop-filter:blur(12px) saturate(140%);
-  backdrop-filter:blur(12px) saturate(140%);
-  color:var(--dim);
-  font-family:var(--mono);font-size:10.5px;letter-spacing:.02em;
-  cursor:pointer;
-  box-shadow:var(--shadow);
-  transition:color .14s var(--ease),border-color .14s var(--ease);
-}
-.outline-pill.shown{display:inline-flex}
-.outline-pill:hover{color:var(--ink);border-color:var(--dim)}
-.outline-pill:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.outline-pill svg{width:12px;height:12px}
-.outline{padding-top:calc(var(--bar-h) + 14px)}
-.outline::-webkit-scrollbar{width:9px}
-.outline::-webkit-scrollbar-thumb{
-  background:var(--line);border-radius:var(--radius-control);border:2px solid var(--bg);
-}
 .outline-title{
-  margin:0 0 12px;padding-left:10px;
+  margin:0;
   font-family:var(--mono);font-size:10.5px;font-weight:600;
   letter-spacing:.13em;text-transform:uppercase;
   color:var(--faint);
@@ -1139,18 +1057,7 @@ html[data-outline="float"] .outline-head{margin-bottom:8px}
 .outline .lv-3 a{padding-left:34px;font-size:12px}
 .outline .lv-4 a{padding-left:46px;font-size:12px}
 
-/* ═══════════ 标题锚点 ═══════════ */
-.md h1,.md h2,.md h3,.md h4{scroll-margin-top:calc(var(--bar-h) + 14px)}
-.md .anchor{
-  margin-left:8px;
-  color:var(--faint);text-decoration:none;border:0;
-  font-weight:400;opacity:0;
-  transition:opacity .13s var(--ease),color .13s var(--ease);
-}
-.md h1:hover .anchor,.md h2:hover .anchor,
-.md h3:hover .anchor,.md h4:hover .anchor{opacity:1}
-.md .anchor:hover{color:var(--accent);border:0}
-.md .anchor:focus-visible{opacity:1;outline:2px solid var(--accent);outline-offset:1px}
+/* 标题锚点的样式同上：在 docs-md.css（build/template/docs-content.css） */
 
 /* ═══════════ 上一篇 / 下一篇 ═══════════ */
 .doc-nav{
@@ -1330,8 +1237,7 @@ html[data-outline="float"] .outline-head{margin-bottom:8px}
   .main-title .name{font-size:14px}
   .mbtn{padding:6px 9px}
 
-  /* 右上角那颗「目录」胶囊是浮层，标题别钻到它底下去 */
-  .md{padding-top:44px}
+  .md{padding-top:24px}
 }
 
 /* 顶栏开始吃紧的宽度：按钮只留图标。
@@ -1358,14 +1264,15 @@ html[data-outline="float"] .outline-head{margin-bottom:8px}
   /* 状态点也让位给文档名：加载态在正文里本来就有提示，
      「已归档」在正文区上方的 meta 里也有（这里空间实在不够） */
   .load-badge, .load-badge.on{display:none}
-  .md{padding:44px 16px 72px}
+  .md{padding:24px 16px 72px}
   .md pre{padding:12px 14px;font-size:12.5px}
-  .outline{padding:calc(var(--bar-h) + 14px) 12px 48px}
+  .topnav{padding:0 14px;gap:8px}
+  .topnav .nav a{padding:5px 7px}
 }
 
 /* 超窄屏：进一步压 */
 @media (max-width:400px){
-  .md{font-size:14px;padding:44px 14px 64px}
+  .md{font-size:14px;padding:20px 14px 64px}
   .main-title .meta{display:none}
 }
 
@@ -1393,7 +1300,7 @@ html[data-outline="float"] .outline-head{margin-bottom:8px}
 
 <noscript>
   <main style="padding:40px;max-width:640px;margin:0 auto;font-family:sans-serif;line-height:1.8;color:#ccc;background:#0E1214;min-height:100dvh">
-    <h1 style="color:#E7E9E6">文档 · JinSuper</h1>
+    <h1 style="color:#E7E9E6">__BLOG_TITLE__</h1>
     <p>页面需要 JavaScript 才能读取 <code style="background:#1C2429;padding:2px 6px;border-radius:4px">/sk.json</code> 清单。</p>
     <p>可直接访问的资料：</p>
     <ul>
@@ -1404,18 +1311,30 @@ html[data-outline="float"] .outline-head{margin-bottom:8px}
   </main>
 </noscript>
 
+<!-- ══ 站点顶栏 ══
+     侧栏改成随页面滚动的嵌入式之后，翻到文章中间就看不到列表了，
+     所以导航常驻在这一条上；导航项由构建期注入（siteNavHtml）。 -->
+<header class="topnav">
+  <a class="brand" href="./">
+    <span class="mark">
+      <!-- __LOGO__ 构建时换成 logo.svg 的内联图形（跟随主题色） -->
+    </span>
+    <span class="brand-name">__BLOG_TITLE__</span>
+  </a>
+  <nav class="nav" aria-label="站点导航">
+    <!-- __NAV__ -->
+  </nav>
+</header>
+
 <div class="app">
 
   <!-- 侧栏 -->
   <aside class="sidebar">
     <div class="side-head">
       <div class="side-title">
-        <div class="mark">
-          <!-- __LOGO__ 构建时换成 logo.svg 的内联图形（跟随主题色） -->
-        </div>
-        <h1>文档</h1>
-        <button class="side-collapse" id="btnSideCollapse" title="收起文档列表"
-                aria-label="收起文档列表">
+        <span class="side-label">文章</span>
+        <button class="side-collapse" id="btnSideCollapse" title="收起文章列表"
+                aria-label="收起文章列表">
           <span>收起</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
                stroke-linecap="round" stroke-linejoin="round"><path d="m15 5-7 7 7 7"/></svg>
@@ -1425,7 +1344,7 @@ html[data-outline="float"] .outline-head{margin-bottom:8px}
 
     <div class="searchbox">
       <input id="searchInput" type="text" placeholder="搜索… (Ctrl+F)" spellcheck="false"
-             aria-label="搜索文档">
+             aria-label="搜索文章">
       <button class="search-clear" id="searchClear" aria-label="清除搜索" tabindex="-1">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
              stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
@@ -1433,6 +1352,19 @@ html[data-outline="float"] .outline-head{margin-bottom:8px}
     </div>
 
     <div class="filelist" id="fileList"></div>
+
+    <!-- 本页目录：嵌在侧栏里、跟着页面一起滚动（不再常驻跟随） -->
+    <aside class="outline" id="outline" aria-label="本页目录">
+      <div class="outline-head">
+        <p class="outline-title">本页目录</p>
+        <span class="outline-badge" id="outlineBadge"></span>
+        <button class="outline-x" id="outlineX" title="隐藏目录" aria-label="隐藏目录">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+               stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>
+        </button>
+      </div>
+      <ul id="outlineList"></ul>
+    </aside>
   </aside>
 
   <!-- 手机端：侧栏弹出时压暗背景，点它就收起 -->
@@ -1441,8 +1373,8 @@ html[data-outline="float"] .outline-head{margin-bottom:8px}
   <!-- 主区域 -->
   <main class="main">
     <div class="main-bar">
-      <button class="mbtn icon-only" id="btnSideToggle" title="显示 / 收起文档列表"
-              aria-label="显示或收起文档列表" aria-expanded="true">
+      <button class="mbtn icon-only" id="btnSideToggle" title="显示 / 收起文章列表"
+              aria-label="显示或收起文章列表" aria-expanded="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
              stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
           <rect x="3" y="4" width="18" height="16" rx="2"/>
@@ -1502,16 +1434,6 @@ html[data-outline="float"] .outline-head{margin-bottom:8px}
 
     <div class="main-body">
       <div class="content" id="content"></div>
-      <aside class="outline" id="outline" aria-label="本页目录">
-        <div class="outline-head">
-          <p class="outline-title">本页目录</p>
-          <button class="outline-x" id="outlineX" title="隐藏目录" aria-label="隐藏目录">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-                 stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>
-          </button>
-        </div>
-        <ul id="outlineList"></ul>
-      </aside>
     </div>
   </main>
 
@@ -1558,9 +1480,8 @@ html[data-outline="float"] .outline-head{margin-bottom:8px}
     <section class="group">
       <h3>本页目录</h3>
       <div class="opt-grid" id="outlineGrid">
-        <button class="opt-btn" data-outline="docked" aria-pressed="true"><span>停靠</span></button>
-        <button class="opt-btn" data-outline="float" aria-pressed="false"><span>悬浮</span></button>
-        <button class="opt-btn" data-outline="off" aria-pressed="false"><span>关闭</span></button>
+        <button class="opt-btn" data-outline="on" aria-pressed="true"><span>显示</span></button>
+        <button class="opt-btn" data-outline="off" aria-pressed="false"><span>隐藏</span></button>
       </div>
     </section>
     <section class="group">
@@ -1612,13 +1533,6 @@ html[data-outline="float"] .outline-head{margin-bottom:8px}
   </div>
 </aside>
 
-<button class="outline-pill" id="outlinePill" title="显示本页目录" aria-label="显示本页目录">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-       stroke-linecap="round" stroke-linejoin="round">
-    <path d="M4 6h16"/><path d="M4 12h11"/><path d="M4 18h13"/>
-  </svg>
-  <span>目录</span>
-</button>
 
 <div class="toast" id="toast"></div>
 
@@ -2367,7 +2281,7 @@ function renderSidebar(){
   if (!totalShown){
     fileListEl.innerHTML = q
       ? '<div class="empty-side">没匹配的<br>试试别的关键词</div>'
-      : '<div class="empty-side">还没有文档</div>';
+      : '<div class="empty-side">还没有文章</div>';
     return;
   }
 
@@ -2969,7 +2883,7 @@ window.addEventListener('keydown', function(e){
   try {
     groups = enrichItems(await loadManifest());
   } catch(err){
-    btnSideCollapse.title = '收起文档列表';
+    btnSideCollapse.title = '收起文章列表';
     showEmpty({
       title: '读不到清单',
       body: '请在网站根目录放一个 <code>' + MANIFEST_URL + '</code>。支持扁平或分组：',
@@ -2989,7 +2903,7 @@ window.addEventListener('keydown', function(e){
     return;
   }
 
-  btnSideCollapse.title = '收起文档列表 · 共 ' + allItems.length + ' 篇';
+  btnSideCollapse.title = '收起文章列表 · 共 ' + allItems.length + ' 篇';
 
   if (!allItems.length){
     showEmpty({

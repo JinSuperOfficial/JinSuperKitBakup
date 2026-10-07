@@ -437,6 +437,23 @@ function readCardCss(root) {
 }
 
 /**
+ * 正文排版：从 build/template/docs-content.css 读（阅读器与静态文章页共用）。
+ *
+ * 以前这一份住在 build/template/docs.html 的 <style> 里，只有阅读器吃得到 ——
+ * 归档产物和 /p/post/ 的静态文章页都是独立页面，只引 docs-md.css，
+ * 于是标题、表格、代码块全是浏览器默认样式。现在并到这里，谁引谁有。
+ */
+function readContentCss(root) {
+  try {
+    return fs.readFileSync(path.join(root, 'template', 'docs-content.css'), 'utf8').trim();
+  } catch (e) {
+    /* 缺文件不该让构建挂掉，但必须吼一声 —— 缺了它正文会退回浏览器默认排版 */
+    console.warn('  ⚠ 没找到 build/template/docs-content.css：' + (e && e.message ? e.message : e));
+    return '';
+  }
+}
+
+/**
  * 生成完整样式并落盘
  * @returns {{ bytes:number, fontCount:number, fontBytes:number }}
  */
@@ -445,10 +462,11 @@ export function buildDocsCss({ root, siteRoot }) {
   const doc = readDocCss(root);
   const extra = extraCss();
   const card = readCardCss(root);
+  const content = readContentCss(root);
 
   const header = `/* ═══════════════════════════════════════════════════
    文档站样式 · 由 build/lib/css.mjs 生成，请勿手改
-   组成：KaTeX 数学排版 + 扩展元素样式 + 剧透块 + 卡片
+   组成：KaTeX 数学排版 + 扩展元素样式 + 剧透块 + 卡片 + 正文排版
    字体：./fonts/ 本地自托管，无任何 CDN
    ═══════════════════════════════════════════════════ */
 
@@ -473,7 +491,17 @@ ${card}
 `
     : '';
 
-  const css = header + katex + mid + doc + tail + extra + cardBlock;
+  /* 正文排版放在最后：它以前待在 docs.html 的行内 <style> 里，
+     位置就在 docs-md.css 之后；保持这个先后关系，层叠结果才不会变。 */
+  const contentBlock = content
+    ? `
+
+/* ─────────── 5. 正文排版（阅读器 / 静态文章页共用） ─────────── */
+${content}
+`
+    : '';
+
+  const css = header + katex + mid + doc + tail + extra + cardBlock + contentBlock;
   const outPath = path.join(siteRoot, 'p', 'docs-md.css');
   fs.writeFileSync(outPath, css, 'utf8');
 

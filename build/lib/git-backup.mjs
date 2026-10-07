@@ -19,6 +19,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { buildDir } from '../paths.mjs';
+import { safeArgs } from './git-safe.mjs';
 
 /** 项目根（源码仓库就在这儿，不是 dist/） */
 export const projectRoot = path.resolve(buildDir, '..');
@@ -41,9 +42,11 @@ export function proxyArgs() {
   return ['-c', `http.proxy=${proxy}`, '-c', `https.proxy=${proxy}`];
 }
 
-/** 在项目根跑一条 git 命令（utf8 抓输出）。要原样透到终端就传 stdio:'inherit'。 */
+/** 在项目根跑一条 git 命令（utf8 抓输出）。要原样透到终端就传 stdio:'inherit'。
+    safeArgs：Windows 上项目在 UNC 路径里时，git 会认为仓库不属于当前用户而拒绝，
+    这里只给本次调用放行（见 git-safe.mjs）。 */
 export function git(args, opts = {}) {
-  return spawnSync('git', args, {
+  return spawnSync('git', [...safeArgs(projectRoot), ...args], {
     cwd: projectRoot,
     encoding: 'utf8',
     ...opts,

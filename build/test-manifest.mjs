@@ -332,11 +332,12 @@ console.log('\n── 4. /Skills/index.html ──');
   }
 
   const first = rows[0];
-  if (first && first.getAttribute('href') === '/Skills/docs/docs.html') ok('href 用清单里的绝对路径：' + first.getAttribute('href'));
+  if (first && first.getAttribute('href') === '/p/') ok('href 用清单里的绝对路径：' + first.getAttribute('href'));
   else bad('href 不对：' + (first && first.getAttribute('href')));
 
+  /* 博客首页不在集合根（/Skills/）下，显示路径要退回站点绝对路径 */
   const name = first && first.querySelector('.name').textContent;
-  if (name === 'docs/docs.html') ok('显示路径仍相对 /Skills/：' + name);
+  if (name === '/p/') ok('集合根之外的显示路径是站点绝对路径：' + name);
   else bad('显示路径：' + name);
 
   const ico = first && first.querySelector('.ico svg');
@@ -363,7 +364,7 @@ console.log('\n── 4. /Skills/index.html ──');
   freshFirst.dispatchEvent(new window.MouseEvent('contextmenu', { bubbles: true, clientX: 10, clientY: 10 }));
   await sleep(30);
   const ctxHead = doc.querySelector('#ctx .ctx-head');
-  if (ctxHead && ctxHead.textContent === 'docs/docs.html') ok('右键菜单标题用显示路径：' + ctxHead.textContent);
+  if (ctxHead && ctxHead.textContent === '/p/') ok('右键菜单标题用显示路径：' + ctxHead.textContent);
   else bad('右键菜单标题：' + (ctxHead && ctxHead.textContent));
 }
 
@@ -480,8 +481,13 @@ console.log('\n── 6. 首页与改造前对照 ──');
     const newPlain = mapOf(neu.doc, 'http://x/index.html', { ignoreIcon: true });
 
     const changed = [];
+    /* 有意改掉的文案不算回归。原先这里豁免过两张旧卡（文档站 / BLOG）；
+       现在它们直接换了地址（→ /p/ 与 /p/post/blog.html），会走下面的
+       removed / added 提示，所以这份豁免名单已经空了。 */
+    const intended = new Set();
     for (const [href, canon] of newMap) {
       if (!oldMap.has(href)) continue;                 /* 新加的条目不算回归 */
+      if (intended.has(href)) continue;
       if (oldMap.get(href) !== canon) changed.push(href);
     }
     const removed = [...oldMap.keys()].filter((h) => !newMap.has(h));

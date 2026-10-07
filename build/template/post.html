@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="obsidian" data-glass="mica">
+<head>
+<meta charset="UTF-8">
+<!-- __FAVICON__ -->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- 有没有脚本，样式要区别对待（见下面 html:not(.has-js) 那几条）。
+     放在样式表之前执行，避免闪一下。 -->
+<script>document.documentElement.classList.add('has-js');</script>
+<!-- __SEO__ -->
+<link rel="stylesheet" href="__TOP__docs-md.css?v=__VER__">
+<style>
+/* ═══════════ 主题 token：构建时从 build/template/docs.html 抠出来 ═══════════ */
+/* __THEME_CSS__ */
+
+/* ═══════════ 外壳：顶栏 + 两列布局 + 侧栏目录 + 页脚 ═══════════
+   ---------------------------------------------------
+   这一份住在 build/template/post-chrome.css，只此一份：
+   构建期（这一页）和控制台烘的归档稿（/p/archive/**）共用，
+   别在这儿另抄一份。见 build/lib/chrome.mjs。 */
+/* __CHROME_CSS__ */
+</style>
+</head>
+<body>
+
+<!-- 顶栏 / 两列布局 / 侧栏目录 / 上下篇 / 页脚都由 build/lib/chrome.mjs 的
+     chromeBody() 生成（控制台烘的归档稿用同一份，见 console/lib/render.mjs） -->
+<!-- __CHROME_BODY__ -->
+
+<script>
+/* 文章页的小增强（选项卡 / 代码组 / 复制按钮 / 剧透 / 目录高亮）住在
+   build/template/post-script.js —— 归档稿共用同一份，别另抄。 */
+/* __CHROME_JS__ */
+</script>
+
+</body>
+</html>

@@ -17,12 +17,28 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { JSDOM, VirtualConsole } from 'jsdom';
 import { buildDir, siteRoot, pDir } from './paths.mjs';
+import { parseFrontmatter } from './lib/markdown.cjs';
 
 const here = buildDir;
 /* asset/ 在站点目录之外（项目根下），构建/测试期要从这里找；
    部署时 prep-deploy.mjs 会把它拷进站点的 asset/ */
 const projectRoot = path.resolve(buildDir, '..');
 const docPath = path.join(pDir, 'docs.html');
+
+/**
+ * 顶栏该显示的名字。
+ * ---------------------------------------------------
+ * 页面规则：frontmatter 里的 title（或 name）优先，其次才是 sk.json 里的名字。
+ * 所以断言得按同一份规则算，不能硬编清单名 —— 给文章加个标题就会误报。
+ */
+function expectDocName(skName, mdRelPath) {
+  try {
+    const src = fs.readFileSync(path.join(pDir, mdRelPath), 'utf8');
+    const fm = parseFrontmatter(src);
+    if (fm.ok && (fm.data.title || fm.data.name)) return String(fm.data.title || fm.data.name);
+  } catch { /* 文件不在（归档走了）就用清单名 */ }
+  return skName;
+}
 const bundlePath = path.join(pDir, 'docs-md.js');
 
 /* 页面脚本的 console 输出单独收集：我们想抓的是「没有意外报错」 */
@@ -814,7 +830,14 @@ if (srcToggle.style.display === 'none') {
 /* ═══ 渲染器缺失时的表现 ═══ */
 console.log('\n── docs-md.js 没加载时 ──');
 
-const noJs = bootPage({ denyScripts: true });
+/* 挑第一篇 .md 打开 —— 归档稿（.html）是预渲染产物，不需要渲染器，
+   拿它测「渲染器缺失」等于测错了对象（sk.json 第一项随时可能是归档稿）。 */
+const firstMdPath = Object.values(sk).flatMap((g) => Object.values(g || {}))
+  .find((p) => /\.md$/i.test(String(p)));
+const noJs = bootPage({
+  denyScripts: true,
+  hash: firstMdPath ? '#' + encodeURIComponent(firstMdPath) : null,
+});
 await sleep(200);
 const njDoc = noJs.window.document;
 const njText = (njDoc.querySelector('.content') || {}).textContent || '';
@@ -872,16 +895,26 @@ const gotHits = doc.querySelectorAll('.file-item').length;
 if (gotHits === expectHits) ok(`搜索「${KEY}」筛出 ${gotHits} 条（与清单一致）`);
 else bad(`搜索结果数不对：${gotHits}（期望 ${expectHits}）`);
 
-/* ═══ 相对路径重写 ═══ */
-console.log('\n── 相对路径重写 ──');
+/* ═══ 正文链接改写 ═══
+   两条规则，按这个顺序：
+     1. 目标是清单（sk.json）里的文档 → 改成阅读器深链接
+        ../p/docs.html#<编码后的清单路径>，点上去是同页换一篇，不是跳裸页面；
+     2. 其余按「/p/」基准解析 —— docs.html 自己就在 /p/ 下，相对路径原样保留，
+        只有 / 开头的根路径才补 ../ 才能回到网站根。
+   曾经第 1 条不存在、第 2 条又错误地按网站根算，卡片目标 archive/x.html
+   被顶成 /archive/x.html（真实位置是 /p/archive/x.html）—— 一点开就 404。
+   （注意：这段注释里别写「星号星号斜杠」，星号紧跟斜杠会提前闭合块注释。） */
+console.log('\n── 正文链接改写 ──');
 
 window.eval(`
   window.__probe = document.createElement('div');
   window.__probe.className = 'md';
   window.__probe.innerHTML =
-    '<a href="para/First.md">相对</a>' +
+    '<a href="archive/idea/1.归途且慢.html">清单里的归档稿</a>' +
+    '<a href="para/First.md">清单外的相对路径</a>' +
     '<a href="../asset/SKILL.md">上级</a>' +
     '<a href="/sk.json">根路径</a>' +
+    '<a href="/p/docs.html#idea%2F3.%E6%9E%A3%E9%A6%99%E7%AB%A5%E5%B9%B4.md">已经是深链接</a>' +
     '<a href="#anchor">锚点</a>' +
     '<a href="https://example.com/x">外链</a>' +
     '<img src="img/pic.png" alt="a">';
@@ -893,18 +926,34 @@ const probeEl = window.__probe;
 const aHrefs = [...probeEl.querySelectorAll('a')].map((a) => a.getAttribute('href'));
 const imgSrcs = [...probeEl.querySelectorAll('img')].map((i) => i.getAttribute('src'));
 
+const probeNames = [
+  'archive/idea/1.归途且慢.html',
+  'para/First.md',
+  '../asset/SKILL.md',
+  '/sk.json',
+  '/p/docs.html#…',
+  '#anchor',
+  'https://…',
+];
 const expectHrefs = [
-  '../para/First.md',
-  '../../asset/SKILL.md',
+  /* 清单里的文档 → 阅读器深链接（卡片就靠这条） */
+  '../p/docs.html#archive%2Fidea%2F1.%E5%BD%92%E9%80%94%E4%B8%94%E6%85%A2.html',
+  /* 清单外的相对路径 → /p/ 基准，原样 → /p/para/First.md */
+  'para/First.md',
+  /* 上一级：从 /p/ 回到网站根 asset/ */
+  '../asset/SKILL.md',
+  /* 根路径：补 ../ 才真的到网站根 */
   '../sk.json',
+  /* 已经是读者链接：绕回 /p/docs.html，别再套一层 */
+  '../p/docs.html#idea%2F3.%E6%9E%A3%E9%A6%99%E7%AB%A5%E5%B9%B4.md',
   '#anchor',
   'https://example.com/x',
 ];
 for (let i = 0; i < expectHrefs.length; i++) {
-  if (aHrefs[i] === expectHrefs[i]) ok(`${['para/First.md', '../asset/SKILL.md', '/sk.json', '#anchor', 'https://…'][i].padEnd(20)} → ${aHrefs[i]}`);
-  else bad(`第 ${i} 条 → ${aHrefs[i]}（期望 ${expectHrefs[i]}）`);
+  if (aHrefs[i] === expectHrefs[i]) ok(`${probeNames[i].padEnd(30)} → ${aHrefs[i]}`);
+  else bad(`第 ${i} 条（${probeNames[i]}）→ ${aHrefs[i]}（期望 ${expectHrefs[i]}）`);
 }
-if (imgSrcs[0] === '../img/pic.png') ok(`img 相对路径 → ${imgSrcs[0]}`);
+if (imgSrcs[0] === 'img/pic.png') ok(`img 相对路径 → ${imgSrcs[0]}`);
 else bad(`img 路径不对：${imgSrcs[0]}`);
 window.__probe.remove();
 
@@ -914,7 +963,7 @@ window.__probe.remove();
    否则表现就是「地址栏变了、正文不动」。 */
 console.log('\n── 深链接（卡片 / 前进后退） ──');
 
-const CARD_PATH = 'idea/1.归途且慢.md';
+const CARD_PATH = 'archive/idea/1.归途且慢.html';
 const CARD_HASH = '#' + encodeURIComponent(CARD_PATH);
 
 /* 1. 带 hash 打开：直接落到那一篇 */
@@ -955,9 +1004,9 @@ const CARD_HASH = '#' + encodeURIComponent(CARD_PATH);
   const d = w.document;
 
   const seq = [
-    ['idea/index.md', '索引'],
+    ['idea/index.md', expectDocName('索引', 'idea/index.md')],
     [CARD_PATH, '归途'],
-    ['science.md', '科技节'],
+    ['science.md', expectDocName('科技节活动方案', 'science.md')],
     [CARD_PATH, '归途'],
   ];
   const seen = [];

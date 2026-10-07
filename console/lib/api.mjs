@@ -17,13 +17,29 @@ import {
   loadState, moveFromPara, moveToPara, removeSkEntry, saveSk, saveState,
   scanP, siteRelOfArchive, uniquePath, upsertSkEntry, writeAtomic, writeJson, TEXT_EXT,
 } from './store.mjs';
-import { backupVersion, coreStatus, listVersions, renderArticleHtml, renderFragment, versionsDirOf } from './render.mjs';
+import {
+  backupVersion, coreStatus, extractProductParts, listVersions, renderArticleHtml,
+  renderFragment, renderShell, setupErrors, versionsDirOf,
+} from './render.mjs';
+import { extrasStatus, scanUnsupported } from './md-extras.mjs';
 import * as jobs from './jobs.mjs';
 import * as manifest from './manifest.mjs';
 import * as cloud from './cloud.mjs';
 import * as links from './links.mjs';
+import * as pages from './pages.mjs';
+import * as preview from './preview.mjs';
 
 const err = (msg, status = 400) => { const e = new Error(msg); e.status = status; return e; };
+
+/** 预览相关的枚举（设置里只认这几个值） */
+const CLICK_MODES = ['auto', 'server', 'path'];
+const PAGES_SOURCES = pages.SOURCES;
+
+function clampPort(v, dflt) {
+  const n = Number(v);
+  if (!Number.isInteger(n) || n < 1 || n > 65535) return dflt;
+  return n;
+}
 
 /* ═══════════════════════════════════════════════════
    状态 / 设置
@@ -38,6 +54,7 @@ export function getState() {
     stats: scan.stats,
     groups: scan.groups,
     core: coreStatus(),
+    extras: extrasStatus(),
     paths: {
       workspaceRoot,
       siteRoot,
@@ -55,6 +72,12 @@ export function putSettings(body) {
   next.editorFontSize = Math.min(24, Math.max(11, Number(next.editorFontSize) || DEFAULT_SETTINGS.editorFontSize));
   next.autosaveMs = Math.min(10000, Math.max(400, Number(next.autosaveMs) || DEFAULT_SETTINGS.autosaveMs));
   next.confirmDanger = !!next.confirmDanger;
+  /* 预览：端口夹到合法范围，两个枚举值只认自己的选项 */
+  next.previewPort = clampPort(next.previewPort, DEFAULT_SETTINGS.previewPort);
+  next.previewAutoStart = !!next.previewAutoStart;
+  next.previewOpenAfterStart = !!next.previewOpenAfterStart;
+  next.previewClickMode = CLICK_MODES.includes(next.previewClickMode) ? next.previewClickMode : DEFAULT_SETTINGS.previewClickMode;
+  next.previewTreeSource = PAGES_SOURCES.includes(next.previewTreeSource) ? next.previewTreeSource : DEFAULT_SETTINGS.previewTreeSource;
   state.settings = next;
   saveState(state);
   return getState();
@@ -311,7 +334,17 @@ function renderOne(settings, pRel, { title, group, archiveDir, metaIn }) {
   });
   writeAtomic(outAbs, html);
 
+  /* 这篇用了、但烘不进静态 HTML 的语法（mermaid 之类）：归档照常成功，
+     只是产物里那几段还是代码块 —— 把原因带回去让界面说一声。 */
+  const warnings = scanUnsupported(src.text, 'bake').map((u) => ({
+    path: pRel,
+    lang: u.lang,
+    label: u.label,
+    detail: u.detail,
+  }));
+
   return {
+    warnings,
     entry: {
       pRel,
       /** /p 相对 —— sk.json 登记的就是它（MANIFEST.md §7 的约定） */
@@ -356,7 +389,7 @@ export function postArchive(body) {
       const title = (found && found.name) || defaultTitle(rel);
 
       /* 1 + 2：先出成品，再动原文 —— 万一渲染失败，原文还在 /p 原封不动 */
-      const { entry } = renderOne(settings, rel, { title, group, archiveDir });
+      const { entry, warnings } = renderOne(settings, rel, { title, group, archiveDir });
 
       /* 3：原文搬走 */
       const originalRel = moveToPara(settings, rel);
@@ -377,7 +410,7 @@ export function postArchive(body) {
         archivedAt: new Date().toISOString(),
       };
 
-      done.push({ rel, entry, originalRel, group, name, prev: found });
+      done.push({ rel, entry, originalRel, group, name, prev: found, warnings });
     }
 
     /* 最后写清单与元数据：这两个是「提交点」 */
@@ -415,6 +448,8 @@ export function postArchive(body) {
       group: d.group,
       name: d.name,
     })),
+    /* 归档里画不出来的语法：产物照常生成（那几段是代码块），这里说清楚是哪几篇 */
+    warnings: done.flatMap((d) => d.warnings || []),
     state: getState(),
   };
 }
@@ -427,6 +462,7 @@ export function postArchiveRebuild(body) {
   const settings = state.settings;
   const archiveDir = ensureDir(archiveDirOf(settings));
   const out = [];
+  const warn = [];
   for (const p of paths) {
     /* 面板传进来的是产物路径（archive/idea/x.html）；要还原成原文的 /p 相对路径，
        才能重新渲染。写法的收敛只在这一处做，别让 archiveRelFor 再拼一次。 */
@@ -436,16 +472,73 @@ export function postArchiveRebuild(body) {
     if (!isFile(outAbs)) throw err('这篇没有已归档的产物，先归档它：' + rel, 409);
 
     const meta = state.archiveMeta[archiveRelFor(settings, rel)] || {};
-    const { entry } = renderOne(settings, rel, {
+    const { entry, warnings } = renderOne(settings, rel, {
       title: meta.title || defaultTitle(rel),
       group: meta.group,
       archiveDir,
       metaIn: {},
     });
     out.push({ path: rel, output: entry.archiveRel, from: entry.from });
+    warn.push(...(warnings || []));
   }
   saveState(state);
-  return { ok: true, rebuilt: out };
+  return { ok: true, rebuilt: out, warnings: warn };
+}
+
+/**
+ * 重刷外壳：把已归档的产物按**当前模板**重写 head / 顶栏 / 侧栏目录 / 页脚，
+ * 正文一个字都不动。
+ *
+ * 为什么需要它：归档产物是控制台烘的成品，外壳是烘的那一刻的样子；
+ * 后来文章页加了顶栏、目录、主题 token，老产物不会自己变。而有的产物
+ * 原文早就不在了（`originalRel` 缺失、para 留底也没有）—— 重新渲染做不到，
+ * 换外壳却完全可以：正文本来就在产物里。
+ *
+ * 覆盖前照例留一版到 .versions（和归档、重建、回滚一个规矩）。
+ */
+export function postArchiveReshell(body) {
+  const paths = Array.isArray(body.paths) ? body.paths.filter(Boolean) : [];
+  if (!paths.length) throw err('没有勾选任何已归档的产物');
+
+  const state = loadState();
+  const settings = state.settings;
+  const archiveDir = ensureDir(archiveDirOf(settings));
+  const done = [];
+  const failed = [];
+
+  for (const raw of paths) {
+    try {
+      /* 面板传的是产物路径（archive/idea/x.html）；这里要的是 /p 相对的那一种 */
+      const rel = String(raw).replace(/^[/\\]+/, '').replace(/^p[/\\]/, '');
+      if (!/\.html?$/i.test(rel)) throw err('「重刷外壳」只能作用于已归档的 .html 产物：' + raw, 409);
+      const outAbs = assertInside(path.join(pDir, rel), archiveDir);
+      if (!isFile(outAbs)) throw err('产物不在：' + rel, 404);
+
+      const current = fs.readFileSync(outAbs, 'utf8');
+      const parts = extractProductParts(current);
+      if (!parts) throw err('这个产物里找不到正文容器（class="md"），没法只换外壳：' + rel, 409);
+
+      const meta = state.archiveMeta[rel] || {};
+      const html = renderShell({
+        bodyHtml: parts.bodyHtml,
+        title: parts.meta.title || meta.title || defaultTitle(rel),
+        desc: parts.meta.summary || '',
+        tags: parts.meta.tags || [],
+        published: parts.meta.date || '',
+        canonical: parts.meta.canonical || '',
+        siteRel: 'p/' + rel,
+        theme: settings.theme,
+      });
+
+      backupVersion(outAbs, archiveDir);
+      writeAtomic(outAbs, html);
+      done.push({ path: rel, bytes: Buffer.byteLength(html, 'utf8') });
+    } catch (e) {
+      failed.push({ path: raw, error: e && e.message ? e.message : String(e) });
+    }
+  }
+
+  return { ok: !failed.length, reshelled: done, failed, state: getState() };
 }
 
 export function postArchiveRollback(body) {
@@ -670,8 +763,19 @@ function writeOne(item, destAbs) {
 
 export function postPreview(body) {
   const started = Date.now();
-  const html = renderFragment(String(body.content == null ? '' : body.content));
-  return { ok: true, html, ms: Date.now() - started };
+  const src = String(body.content == null ? '' : body.content);
+  const html = renderFragment(src);
+  const ms = Date.now() - started;
+  return {
+    ok: true,
+    html,
+    ms,
+    /* 「预览能画到什么」：界面右上角那条状态就是拿这个渲染的 */
+    extras: extrasStatus(),
+    /* 这篇用了、但当前画不出来的语法（给一条人话提示，而不是安静地退化成代码块） */
+    unsupported: scanUnsupported(src, 'preview'),
+    setupErrors: setupErrors(),
+  };
 }
 
 /** 写作面板打开时，把一篇的原文和它的登记信息一起给过去 */
@@ -827,5 +931,53 @@ export function getSelfCheck() {
   if (!isFile(file)) problems.push('读不到 sk.json：' + file);
   const pubMissing = flattenSk(sk).filter((e) => !exists(path.join(pDir, e.path)));
   if (pubMissing.length) problems.push(`${pubMissing.length} 条登记指向的文件不在 /p 下（例如 ${pubMissing[0].path}）`);
-  return { ok: problems.length === 0, problems, core, stats: scan.stats, skFile: file };
+  /* 渲染增强坏掉不算「站点坏了」，只列出来让人知道预览里会少什么 */
+  const extras = extrasStatus();
+  const setup = setupErrors();
+  if (setup.length) problems.push('预览增强装载报错：' + setup.join('；'));
+  return { ok: problems.length === 0, problems, core, extras, stats: scan.stats, skFile: file };
+}
+
+/* ═══════════════════════════════════════════════════
+   预览：页面树 + 本地预览服务
+   ---------------------------------------------------
+   页面树只读盘，不写任何东西（见 lib/pages.mjs）。
+   预览服务是本进程里的另一个 http server（lib/preview.mjs），
+   不用子进程 —— 和这个文件的其余部分一样，起停都在同一个进程里。
+   ═══════════════════════════════════════════════════ */
+
+/** 一键列出所有页面 */
+export function getPages(query = {}) {
+  const settings = loadState().settings;
+  const source = query.source || settings.previewTreeSource;
+  const tree = pages.buildPageTree({ source });
+  return { ...tree, service: preview.previewStatus() };
+}
+
+export function getPreviewStatus() {
+  return { ...preview.previewStatus(), settings: previewSettingsOf() };
+}
+
+/** 起预览服务。端口优先用调用方给的，其次设置里的 */
+export async function postPreviewStart(body = {}) {
+  const settings = loadState().settings;
+  const port = clampPort(body.port, settings.previewPort);
+  const status = await preview.startPreview({ port });
+  return { ...status, opened: false, settings: previewSettingsOf() };
+}
+
+export async function postPreviewStop() {
+  const status = await preview.stopPreview();
+  return { ...status, settings: previewSettingsOf() };
+}
+
+function previewSettingsOf() {
+  const s = loadState().settings;
+  return {
+    previewPort: s.previewPort,
+    previewAutoStart: s.previewAutoStart,
+    previewOpenAfterStart: s.previewOpenAfterStart,
+    previewClickMode: s.previewClickMode,
+    previewTreeSource: s.previewTreeSource,
+  };
 }

@@ -25,6 +25,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { buildDir } from './paths.mjs';
 import { checkDomains } from './lib/domain-check.mjs';
+import { findLocalDeno, systemDeno } from './lib/deno.mjs';
 
 const projectRoot = path.resolve(buildDir, '..');
 const CLI = 'https://host.retiehe.com/cli';
@@ -83,25 +84,12 @@ if (prep.status !== 0) {
 /* ── 2. 找 Deno ── */
 console.log('\n[2/4] 准备 Deno');
 
-function hasDeno(cmd) {
-  const r = spawnSync(cmd, ['--version'], { stdio: 'ignore' });
-  return r.status === 0;
-}
-
-let denoCmd = null;
-for (const c of ['deno', 'deno.exe']) {
-  if (hasDeno(c)) { denoCmd = c; break; }
-}
+/* 系统 PATH 上的优先（用户自己装的，版本自己管） */
+let denoCmd = systemDeno();
 
 if (!denoCmd) {
-  /* 项目里有没有装过 deno npm 包 */
-  const localPaths = [
-    path.join(projectRoot, 'node_modules', '.bin', 'deno.cmd'),
-    path.join(projectRoot, 'node_modules', '.bin', 'deno'),
-    path.join(buildDir, 'node_modules', '.bin', 'deno.cmd'),
-    path.join(buildDir, 'node_modules', '.bin', 'deno'),
-  ];
-  denoCmd = localPaths.find((p) => fs.existsSync(p)) || null;
+  /* 其次看项目里装过没有 —— 按本平台找，别把 Windows 的 deno.cmd 当成可执行文件 */
+  denoCmd = findLocalDeno(projectRoot, [buildDir]);
 
   if (denoCmd) {
     log(`用项目内的 Deno：${path.relative(projectRoot, denoCmd)}`);
@@ -116,14 +104,13 @@ if (!denoCmd) {
       console.error('\nDeno 安装失败。可以手动装：https://deno.com/');
       process.exit(1);
     }
-    const guess = process.platform === 'win32'
-      ? path.join(projectRoot, 'node_modules', '.bin', 'deno.cmd')
-      : path.join(projectRoot, 'node_modules', '.bin', 'deno');
-    if (!fs.existsSync(guess)) {
-      console.error('\n装完了但找不到 deno 可执行文件：' + guess);
+    /* 装完按本平台再找一次：本平台那份在 node_modules/@deno/ 下，
+       Windows 上则是 .bin/deno.cmd —— 交给 findLocalDeno 判断 */
+    denoCmd = findLocalDeno(projectRoot, [buildDir]);
+    if (!denoCmd) {
+      console.error('\n装完了还是找不到 deno 可执行文件：看 node_modules/@deno/ 里有没有本平台那一份。');
       process.exit(1);
     }
-    denoCmd = guess;
   }
 } else {
   log(`用系统 Deno：${denoCmd}`);
@@ -141,7 +128,36 @@ console.log(`\n[3/4] 上传（${sites.length} 个站点：${sites.map((s) => s.s
 
 const isWin = process.platform === 'win32';
 
-/** 把 dist/ 传到一个站点上，返回 true/false */
+/* UNC 当前目录（\\wsl.localhost\... 这种）：cmd.exe 起不来，它会直接放弃 cwd、
+   退到 C:\Windows，于是相对路径的 .env / dist 全找不到（报 `node: .env: not found`）。
+   原生 exe 没这个毛病 —— CreateProcess 允许 UNC 当当前目录。
+   所以：真 exe 直接起，只有 .cmd/.bat 包装才需要 cmd /c。 */
+const isBatch = /\.(cmd|bat)$/i.test(denoCmd);
+const UNC_CWD = isWin && /^\\\\/.test(projectRoot);
+
+/* 项目在 UNC 路径下（Windows 控制台通过 \\wsl.localhost\... 访问 WSL 里的项目）
+   时，起 Deno 这件事有两个坑，报错就得把办法一起说清楚，别让人干瞪眼。 */
+function uncHint() {
+  console.error(
+    '\n项目在 UNC 路径下：\n  ' + projectRoot + '\n' +
+    'Windows 的 cmd.exe 不支持把 UNC 当当前目录（会退到 C:\\Windows，\n' +
+    '于是相对路径的 .env / dist 全找不到）。三个办法：\n' +
+    '  1. 在 Windows 上装个系统 Deno：winget install DenoLand.Deno\n' +
+    '     （脚本优先用系统里的 deno.exe，最省事）\n' +
+    '  2. 或者让项目里带上 Windows 那份二进制：在 Windows 侧跑一次 npm install deno\n' +
+    '     会装进 node_modules/@deno/win32-x64/deno.exe，脚本会直接起它（不经 cmd）\n' +
+    '  3. 或者干脆在 WSL/Linux 侧跑 ./部署.sh —— 上传这条路在那边是通的。'
+  );
+}
+
+if (UNC_CWD && isBatch) {
+  console.error('\n找到的 Deno 是不能用的批处理包装：\n  ' + denoCmd);
+  uncHint();
+  console.error('');
+  process.exit(1);
+}
+
+/** 把 dist/ 传到一个站点上：true 成功 · false 失败 · 'fatal' 起不来（重试没意义） */
 function uploadOnce(site) {
   const args = [
     'run', '--allow-all',
@@ -151,9 +167,10 @@ function uploadOnce(site) {
     '--site', site,
   ];
 
-  /* Windows 上 .cmd 是批处理包装，得经 cmd 起；
+  /* 只有 .cmd/.bat 才需要经 cmd 起（Node 20+ 也不能直接起批处理）；
+     真 exe 直接起 —— 这样 UNC 当前目录也能用（cmd.exe 会把它丢掉）。
      用 cmd /c 而不是 shell:true，免得 Node 报 DEP0190（参数转义警告） */
-  const [cmd, cmdArgs] = isWin ? ['cmd', ['/c', denoCmd, ...args]] : [denoCmd, args];
+  const [cmd, cmdArgs] = isWin && isBatch ? ['cmd', ['/c', denoCmd, ...args]] : [denoCmd, args];
 
   const r = spawnSync(cmd, cmdArgs, {
     stdio: 'inherit',
@@ -167,8 +184,9 @@ function uploadOnce(site) {
   });
 
   if (r.error) {
-    console.error('\n起 Deno 失败：' + r.error.message);
-    return false;
+    console.error('\n起 Deno 失败：' + r.error.message + '\n  ' + denoCmd);
+    if (UNC_CWD) uncHint();
+    return 'fatal';
   }
   return r.status === 0;
 }
@@ -183,11 +201,16 @@ function uploadSite(site, index) {
       console.log('');
       warn(`「${site}」第 ${n}/${tries} 次重试`);
     }
-    if (uploadOnce(site)) {
+    const r = uploadOnce(site);
+    if (r === true) {
       ok(`${site} 上传完成`);
       return true;
     }
-    if (n < tries) log('热铁盒偶尔会 error reading a body from connection，重试一般就好');
+    if (r === 'fatal') {
+      bad(`${site}：Deno 根本没起来，重试没用，先解决上面那条报错`);
+      return false;
+    }
+    if (n < tries) log('热铁盒偶尔会 error reading a body from connection —— 上面看着像网络类报错再等重试');
   }
   bad(`${site} 传了 ${tries} 次都没成功`);
   return false;

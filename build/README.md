@@ -1,24 +1,35 @@
-# 文档站
+# 博客／文档站（JinSuper 奇思妙想）
 
 `/p/docs.html` 是一个**静态页面 + 本地渲染器**：Markdown 在浏览器里现场排版，
 公式、代码高亮、脚注、任务列表、告示框全都在。不依赖 CDN，不依赖云函数。
 
-## 日常使用：加一篇文档
+页面是**整页滚动**的：站点顶栏常驻，左边栏（文章列表 + 本页目录）嵌在页面里跟着一起滚，
+不跟随、不描边、不铺底色（`--nav-h` 是顶栏高度，`main-bar` 的 sticky 偏移按它算）。
+顶栏导航（`siteNavHtml()`，阅读器 / 博客首页 / 文章页共用）当前是：博客 / 时间线 / 标签 / 阅读器 / RSS / 百宝箱
+—— 工具站不再单列，站点总入口只留「百宝箱」。
 
-**不需要重新构建。** 两步：
+构建期还会为每篇文章生成 **`/p/post/<路径>.html`**（独立网址，给搜索引擎）与
+**`/p/feed.xml`**（RSS），见「文章页与 SEO」一节。
+
+## 日常使用：加一篇文章
+
+**不需要重新构建**就能在阅读器里看到。三步：
 
 1. 把 `.md` 放进 `/p/`（可以带子目录）
-2. 在网站根的 `sk.json` 里加一行
+2. 正文顶上写一段 frontmatter（标题 / 日期 / 标签 / 摘要）
+3. 在网站根的 `sk.json` 里加一行
 
 ```json
 {
   "我的分组": {
-    "文档标题": "my-doc.md"
+    "文章标题": "my-doc.md"
   }
 }
 ```
 
 刷新 `docs.html` 就能看到。清单是运行时读的，所以改完即生效。
+想让这篇也有**独立网址**（搜索引擎收录要的就是它）、进 sitemap 和 RSS，
+再跑一次 `npm run build`。
 
 ## 上传哪些文件
 
@@ -26,10 +37,14 @@
 |:--|:--:|:--|
 | `p/docs.html` | ✅ | 页面本体 |
 | `p/docs-md.js` | ✅ | 本地渲染器（markdown-it + KaTeX + highlight.js） |
-| `p/docs-md.css` | ✅ | 样式 |
+| `p/docs-md.css` | ✅ | 样式（阅读器与文章页共用） |
 | `p/fonts/*.woff2` | ✅ | 公式字体，20 个 |
 | `p/*.md` | ✅ | 你的文档 |
-| `sk.json` | ✅ | 清单 |
+| `p/index.html` | 建议 | 构建产出的博客首页（最新 + 标签筛选 + 时间线） |
+| `p/post/**/*.html` | 建议 | 构建产出的文章页（独立网址，SEO 用） |
+| `p/feed.xml` | 建议 | 构建产出的订阅源 |
+| `sk.json` | ✅ | 清单（分组 → 文章路径） |
+| `site.json` | ✅ | 站点目录 + `blog` 段（博客标题 / 简介 / 主域名） |
 | `p/raw.php` | 可选 | 云函数。平台的 .md 若被渲染成 HTML，用它取原文 |
 | `build/` | ❌ | 只是本地构建工具，不要上传 |
 
@@ -58,15 +73,17 @@
 
 ## 什么时候需要重新构建
 
-只有这两种情况：
+这几种情况：
 
 - **改了渲染器**（`build/lib/*.mjs`）→ 重新生成 `docs-md.js`
-- **想让某篇文档预渲染**（比如给爬虫看、或文章特别大）
+- **想让某篇文章预渲染**（比如给爬虫看、或文章特别大）
+- **想让文章有独立网址 / 进 sitemap 与 RSS**（`p/post/`、`p/feed.xml`、`sitemap.xml`）
+- **改了主题 token**（在 `template/docs.html` 里，文章页会跟着走）
 
 ```bash
 cd build
 npm install       # 只需一次
-npm run build     # 生成 p/docs.html、p/docs-md.js、p/docs-md.css、p/fonts/
+npm run build     # 生成 p/docs.html、p/docs-md.js、p/docs-md.css、p/fonts/、p/post/、p/feed.xml
 npm run check     # 三套自检
 npm run serve     # 本地预览 http://127.0.0.1:8788/p/docs.html
 ```
@@ -83,12 +100,13 @@ const PRE_RENDER = new Set([
 
 加进去的文档会在构建期渲染成 HTML 内联进页面，好处是无 JS 环境
 （`<noscript>`）和爬虫也能读到；代价是页面体积变大。**默认只放必要的。**
+（文章页 `/p/post/*.html` 本身就是服务端渲染的，不需要靠这个。）
 
 ## 目录
 
 ```
 build/
-├── build.mjs            构建入口
+├── build.mjs            构建入口（预渲染 → 打包 → 样式 → 文章页 / RSS → 站点索引）
 ├── paths.mjs            路径单一来源（siteRoot / buildDir / …）
 ├── make-favicon.mjs     logo.svg → favicon.svg + apple-touch-icon.svg
 ├── add-favicon.mjs      给所有 HTML 注入/升级 favicon 链接
@@ -99,26 +117,59 @@ build/
 ├── deploy-cli.mjs       部署.cmd 背后的交互菜单 / 命令行程序
 ├── push-github.mjs      只推 GitHub（含 fetch/merge 同步）
 ├── lib/
-│   ├── markdown.cjs     渲染核心（Node 构建期与浏览器共用同一份）
+│   ├── markdown.cjs     渲染核心（Node 构建期与浏览器共用同一份，含 frontmatter 解析）
+│   ├── posts.mjs        文章清单 / 文章页路径 / feed / 归档稿清单（sitemap 也用）
+│   ├── chrome.mjs       文章外壳（顶栏 / 两列布局 / 侧栏目录 / 页脚）——文章页与归档稿共用
+│   ├── theme.mjs        从 template/docs.html 抠主题 token 给文章页用
 │   ├── docs-card.cjs    docs-card.js 的自动同步副本
 │   ├── vendor/
 │   │   └── mdit-tab.cjs @mdit/plugin-tab 的 UMD，构建时从 node_modules 复制（见下）
 │   ├── bundler.mjs      自写的 CJS 打包器
 │   ├── bundle.mjs       打 p/docs-md.js
 │   ├── css.mjs          合并样式 + 拷 KaTeX 字体
+│   ├── site-index.mjs   生成 sitemap.xml / docs/info/site-index.js
 │   ├── favicon.mjs      favicon 标签生成 / 全站收集
 │   └── logo.mjs         把 logo.svg 内联进页面
 ├── template/
-│   ├── docs.html        页面模板（改样式/改文案改这里，p/docs.html 是产物）
+│   ├── docs.html        阅读器模板（改样式/文案改这里，p/docs.html 是产物）
+│   ├── blog.html        博客首页模板（p/index.html 是产物：最新 + 标签筛选 + 时间线）
+│   ├── post-chrome.css  文章外壳样式（文章页注入 / 归档稿内联，只有这一份）
+│   ├── post-script.js   文章页增强脚本（选项卡 / 代码组 / 复制 / 剧透 / 目录高亮，同上）
+│   ├── post.html        文章页模板（p/post/*.html 是产物）
+│   ├── docs-content.css 正文排版（阅读器与文章页共用，并进 docs-md.css）
 │   └── docs-md.css      扩展元素样式源
-├── test-render.mjs      渲染语法逐条断言
+├── test-render.mjs      渲染语法 + frontmatter 逐条断言
 ├── verify.mjs           产物结构检查
-├── test-dom.mjs         jsdom 真跑页面 + 用户加文档流程
+├── test-dom.mjs         jsdom 真跑页面 + 用户加文章流程
 └── .serve.mjs           本地预览用的小服务器
 ```
 
-> `p/docs.html` **是构建产物**。改页面请改 `build/template/docs.html`，
+> `p/docs.html` 与 `p/post/*.html` **都是构建产物**。改页面请改 `build/template/`，
 > 否则下一次 `node build.mjs` 会把你的修改覆盖掉。
+
+## 文章页与 SEO（`/p/post`、feed、sitemap）
+
+阅读器是「一个页面 + hash 换文章」，`/p/docs.html#idea%2Fx.md` 在搜索引擎眼里
+和 `/p/docs.html` 是同一个页面 —— 所以每篇文章在构建期还会出一份**独立网址**：
+
+| 产物 | 谁生成 | 内容 |
+|:--|:--|:--|
+| `p/index.html` | `build.mjs` + `template/blog.html` | 博客首页：最新几篇卡片、标签筛选栏、按年分组的时间线（全部构建期渲染，脚本只做显示 / 隐藏）。**最新**只放活稿；时间线与标签里活稿 + 归档稿一起列，归档条目带「归档」徽标，标签栏里也有一枚「归档」（`listArchivedPosts()`） |
+| `p/post/<路径>.html` | `build.mjs` + `lib/posts.mjs` | 服务端渲染正文（与阅读器同一套渲染核心）、frontmatter 元数据卡片、左侧「本页目录」（每篇都有）、上下篇、canonical / OG / JSON-LD、内联的主题 token 与一点点交互脚本（选项卡 / 代码组 / 复制 / 剧透 / 目录高亮） |
+| `p/feed.xml` | 同上 | RSS 2.0，最新 30 篇 |
+| `sitemap.xml` 的文章条目 | `lib/site-index.mjs` | 每篇文章页 +（没有活 `.md` 对应的）归档稿，带 `lastmod` |
+
+约定：
+
+- 路径照搬 `/p/` 下的结构：`idea/3.枣香童年.md` → `/p/post/idea/3.枣香童年.html`
+- 文章页的左侧目录由构建期生成，**每篇都有**：一节也算，没有小节的短文退回一条「文章标题 → `#post`」；
+  `<main class="wrap">` 保持单列，有目录（`has-toc`）才是两列网格，否则文章会被挤进 212px 的目录列里
+- 目录层级先经 `normalizeTocLevels()` 归一成相对级别（最浅的一级 = `lv-1`）再缩进，阅读器 / 文章页 / 正文目录共用
+- 正文里的相对路径按老规矩**相对 `/p/`**，构建期会补成文章页能用的前缀；
+  指向别的文章的链接会直接指到对方的文章页（爬虫走的是真链接）
+- frontmatter 里 `draft / nopage / hidden` 为真 → 不生成文章页
+- `p/post/` 下不是这一轮生成的文件会被清掉（改了 slug / 删了文章留下的旧页面）
+- 主域名写在 `site.json` 的 `blog.origin`：canonical / `og:url` / JSON-LD 都用它
 
 ## 支持的 Markdown 语法
 
@@ -126,6 +177,7 @@ CommonMark + GFM 基础，加上：
 
 | 语法 | 写法 |
 |:--|:--|
+| Frontmatter | 文件顶上 `---` … `---`，里面写 `title:` / `date:` / `tags:` / `author:` …（渲染成元数据卡片，见 `MANIFEST.md` §7.1） |
 | 数学公式 | `$…$`、`$$…$$`、`\(…\)`、`\[…\]`（KaTeX） |
 | 代码高亮 | 围栏标注语言，含 15 种常用语言 |
 | 显示行号 | ` ```js:line-numbers ` |
@@ -152,6 +204,13 @@ CommonMark + GFM 基础，加上：
 这些围栏会**退化成普通代码块**（不高亮、不加提示，内容照旧完整）。
 `::: layout`、`@include`、`@snippet`、`@embed`、`->对齐<-`
 也都没实现，同样原样显示。
+
+> **例外：发布控制台的 md 预览会真的把它们画出来**（站点产物不受影响）。
+> 预览走 `createRenderer({ setup })` 注入的外挂（`console/lib/md-extras.mjs`）：
+> `echarts` 用 Node 端 SSR 出**内联 SVG**，`mermaid` 用本地
+> `build/node_modules/mermaid/dist/mermaid.min.js` 在浏览器里画。
+> 归档产物只烘「能变成静态标记」的（ECharts），要浏览器运行时的（mermaid）
+> 仍旧退回代码块 —— 归档 HTML 不引用任何外部插件脚本。详见 `project.md`。
 
 ### 选项卡用的是官方插件，但样式重写了
 
@@ -235,7 +294,14 @@ node add-favicon.mjs    # 把 <link rel="icon"> 注入所有 HTML（会自动把
 
 - **谁渲染的**：`console/lib/render.mjs`，它 `createRequire` 复用**本目录的 `lib/markdown.cjs`**。
   也就是说归档产物和构建期预渲染用的是同一套语法实现，`p/docs-md.js` 一个字节都没改。
-  产物形状：`<!-- 由发布控制台预渲染 -->` + `<div class="md">正文</div>` + 自包含的 head/页脚。
+- **外壳和静态文章页是同一份**（`build/lib/chrome.mjs`）：顶栏导航、侧栏目录、`.wrap` 单列 / 两列、
+  样式（`template/post-chrome.css`）、脚本（`template/post-script.js`）、主题 token（`theme.mjs`）
+  全从这儿来 —— 归档稿看起来、用起来和 `/p/post/*.html` 一模一样。
+  产物形状：`<!-- 由发布控制台预渲染 -->` + `<article class="md" id="post">正文</article>` + head/页脚。
+- **改过外壳之后，老产物要「重刷外壳」**：控制台「归档与预渲染」面板选中产物 →
+  「重刷外壳」（`POST /api/archive/reshell`）。正文一个字不动，只按当前模板重写
+  head / 顶栏 / 目录 / 页脚，覆盖前照例留一版到 `.versions`；**原文没留底也能刷**
+  （正文本来就在产物里，所以这是老归档唯一能补上顶栏和目录的办法）。
 - **阅读器怎么认**（`build.mjs` 的 `DOCS_JS`）：
   `doc.kind === 'html'` 且路径以 `archive/` 开头 → `fetch` 产物 → `extractArchiveBody()`
   取出 `class="md"` 那个 div 的内容 → 当正文注入 → 接着走 `fixURLs / initCodeGroups /

@@ -29,7 +29,16 @@ const bad = (m) => { console.log('  ✗ ' + m); fail++; };
 const meh = (m) => { console.log('  ⚠ ' + m); warn++; };
 
 const siteJsonPath = path.join(siteRoot, 'site.json');
-const exists = (p) => { try { return fs.existsSync(p) && fs.statSync(p).isFile(); } catch { return false; } };
+/* 存在的意思：是个文件；或者是个**带 index.html 的目录**（清单里写 `/p/` 这种地址，
+   热铁盒会落回目录里的 index.html，所以它同样指得着） */
+const exists = (p) => {
+  try {
+    const st = fs.statSync(p);
+    if (st.isFile()) return true;
+    if (st.isDirectory()) return fs.statSync(path.join(p, 'index.html')).isFile();
+  } catch { /* 不存在 / 没权限都算不存在 */ }
+  return false;
+};
 /** 站点绝对路径 → 磁盘路径（去掉 ?query / #hash） */
 const diskOf = (href) => path.join(siteRoot, String(href).split(/[?#]/)[0].replace(/^\/+/, ''));
 const isExternal = (href) => /^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith('//');

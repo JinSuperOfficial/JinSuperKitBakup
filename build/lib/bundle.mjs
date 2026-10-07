@@ -57,8 +57,10 @@ window.DocsMd = {
   full: function(){ return true; },
   missing: function(){ return []; },
 
-  /* Markdown 源码 → HTML 字符串 */
-  render: function(src){ return md.render(String(src == null ? '' : src), {}); },
+  /* Markdown 源码 → HTML 字符串（顶部 frontmatter 自动变成元数据卡片）。
+     必须走 M.renderWith：markdown-it 本身不认识 frontmatter，
+     直接 md.render 会把那段 YAML 当正文画出来，构建期和浏览器端就对不上了。 */
+  render: function(src){ return M.renderWith(md, src); },
 
   /* 渲染进指定元素 */
   renderInto: function(el, src){
@@ -67,6 +69,14 @@ window.DocsMd = {
     el.innerHTML = html;
     return html;
   },
+
+  /* 拆 frontmatter：页面要拿 title / date / tags 这些元数据时用它。
+     和渲染器内部是同一份实现，不会两边解析出不同结果。 */
+  frontmatter: function(src){ return M.parseFrontmatter(src); },
+
+  /* frontmatter 的元数据卡片（渲染器已内联在 render() 里，这里是给
+     静态文章页之类需要自己摆放位置的场景用的） */
+  renderFrontmatter: function(data, opts){ return M.renderFrontmatter(data, opts); },
 
   version: 'local',
 };

@@ -8,7 +8,7 @@
     "start": "node server.mjs",
     "test": "node test/console.test.mjs"
   },
-  "comment": "刻意没有任何依赖：预渲染复用 build/lib/markdown.cjs（服务端渲染核心），所以不需要在这里再装一遍 markdown-it / KaTeX。",
+  "comment": "刻意没有任何依赖：预渲染复用 build/lib/markdown.cjs（服务端渲染核心），所以不需要在这里再装一遍 markdown-it / KaTeX。预览的图表增强（ECharts / mermaid）与外部 markdown-it 插件也都从 build/node_modules 解析，见 lib/md-extras.mjs；缺了就在预览里标 ✗ 并说明原因，不影响控制台其余功能。",
   "engines": {
     "node": ">=20"
   }

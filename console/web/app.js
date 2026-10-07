@@ -45,7 +45,7 @@
     setTimeout(() => {
       t.style.opacity = '0';
       setTimeout(() => t.remove(), 200);
-    }, kind === 'bad' ? 5200 : 2600);
+    }, (kind === 'bad' || kind === 'warn') ? 5200 : 2600);
   }
 
   /** 二次确认（设置里能关掉） */
@@ -299,9 +299,112 @@
       $('pvMs').textContent = Math.round(performance.now() - t0) + ' ms';
       /* 代码组的标签行由页面脚本生成，预览里补一下 */
       initPreviewWidgets();
+      /* 卡片兜底：预渲染稿 / 平台渲染稿里残留的 <card> 换成同一套 a.card 结构 */
+      if (window.DocsCard && typeof window.DocsCard.enhance === 'function') {
+        window.DocsCard.enhance($('preview'));
+      }
+      /* mermaid 是浏览器端画的（服务端那一趟只留下 .mermaid 占位） */
+      renderMermaidIn($('preview'));
+      renderExtras(r);
     } catch (e) {
       $('preview').innerHTML = '<p style="color:var(--danger)">渲染失败：' + esc(e.message) + '</p>';
+      $('pvHint').hidden = true;
     }
+  }
+
+  /* ═══ 预览增强状态（图表 / 外部插件 / 画不出来的语法） ═══ */
+
+  /**
+   * mermaid：本地那份（/vendor/mermaid.min.js，就是 build/node_modules 里的包）
+   * 只注入一次，之后每轮预览把 .mermaid 占位画成 SVG。
+   * 没装的话服务端会在占位旁边写一条提示，这里直接跳过。
+   */
+  let mermaidLoading = null;
+  function loadMermaid() {
+    if (window.mermaid) return Promise.resolve(window.mermaid);
+    if (mermaidLoading) return mermaidLoading;
+    mermaidLoading = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = '/vendor/mermaid.min.js';
+      s.onload = () => {
+        try {
+          window.mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'dark' });
+        } catch { /* 初始化参数不认识也不影响后面 run */ }
+        resolve(window.mermaid);
+      };
+      s.onerror = () => { mermaidLoading = null; reject(new Error('mermaid.min.js 没取到')); };
+      document.head.appendChild(s);
+    });
+    return mermaidLoading;
+  }
+
+  let mermaidSeq = 0;
+  function renderMermaidIn(root) {
+    const nodes = [...root.querySelectorAll('.md-mermaid:not([data-processed])')];
+    if (!nodes.length) return;
+    loadMermaid()
+      .then((m) => {
+        /* run 是异步的，而且每张图各自可能失败：失败只标记这一张，不影响正文 */
+        const seq = ++mermaidSeq;
+        nodes.forEach((n) => {
+          if (seq !== mermaidSeq) return;           /* 预览又刷新了，这批作废 */
+          n.setAttribute('data-processed', '1');
+        });
+        return m.run({ nodes, suppressErrors: true }).catch(() => {
+          nodes.forEach((n) => n.classList.add('md-mermaid-bad'));
+        });
+      })
+      .catch((e) => {
+        nodes.forEach((n) => {
+          n.setAttribute('data-processed', '1');
+          n.classList.add('md-mermaid-bad');
+          n.textContent = 'mermaid 没渲染：' + e.message;
+        });
+      });
+  }
+
+  /** 右上角的增强状态 + 画不出来的语法提示 */
+  function renderExtras(r) {
+    const chip = $('pvExtras');
+    const hint = $('pvHint');
+    const extras = r && r.extras;
+    const missing = (r && r.unsupported) || [];
+    const errors = (r && r.setupErrors) || [];
+
+    if (extras && extras.features) {
+      const keys = [
+        ...extras.features.filter((f) => f.id !== 'plantuml').map((f) => ({ ok: f.ok, label: f.label })),
+        ...(extras.external || []).map((p) => ({ ok: p.ok, label: p.label })),
+      ];
+      const title = [
+        ...extras.features.map((f) => `${f.ok ? '✓' : '✗'} ${f.label}：${f.detail}`),
+        ...(extras.external || []).map((p) => `${p.ok ? '✓' : '✗'} ${p.label}：${p.detail}`),
+      ].join('\n');
+      chip.hidden = false;
+      chip.title = title;
+      chip.textContent = keys.map((k) => (k.ok ? '✓ ' : '✗ ') + k.label).join(' · ') || '只用文档站语法';
+      chip.classList.toggle('is-partial', keys.some((k) => !k.ok));
+    } else {
+      chip.hidden = true;
+    }
+
+    const lines = missing.map((u) => `「${u.lang}」这段不会渲染（${u.label}）：${u.detail}`);
+    errors.forEach((m) => lines.push('增强装载报错：' + m));
+    if (lines.length) {
+      hint.hidden = false;
+      hint.replaceChildren(...lines.map((t) => el('p', 'pv-hint-line', t)));
+    } else {
+      hint.hidden = true;
+      hint.replaceChildren();
+    }
+  }
+
+  /** 归档 / 重建返回的 warnings：产物照常生成，但要说清楚哪几篇的图没烘进去 */
+  function toastArchiveWarnings(warnings) {
+    if (!warnings || !warnings.length) return;
+    const first = warnings[0];
+    const more = warnings.length > 1 ? `等 ${warnings.length} 处` : '';
+    toast(`归档完成，但「${first.lang}」这类图表不进产物（${first.label}）${more}：归档 HTML 不引外部脚本，仍是代码块`, 'warn');
   }
 
   /** 预览里的代码组 / 选项卡：跟阅读器一样，打开第一个面板 */
@@ -614,6 +717,7 @@
     try {
       const r = await api('POST', '/api/archive', { paths: [path] });
       toast('已归档 → ' + (r.archived[0] ? r.archived[0].output : ''), 'ok');
+      toastArchiveWarnings(r.warnings);
       await refreshState();
       renderManage();
       renderArchive();
@@ -668,6 +772,7 @@
       try {
         const r = await api('POST', '/api/archive', { paths });
         toast('归档完成：' + r.archived.length + ' 篇', 'ok');
+        toastArchiveWarnings(r.warnings);
         selected.clear();
         await refreshState();
         renderManage();
@@ -811,6 +916,7 @@
       try {
         const r = await api('POST', '/api/archive', { paths });
         toast('归档完成：' + r.archived.length + ' 篇', 'ok');
+        toastArchiveWarnings(r.warnings);
         archSelected.clear();
         await refreshState();
         renderArchive();
@@ -834,12 +940,30 @@
       renderManage();
     });
 
+    $('btnReshell').addEventListener('click', async () => {
+      const paths = [...archSelected].filter((p) => p.startsWith('archive/'));
+      if (!paths.length) { toast('「重刷外壳」作用于右边勾选的已归档产物', 'bad'); return; }
+      const go = await confirmBox('重刷这 ' + paths.length + ' 篇的外壳？',
+        paths.join('\n') + '\n\n正文不动：只按当前模板重写 head / 顶栏 / 侧栏目录 / 页脚。' +
+        '\n覆盖前会先存一版到 .versions，随时能回滚。');
+      if (!go) return;
+      try {
+        const r = await api('POST', '/api/archive/reshell', { paths });
+        const n = (r.reshelled || []).length;
+        toast('重刷完成：' + n + ' 篇' + (r.failed && r.failed.length ? '，' + r.failed.length + ' 篇失败' : ''), n ? 'ok' : 'bad');
+        for (const f of (r.failed || [])) toast(f.path + '：' + f.error, 'bad');
+        await refreshState();
+        renderArchive();
+      } catch (e) { toast('重刷失败：' + e.message, 'bad'); }
+    });
+
     $('btnRebuild').addEventListener('click', async () => {
       const paths = [...archSelected].filter((p) => p.startsWith('archive/'));
       if (!paths.length) { toast('「重新构建」只作用于右边勾选的已归档产物', 'bad'); return; }
       try {
         const r = await api('POST', '/api/archive/rebuild', { paths });
         toast('重新构建了 ' + r.rebuilt.length + ' 篇', 'ok');
+        toastArchiveWarnings(r.warnings);
         await refreshState();
         renderArchive();
       } catch (e) { toast('重建失败：' + e.message, 'bad'); }
@@ -1012,6 +1136,43 @@
       row('sk.json 路径', input('skPath'), '文档站清单，默认 sk.json'),
     ]));
 
+    /* 预览：默认行为都在这里定，界面上就不用每次再选 */
+    const pvSelect = (name, opts, value) => {
+      const sel = el('select', 'input');
+      sel.dataset.setting = name;
+      opts.forEach(([v, t]) => { const o = el('option', null, t); o.value = v; sel.appendChild(o); });
+      sel.value = value;
+      return sel;
+    };
+    const pvCheck = (name, checked) => {
+      const cb = el('input'); cb.type = 'checkbox';
+      cb.dataset.setting = name; cb.checked = !!checked;
+      return cb;
+    };
+    form.appendChild(group('预览', [
+      row('预览服务端口', (() => {
+        const i = el('input', 'input');
+        i.type = 'number'; i.min = '1'; i.max = '65535'; i.step = '1';
+        i.dataset.setting = 'previewPort';
+        i.value = s.previewPort;
+        return i;
+      })(), '默认 8790；控制台自己是 8791，刻意错开'),
+      row('进面板自动开服务', pvCheck('previewAutoStart', s.previewAutoStart),
+        '打开「预览」面板就把服务起起来'),
+      row('开服务后打开首页', pvCheck('previewOpenAfterStart', s.previewOpenAfterStart),
+        '点「Server On」之后顺手打开站点根'),
+      row('点页面的默认行为', pvSelect('previewClickMode', [
+        ['auto', '没开就先开，再打开（推荐）'],
+        ['server', '只打开（服务得先开着）'],
+        ['path', '只复制站点路径'],
+      ], s.previewClickMode), '点页面标题时干什么'),
+      row('页面清单来源', pvSelect('previewTreeSource', [
+        ['auto', '自动：清单优先，目录补齐（推荐）'],
+        ['manifest', '只看清单：site.json / collection / sk.json'],
+        ['dir', '只扫目录：盘上所有 .html'],
+      ], s.previewTreeSource), '「预览」面板默认按哪份来源列页面'),
+    ]));
+
     const hint = el('p', 'set-hint',
       '路径改完点右上角「保存设置」。归档目录必须在 /p 下（产物要跟着站点上传），' +
       '留底目录必须在项目根里（站点之外，prep-deploy 不会碰它）。');
@@ -1026,6 +1187,9 @@
     add('留底目录', S.state.paths.paraDir);
     add('归档目录', S.state.paths.archiveDir);
     add('预渲染核心', S.state.core.ok ? S.state.core.file : '⚠ ' + S.state.core.error);
+    add('预览服务', (PV.service && PV.service.running)
+      ? PV.service.url
+      : ('没开（端口 ' + s.previewPort + '，点预览面板的 Server On）'));
   }
 
   async function saveSettings() {
@@ -1034,7 +1198,7 @@
     form.querySelectorAll('[data-setting]').forEach((n) => {
       const key = n.dataset.setting;
       if (n.type === 'checkbox') settings[key] = n.checked;
-      else if (n.type === 'range') settings[key] = Number(n.value);
+      else if (n.type === 'range' || n.type === 'number') settings[key] = Number(n.value);
       else settings[key] = n.value;
     });
 
@@ -1699,6 +1863,7 @@
   /* ═══════════ #10 发布与部署 ═══════════ */
 
   const JOB = { id: null, timer: null, offset: 0, steps: [], running: false, pipelines: [] };
+  const HIST_KEY = 'console.deploy.histOpen';   /* 「最近的作业」展开还是收起 */
 
   async function refreshDeploy() {
     try {
@@ -1731,6 +1896,8 @@
 
   function renderDeployHistory(jobs) {
     const box = $('deployHistory');
+    const cnt = $('deployHistCount');
+    if (cnt) cnt.textContent = jobs.length ? jobs.length + ' 条' : '空的';
     box.replaceChildren();
     if (!jobs.length) { box.appendChild(el('p', 'hint', '还没有跑过作业。')); return; }
     jobs.slice(0, 10).forEach((j) => {
@@ -1834,6 +2001,14 @@
   }
 
   function initDeploy() {
+    /* 「最近的作业」：默认收起，把高度留给日志卡片；展开/收起记在 localStorage */
+    const hist = $('deployHist');
+    if (hist) {
+      try { hist.open = localStorage.getItem(HIST_KEY) === '1'; } catch (e) { /* 忽略 */ }
+      hist.addEventListener('toggle', () => {
+        try { localStorage.setItem(HIST_KEY, hist.open ? '1' : '0'); } catch (e) { /* 忽略 */ }
+      });
+    }
     $('btnDeployRefresh').addEventListener('click', () => refreshDeploy().then(() => toast('已刷新', 'ok')));
     $('btnDeployFull').addEventListener('click', async () => {
       const okd = await confirmBox('一键部署并推送？', '构建 → 自检 → 组装 dist → 传热铁盒（两个站） → 推 GitHub。');
@@ -2195,9 +2370,424 @@
     conflict: '两边都改',
   };
 
+  /* ═══════════ #7.5 预览（页面树 + 预览服务） ═══════════ */
+
+  const PV = {
+    tree: [],
+    stats: {},
+    notes: [],
+    service: null,     /* /api/preview/status 的形状 */
+    source: 'auto',
+    sourceTouched: false,
+    loaded: false,
+    loading: false,
+    open: {},          /* groupId → 是否展开（存 localStorage，默认展开） */
+    query: '',
+    filter: '',
+    hideIgnored: false,
+  };
+
+  const PV_OPEN_KEY = 'console.preview.open';
+
+  /** 站点 href → 预览地址；服务没开就返回 null */
+  function pvUrl(href) {
+    const svc = PV.service;
+    if (!svc || !svc.running || !href) return null;
+    return String(svc.url).replace(/\/+$/, '') + href;
+  }
+
+  function pvSetOpenState() {
+    try { localStorage.setItem(PV_OPEN_KEY, JSON.stringify(PV.open)); } catch { /* 忽略 */ }
+  }
+
+  function pvIsOpen(node) {
+    /* 默认：全展开 —— 「一键列出所有页面」就该真的列出来 */
+    return PV.open[node.id] !== false;
+  }
+
+  /** 搜索时无视折叠状态：命中项在收起的组里也得看得见 */
+  function pvShown(node) {
+    return PV.query.trim() ? true : pvIsOpen(node);
+  }
+
+  function pvAllGroups(open) {
+    const set = (ns) => ns.forEach((n) => {
+      if (n.type === 'group') { PV.open[n.id] = open; set(n.children || []); }
+    });
+    set(PV.tree);
+    pvSetOpenState();
+    pvRender();
+  }
+
+  function pvMatches(node) {
+    const q = PV.query.trim().toLowerCase();
+    if (PV.hideIgnored && node.ignored) return false;
+    if (PV.filter && node.type === 'page' && node.kind !== PV.filter) return false;
+    if (!q) return true;
+    return (String(node.title) + ' ' + (node.href || '') + ' ' + (node.desc || '')).toLowerCase().includes(q);
+  }
+
+  /** 过滤后的树：父节点只要有一个后代命中就留着（搜索时 ancestors 自动展开） */
+  function pvFilterTree(nodes) {
+    const out = [];
+    for (const n of nodes) {
+      if (n.type === 'group') {
+        const kids = pvFilterTree(n.children || []);
+        /* 分组本身命中关键词时，整棵子树都算命中 */
+        const selfHit = PV.query.trim() && String(n.title).toLowerCase().includes(PV.query.trim().toLowerCase());
+        if (kids.length || selfHit) out.push({ ...n, children: selfHit && !kids.length ? n.children || [] : kids });
+      } else if (pvMatches(n)) {
+        out.push(n);
+      }
+    }
+    return out;
+  }
+
+  function pvRender() {
+    /* 注意：只换 #pvList 的内容。#pvEmpty 是它的兄弟节点，
+       要是把它一起 replaceChildren 掉，下一行 getElementById 就拿到 null 了。 */
+    const box = $('pvList');
+    const empty = $('pvEmpty');
+    const tree = pvFilterTree(PV.tree);
+    box.replaceChildren();
+    empty.hidden = !!tree.length;
+
+    if (!tree.length) {
+      empty.textContent = PV.loaded
+        ? '没有匹配的页面（换个关键词，或把「隐藏忽略项」关掉）。'
+        : '点右上角「重新列出」把站点里的页面列出来。';
+    } else {
+      box.appendChild(pvNodes(tree, 0));
+    }
+    pvRenderStats();
+  }
+
+  function pvNodes(nodes, depth) {
+    const frag = document.createDocumentFragment();
+    nodes.forEach((n) => frag.appendChild(pvNode(n, depth)));
+    return frag;
+  }
+
+  function pvNode(node, depth) {
+    if (node.type === 'page') return pvPageRow(node, depth);
+
+    const wrap = el('div', 'pv-group');
+    const row = el('div', 'pv-row');
+    row.style.setProperty('--depth', String(depth));
+    row.dataset.id = node.id;
+
+    const open = pvShown(node);
+    /* 树语义：分组是 treeitem，子树是它肚子里的 group（ARIA tree 那一套） */
+    wrap.setAttribute('role', 'treeitem');
+    wrap.setAttribute('aria-level', String(depth + 1));
+    wrap.setAttribute('aria-expanded', open ? 'true' : 'false');
+
+    const toggle = el('button', 'pv-toggle' + (open ? ' open' : ''));
+    toggle.type = 'button';
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    toggle.setAttribute('aria-label', (open ? '折叠 ' : '展开 ') + node.title);
+    toggle.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>';
+    toggle.addEventListener('click', () => {
+      PV.open[node.id] = !pvIsOpen(node);
+      pvSetOpenState();
+      pvRender();
+    });
+    row.appendChild(toggle);
+
+    const btn = el('button', 'pv-title' + (node.type === 'group' ? ' is-group' : ''));
+    btn.type = 'button';
+    btn.appendChild(el('span', 'pv-name', node.title));
+    if (node.note) btn.appendChild(el('em', 'pv-note', node.note));
+    btn.addEventListener('click', () => {
+      PV.open[node.id] = !pvIsOpen(node);
+      pvSetOpenState();
+      pvRender();
+    });
+    row.appendChild(btn);
+
+    const kids = el('div', 'pv-children');
+    kids.setAttribute('role', 'group');
+    if (open) kids.appendChild(pvNodes(node.children || [], depth + 1));
+    else kids.hidden = true;
+
+    wrap.appendChild(row);
+    wrap.appendChild(kids);
+    return wrap;
+  }
+
+  function pvPageRow(node, depth) {
+    const row = el('div', 'pv-row is-page');
+    row.style.setProperty('--depth', String(depth));
+    row.setAttribute('role', 'treeitem');
+    row.setAttribute('aria-level', String(depth + 1));
+    if (node.ignored) row.classList.add('is-ignored');
+    if (node.missing) row.classList.add('is-missing');
+
+    /* 缩进对齐：分组有那个三角按钮，页面用一个小圆点占位 */
+    row.appendChild(el('span', 'pv-bullet'));
+
+    const url = pvUrl(node.href);
+    const link = el(url ? 'a' : 'button');
+    link.className = 'pv-title';
+    if (url) {
+      link.href = url;
+      link.target = '_blank';
+      link.rel = 'noopener';
+    } else {
+      link.type = 'button';
+    }
+    link.appendChild(el('span', 'pv-name', node.title));
+    if (node.href) link.appendChild(el('em', 'pv-path', node.href));
+    if (node.missing) link.appendChild(el('em', 'pv-note bad', '文件不在盘上'));
+    else if (node.dir) link.appendChild(el('em', 'pv-note', '目录'));
+    else if (node.ignored) link.appendChild(el('em', 'pv-note', '已忽略'));
+    if (node.desc && !node.missing) link.title = node.desc;
+
+    link.addEventListener('click', (e) => {
+      const acts = pvClickActs(node, e);
+      if (acts === 'default') return;   /* 交给浏览器按 <a> 自己走 */
+      e.preventDefault();
+      acts();
+    });
+    row.appendChild(link);
+
+    const acts = el('div', 'pv-acts');
+    const copy = el('button', 'pv-act');
+    copy.type = 'button';
+    copy.textContent = '复制路径';
+    copy.title = '只复制站点路径（/p/docs.html）';
+    copy.addEventListener('click', () => pvCopy(node.href || node.rel));
+    acts.appendChild(copy);
+    row.appendChild(acts);
+    return row;
+  }
+
+  /**
+   * 点一个页面要干什么。返回 'default' 表示就让 <a> 自己开新标签；
+   * 否则返回一个函数，由调用方 preventDefault 之后再跑。
+   */
+  function pvClickActs(node, e) {
+    const url = pvUrl(node.href);
+    const mode = (S.state && S.state.settings.previewClickMode) || 'auto';
+
+    if (node.missing) return () => toast('这个文件不在盘上：' + (node.rel || node.href), 'bad');
+    if (!node.href) return () => toast('这一条没有可打开的地址', 'bad');
+
+    /* 想按原样开新标签（Ctrl/⌘+点、中键）就别抢 */
+    if (e && (e.ctrlKey || e.metaKey || e.button === 1)) return 'default';
+
+    if (mode === 'path') return () => pvCopy(node.href);
+    if (mode === 'server') {
+      if (url) return 'default';
+      return () => toast('预览服务没开：先点右上角「Server On」', 'bad');
+    }
+    /* auto：没开就先开起来，再打开 */
+    if (url) return 'default';
+    return async () => {
+      try {
+        await pvStart({ openRoot: false });
+        const u = pvUrl(node.href);
+        if (u) window.open(u, '_blank', 'noopener');
+        else toast('服务开了，但这一条没有可打开的地址', 'bad');
+      } catch (err) {
+        toast('预览服务起不来：' + err.message, 'bad');
+      }
+    };
+  }
+
+  function pvCopy(text) {
+    const s = String(text || '');
+    if (!s) return;
+    const done = () => toast('已复制：' + s, 'ok');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(s).then(done).catch(() => pvCopyFallback(s, done));
+      return;
+    }
+    pvCopyFallback(s, done);
+  }
+
+  function pvCopyFallback(text, done) {
+    try {
+      const ta = el('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+      done();
+    } catch {
+      toast('复制失败，路径是：' + text, 'bad');
+    }
+  }
+
+  function pvRenderStats() {
+    const st = PV.stats || {};
+    const dl = $('pvStats');
+    dl.replaceChildren();
+    const add = (k, v) => { dl.appendChild(el('dt', null, k)); dl.appendChild(el('dd', null, String(v))); };
+    add('页面', (st.pages || 0) + ' 个');
+    add('分组', (st.groups || 0) + ' 个');
+    add('忽略', (st.ignored || 0) + ' 个');
+    if (st.missing) add('找不到', st.missing + ' 个');
+
+    const svc = PV.service || {};
+    const info = $('pvInfo');
+    info.replaceChildren();
+    const add2 = (k, v) => { info.appendChild(el('dt', null, k)); info.appendChild(el('dd', null, String(v))); };
+    add2('状态', svc.running ? '运行中' : '没开');
+    add2('地址', svc.url || ('http://127.0.0.1:' + ((S.state && S.state.settings.previewPort) || 8790) + '/'));
+    add2('站点根', svc.root || (S.state && S.state.paths ? S.state.paths.siteRoot : ''));
+
+    const note = $('pvNote');
+    note.hidden = !(PV.notes && PV.notes.length);
+    if (PV.notes && PV.notes.length) note.textContent = PV.notes.join('；');
+  }
+
+  function pvRefreshState() {
+    const svc = PV.service || {};
+    const dot = $('pvDot');
+    dot.className = 'dot ' + (svc.running ? 'ok' : '');
+    $('pvStateText').textContent = svc.running ? ('预览服务 ' + svc.url) : '预览服务没开';
+    const btn = $('btnPvServer');
+    btn.textContent = svc.running ? 'Server Off' : 'Server On';
+    btn.classList.toggle('primary', !svc.running);
+    $('pvHint').textContent = svc.running
+      ? '服务开着：点页面直接在新标签里打开；Ctrl/⌘+点、中键也照常。关掉控制台它一起停。'
+      : '不开服务也能点页面：默认会先把服务开起来再打开（可在设置里改）。';
+  }
+
+  async function pvLoad({ silent } = {}) {
+    if (PV.loading) return;
+    PV.loading = true;
+    try {
+      const data = await api('GET', '/api/pages?source=' + encodeURIComponent(PV.source));
+      PV.tree = data.tree || [];
+      PV.stats = data.stats || {};
+      PV.notes = data.notes || [];
+      PV.service = data.service || PV.service;
+      PV.loaded = true;
+      /* 第一次进来自动跟随设置里的来源 */
+      pvRender();
+      pvRefreshState();
+      if (!silent) toast('列出了 ' + ((PV.stats.pages) || 0) + ' 个页面', 'ok');
+    } catch (e) {
+      toast('列不出页面：' + e.message, 'bad');
+    } finally {
+      PV.loading = false;
+    }
+  }
+
+  async function pvStatus() {
+    try {
+      const svc = await api('GET', '/api/preview/status');
+      PV.service = svc;
+      pvRefreshState();
+      pvRender();     /* 服务开了/关了，页面上的链接形态要跟着变 */
+    } catch { /* 忽略 */ }
+  }
+
+  async function pvStart({ openRoot } = {}) {
+    const port = (S.state && S.state.settings.previewPort) || 8790;
+    const svc = await api('POST', '/api/preview/start', { port });
+    PV.service = svc;
+    pvRefreshState();
+    pvRender();
+    if (svc.running) {
+      toast('预览服务已开：' + svc.url, 'ok');
+      const wantOpen = openRoot === undefined
+        ? !!((S.state && S.state.settings.previewOpenAfterStart))
+        : !!openRoot;
+      if (wantOpen) window.open(svc.url, '_blank', 'noopener');
+    }
+    return svc;
+  }
+
+  async function pvStop() {
+    const svc = await api('POST', '/api/preview/stop');
+    PV.service = svc;
+    pvRefreshState();
+    pvRender();
+    toast('预览服务已停', 'ok');
+  }
+
+  function initPreview() {
+    try {
+      PV.open = JSON.parse(localStorage.getItem(PV_OPEN_KEY) || '{}') || {};
+    } catch { PV.open = {}; }
+
+    $('btnPvReload').addEventListener('click', () => pvLoad());
+    $('btnPvExpand').addEventListener('click', () => pvAllGroups(true));
+    $('btnPvCollapse').addEventListener('click', () => pvAllGroups(false));
+
+    $('btnPvServer').addEventListener('click', async () => {
+      const btn = $('btnPvServer');
+      btn.disabled = true;
+      try {
+        if (PV.service && PV.service.running) await pvStop();
+        else await pvStart({});
+      } catch (e) {
+        toast((PV.service && PV.service.running ? '停不掉：' : '起不来：') + e.message, 'bad');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    $('btnPvOpenRoot').addEventListener('click', async () => {
+      if (!(PV.service && PV.service.running)) {
+        try { await pvStart({ openRoot: true }); } catch (e) { toast('起不来：' + e.message, 'bad'); }
+        return;
+      }
+      window.open(PV.service.url, '_blank', 'noopener');
+    });
+
+    $('btnPvCopy').addEventListener('click', () => {
+      const url = (PV.service && PV.service.url)
+        || ('http://127.0.0.1:' + (((S.state && S.state.settings.previewPort)) || 8790) + '/');
+      pvCopy(url);
+    });
+
+    let t = null;
+    $('pvQuery').addEventListener('input', (e) => {
+      PV.query = e.target.value;
+      clearTimeout(t);
+      t = setTimeout(pvRender, 120);
+    });
+    $('pvFilter').addEventListener('change', (e) => { PV.filter = e.target.value; pvRender(); });
+    $('pvHideIgnored').addEventListener('change', (e) => { PV.hideIgnored = e.target.checked; pvRender(); });
+
+    /* 来源切换：自动 / 清单 / 目录 */
+    $('pvSource').addEventListener('click', (e) => {
+      const b = e.target.closest('.seg-btn');
+      if (!b) return;
+      PV.source = b.dataset.source;
+      PV.sourceTouched = true;
+      [...$('pvSource').querySelectorAll('.seg-btn')].forEach((x) => x.classList.toggle('on', x === b));
+      pvLoad();
+    });
+
+    pvRefreshState();
+  }
+
+  function pvEnter() {
+    /* 进面板：按设置里的来源列出页面；开了自动开服务就顺手开起来 */
+    const s = S.state && S.state.settings ? S.state.settings : {};
+    if (!PV.sourceTouched && s.previewTreeSource && s.previewTreeSource !== PV.source) {
+      PV.source = s.previewTreeSource;
+      [...$('pvSource').querySelectorAll('.seg-btn')].forEach((x) => x.classList.toggle('on', x.dataset.source === PV.source));
+    }
+    if (!PV.loaded) pvLoad({ silent: true });
+    else pvStatus();
+
+    if (s.previewAutoStart && !(PV.service && PV.service.running)) {
+      pvStart({ openRoot: false }).catch((e) => toast('自动开预览服务失败：' + e.message, 'bad'));
+    }
+  }
+
   /* ═══════════ #8 启动 / 路由 / 刷新 ═══════════ */
 
-  const VIEWS = ['write', 'manage', 'manifest', 'archive', 'assets', 'deploy', 'cloud', 'check', 'compare', 'settings'];
+  const VIEWS = ['write', 'manage', 'preview', 'manifest', 'archive', 'assets', 'deploy', 'cloud', 'check', 'compare', 'settings'];
 
   function setView(name, { focusTab } = {}) {
     if (!VIEWS.includes(name)) name = 'write';
@@ -2214,6 +2804,7 @@
     });
     if (focusTab) $('tab-' + name).focus();
     if (name === 'manage') renderManage();
+    if (name === 'preview') pvEnter();
     if (name === 'manifest') { refreshManifest(); fillManifestHints(); }
     if (name === 'archive') renderArchive();
     if (name === 'assets') renderAssets();
@@ -2328,6 +2919,7 @@
     initNav();
     initWrite();
     initManage();
+    initPreview();
     initManifest();
     initArchive();
     initAssets();

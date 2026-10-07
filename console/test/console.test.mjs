@@ -12,6 +12,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -565,7 +566,248 @@ test('20. 归档产物自包含：CSS 相对前缀按目录深度算', async () 
      /docs-md.css（404）—— 死链检查把这个抓出来了，这里把两种都钉住。 */
   assert.match(html, /href="\.\.\/\.\.\/\.\.\/docs-md\.css"/);
   assert.match(html, /src="\.\.\/\.\.\/\.\.\/\.\.\/p\/docs-card\.js"/);
-  assert.match(html, /href="\.\.\/\.\.\/\.\.\/\.\.\/p\/docs\.html"/);
+  /* 回站点根（页脚的「回百宝箱」）走站点根前缀，和 /p 下的资源前缀不是一回事 */
+  assert.match(html, /href="\.\.\/\.\.\/\.\.\/\.\.\/">回百宝箱<\/a>/);
+
+  /* 归档稿和静态文章页共用外壳：站点顶栏 + 侧栏目录（build/lib/chrome.mjs，只有一份） */
+  assert.match(html, /<header class="top">/);
+  assert.match(html, /<nav class="top-nav" aria-label="站点导航">[\s\S]*?博客[\s\S]*?百宝箱/);
+  assert.match(html, /<article class="md" id="post">/);
+  /* 只有一节也画目录（以前「不足两节就不显示」，短文于是完全没有目录） */
+  assert.match(html, /class="wrap has-toc"/);
+  assert.match(html, /<ul id="ptocList">[\s\S]*?深一篇<\/a>/);
 
   await post('/api/unarchive', { path: rel });
+});
+
+test('20.1 重刷外壳：正文不动，只按当前模板重写头 / 顶栏 / 目录 / 页脚', async () => {
+  /* 一篇有章节的文章 → 归档后目录里应该有两条以上 */
+  const md = '# 外壳试验\n\n## 第一节\n\n甲。\n\n## 第二节\n\n乙。\n';
+  fs.writeFileSync(path.join(p, 'shell.md'), md);
+  await put('/api/article', { path: 'shell.md', content: md, publish: true, group: '启程', title: '外壳试验' });
+
+  const r = await post('/api/archive', { paths: ['shell.md'] });
+  assert.equal(r.status, 200, JSON.stringify(r.data));
+  const rel = r.data.archived[0].output;              /* archive/shell.html */
+  const abs = path.join(p, rel);
+
+  /* 把它换成**没有外壳的老样子**：只有 head 的 title/description + 一个 .md 容器，
+     模拟「原文早就不在了、但产物还在」的老归档稿 */
+  const body = fs.readFileSync(abs, 'utf8');
+  const inner = body.slice(body.indexOf('<article class="md" id="post">'));
+  const innerHtml = inner.slice(inner.indexOf('>') + 1, inner.lastIndexOf('</article>'));
+  fs.writeFileSync(abs,
+    '<!DOCTYPE html>\n<html lang="zh-CN"><head><meta charset="UTF-8">\n' +
+    '<meta name="description" content="外壳试验摘要">\n<title>外壳试验 · JinSuper</title>\n' +
+    '</head><body>\n<div class="md">' + innerHtml + '</div>\n</body></html>\n');
+
+  const legacy = fs.readFileSync(abs, 'utf8');
+  assert.ok(!legacy.includes('top-nav'), '老产物本来就没有顶栏');
+  assert.ok(!legacy.includes('class="ptoc"'), '老产物本来就没有侧栏目录');
+
+  const versionsBefore = fs.readdirSync(path.join(p, 'archive', '.versions')).length;
+  const ok = await post('/api/archive/reshell', { paths: [rel] });
+  assert.equal(ok.status, 200, JSON.stringify(ok.data));
+  assert.equal(ok.data.reshelled.length, 1, JSON.stringify(ok.data));
+  assert.equal(ok.data.failed.length, 0, JSON.stringify(ok.data.failed));
+
+  const fresh = fs.readFileSync(abs, 'utf8');
+  /* 外壳换新了：顶栏 + 导航项 + 侧栏目录 + 正文容器 */
+  assert.match(fresh, /<header class="top">/);
+  assert.match(fresh, /<nav class="top-nav" aria-label="站点导航">[\s\S]*?阅读器[\s\S]*?百宝箱/);
+  assert.match(fresh, /class="wrap has-toc"/);
+  assert.match(fresh, /<ul id="ptocList">[\s\S]*?第一节[\s\S]*?第二节/);
+  assert.match(fresh, /<article class="md" id="post">/);
+  /* 正文一个字都没动 */
+  assert.ok(fresh.includes('甲。') && fresh.includes('乙。'), '正文要原样保留');
+  /* 元数据沿用老产物 head 里的那份 */
+  assert.match(fresh, /<title>外壳试验 · JinSuper 奇思妙想<\/title>/);
+  assert.match(fresh, /<meta name="description" content="外壳试验摘要">/);
+  /* canonical 不能是空的（老产物没有这一行，要落回自己的地址） */
+  assert.match(fresh, /<link rel="canonical" href="https:\/\/jinsuper\.rth1\.xyz\/p\/archive\/shell\.html">/);
+  /* 覆盖前留了一版 */
+  assert.ok(fs.readdirSync(path.join(p, 'archive', '.versions')).length > versionsBefore, '重刷要留版本备份');
+
+  /* 非产物路径要挡住（这是「已归档产物」专用动作）。
+     批量动作的规矩：单项失败不进 failed 之外的地方 —— 返回 200 + failed 列表，
+     界面把每条原因都列出来，别的条目照刷不误。 */
+  const bad = await post('/api/archive/reshell', { paths: ['idea/index.md'] });
+  assert.equal(bad.status, 200, JSON.stringify(bad.data));
+  assert.equal(bad.data.failed.length, 1, JSON.stringify(bad.data.failed));
+  assert.match(bad.data.failed[0].error, /只能作用于已归档的 \.html 产物/);
+  assert.equal(bad.data.reshelled.length, 0);
+
+  await post('/api/unarchive', { path: rel });
+});
+
+/* ═══════════ 21. 预览：页面树 ═══════════ */
+
+test('20.2 没有小节的短文，也有「本页目录」（兜底那一条指向正文容器）', async () => {
+  const md = '通篇就是几段话，一个小标题都没有。\n\n第二段。\n';
+  fs.writeFileSync(path.join(p, 'plain.md'), md);
+  await put('/api/article', { path: 'plain.md', content: md, publish: true, group: '启程', title: '无小节随笔' });
+
+  const r = await post('/api/archive', { paths: ['plain.md'] });
+  assert.equal(r.status, 200, JSON.stringify(r.data));
+  const rel = r.data.archived[0].output;              /* archive/plain.html */
+  const html = fs.readFileSync(path.join(p, rel), 'utf8');
+
+  assert.match(html, /class="wrap has-toc"/, '短文也要有目录块，页面形状才和别的文章一致');
+  assert.match(html, /<ul id="ptocList">[\s\S]*?<a href="#post"[^>]*>无小节随笔<\/a>/);
+
+  await post('/api/unarchive', { path: rel });
+});
+
+test('21. 预览页面树：清单和目录都读得到，而且不重复列', async () => {
+  const auto = await get('/api/pages');
+  assert.equal(auto.status, 200, JSON.stringify(auto.data));
+  assert.equal(auto.data.source, 'auto');
+  assert.ok(auto.data.stats.pages > 0, '至少得列出首页和文档');
+  assert.ok(Array.isArray(auto.data.tree) && auto.data.tree.length, 'tree 不能是空的');
+
+  /* 摊平一遍：分组 + 页面 */
+  const flat = [];
+  (function walk(ns) {
+    for (const n of ns) { flat.push(n); if (n.children) walk(n.children); }
+  })(auto.data.tree);
+
+  const groups = flat.filter((n) => n.type === 'group').map((n) => n.title);
+  const pages = flat.filter((n) => n.type === 'page');
+
+  /* fixture 里 sk.json 的两组 + 目录扫描，是这一份数据的两个来源 */
+  assert.ok(groups.includes('文档站（sk.json）'), '应该有 sk.json 那一组：' + groups.join(', '));
+  assert.ok(groups.some((g) => g.startsWith('目录扫描')), '应该有一组目录扫描：' + groups.join(', '));
+  assert.ok(groups.includes('启程'), '文档站里应该有「启程」小组');
+
+  /* 登记过的 .md 走阅读器 deep-link，别拿原始 .md 当页面 */
+  const setup = pages.find((n) => n.title === '启程篇');
+  assert.ok(setup, '「启程篇」应该在树里');
+  assert.equal(setup.href, '/p/docs.html#para/1SetUp.md');
+  assert.equal(setup.kind, 'doc');
+
+  /* 同一份站点文件不能在清单和目录扫描里各出现一次。
+     注意比对的是**完整 href**：文档站的每一篇都挂在 /p/docs.html 上，
+     靠 #后面的路径区分，剥掉 hash 就成了同一个地址（false positive）。 */
+  const seen = new Map();
+  for (const n of pages) {
+    seen.set(n.href, (seen.get(n.href) || 0) + 1);
+  }
+  const dup = [...seen.entries()].filter(([, n]) => n > 1);
+  assert.deepEqual(dup, [], '有重复列出的页面：' + JSON.stringify(dup));
+
+  /* 只扫目录：应该没有清单那两组，但盘上的 .html 还在 */
+  const dir = await get('/api/pages?source=dir');
+  const dirGroups = [];
+  (function walk(ns) { for (const n of ns) { if (n.type === 'group') dirGroups.push(n.title); if (n.children) walk(n.children); } })(dir.data.tree);
+  assert.ok(!dirGroups.includes('文档站（sk.json）'), 'dir 模式不该出现清单分组');
+  assert.ok(dirGroups.some((g) => g.startsWith('目录扫描')));
+
+  /* 只看清单：不该出现目录扫描那一组 */
+  const man = await get('/api/pages?source=manifest');
+  const manGroups = [];
+  (function walk(ns) { for (const n of ns) { if (n.type === 'group') manGroups.push(n.title); if (n.children) walk(n.children); } })(man.data.tree);
+  assert.ok(manGroups.includes('文档站（sk.json）'));
+  assert.ok(!manGroups.some((g) => g.startsWith('目录扫描')), 'manifest 模式不该扫目录');
+
+  /* 不认识的 source 退回 auto（不报错） */
+  const bad = await get('/api/pages?source=nonsense');
+  assert.equal(bad.status, 200);
+  assert.equal(bad.data.source, 'auto');
+});
+
+/* ═══════════ 22. 预览服务 ═══════════ */
+
+/** 找个能用的端口（测试机上 18791+ 那一段可能被占） */
+function freePreviewPort(start) {
+  return new Promise((resolve) => {
+    const probe = (port) => {
+      const s = http.createServer();
+      s.once('error', () => probe(port + 1));
+      s.listen(port, '127.0.0.1', () => s.close(() => resolve(port)));
+    };
+    probe(start);
+  });
+}
+
+test('22. 预览服务：起得来、服务的是站点根、raw.php 也能用、停得掉', async () => {
+  const before = await get('/api/preview/status');
+  assert.equal(before.data.running, false, '测试开始时不该有预览服务');
+  assert.equal(before.data.app, 'jinsuper-preview');
+
+  const port = await freePreviewPort(19500 + (process.pid % 300));
+  const start = await post('/api/preview/start', { port });
+  assert.equal(start.status, 200, JSON.stringify(start.data));
+  assert.equal(start.data.running, true);
+  assert.equal(start.data.port, port);
+  assert.equal(start.data.url, `http://127.0.0.1:${port}/`);
+
+  /* 名字牌：headless 靠它认「端口上是不是预览服务」 */
+  const card = await fetch(`http://127.0.0.1:${port}/__preview.json`);
+  assert.equal(card.status, 200);
+  assert.equal((await card.json()).app, 'jinsuper-preview');
+
+  /* 站点根的路径按原样服务（这就是和控制台 8791 的关键区别：
+     8791 上 /index.html 是控制台自己的页面，预览服务上才是站点首页） */
+  const md = await fetch(`http://127.0.0.1:${port}/p/TEST.md`);
+  assert.equal(md.status, 200);
+  assert.ok((await md.text()).includes('语法测试稿'));
+
+  /* 模拟线上那个云函数：?f= 读原文 */
+  const raw = await fetch(`http://127.0.0.1:${port}/p/raw.php?f=/p/TEST.md`);
+  assert.equal(raw.status, 200);
+  assert.match(await raw.text(), /语法测试稿/);
+  const rawOut = await fetch(`http://127.0.0.1:${port}/p/raw.php?f=../../../.env`);
+  assert.equal(rawOut.status, 404, 'raw.php 也不能读站点外面的东西');
+
+  /* 穿越照样挡住 */
+  fs.writeFileSync(path.join(root, 'secret.env'), 'RTH_API_KEY=should-never-be-served');
+  const evil = await fetch(`http://127.0.0.1:${port}/p/%2e%2e/%2e%2e/secret.env`, { redirect: 'manual' });
+  assert.ok(evil.status === 404 || evil.status === 403, '穿越应该被拒，实际 ' + evil.status);
+
+  /* 端口被占时给的是人话，不是堆栈 */
+  const again = await post('/api/preview/start', { port: PORT });
+  assert.equal(again.status, 409, JSON.stringify(again.data));
+  assert.match(again.data.error, /被占用/);
+
+  const stop = await post('/api/preview/stop');
+  assert.equal(stop.status, 200);
+  assert.equal(stop.data.running, false);
+  await assert.rejects(() => fetch(`http://127.0.0.1:${port}/p/TEST.md`), '停掉之后不该还能连上');
+});
+
+/* ═══════════ 23. 预览设置 ═══════════ */
+
+test('23. 预览设置：端口夹住、枚举只认自己的值', async () => {
+  const r = await put('/api/settings', {
+    settings: {
+      previewPort: 9001, previewAutoStart: true, previewOpenAfterStart: false,
+      previewClickMode: 'path', previewTreeSource: 'dir',
+    },
+  });
+  assert.equal(r.status, 200);
+  assert.equal(r.data.settings.previewPort, 9001);
+  assert.equal(r.data.settings.previewAutoStart, true);
+  assert.equal(r.data.settings.previewOpenAfterStart, false);
+  assert.equal(r.data.settings.previewClickMode, 'path');
+  assert.equal(r.data.settings.previewTreeSource, 'dir');
+
+  /* 乱填的：端口回到默认，枚举回到默认 */
+  const bad = await put('/api/settings', {
+    settings: { previewPort: 'abc', previewClickMode: 'nonsense', previewTreeSource: 'x' },
+  });
+  assert.equal(bad.data.settings.previewPort, 8790);
+  assert.equal(bad.data.settings.previewClickMode, 'auto');
+  assert.equal(bad.data.settings.previewTreeSource, 'auto');
+
+  /* 越界端口也回到默认，别把 0 / 70000 存进去 */
+  const out = await put('/api/settings', { settings: { previewPort: 70000 } });
+  assert.equal(out.data.settings.previewPort, 8790);
+
+  /* 还原成默认，别让后面的用例读到改过的设置 */
+  await put('/api/settings', {
+    settings: {
+      previewPort: 8790, previewAutoStart: false, previewOpenAfterStart: true,
+      previewClickMode: 'auto', previewTreeSource: 'auto',
+    },
+  });
 });

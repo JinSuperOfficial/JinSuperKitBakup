@@ -10,9 +10,17 @@ dist/
 
 # 依赖与缓存
 node_modules/
+# Node 运行时的压缩包（434MB，GitHub 单文件上限 100MB 会直接拒收）
+node.tar
+node-*.tar
+
 .npm-cache/
 build/node_modules/
 .deno-cache/
+# .npmrc 里把 npm 缓存写成了 Windows 绝对路径（F:\@Project\...）。
+# 在类 Unix 环境下会被当成**相对目录名**，在仓库里长出一个怪名字的缓存文件夹 ——
+# 一律忽略，别让它进备份。
+F\:\\@Project*/
 
 # 部署工具的日志（TUI 每次运行留一份，不属于源码）
 .deploy-logs/

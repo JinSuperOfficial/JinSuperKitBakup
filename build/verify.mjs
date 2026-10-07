@@ -22,6 +22,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { buildDir, siteRoot, pDir } from './paths.mjs';
+import { decodeSitePath } from './lib/posts.mjs';
 
 const here = buildDir;
 const docPath = path.join(pDir, 'docs.html');
@@ -259,6 +260,145 @@ for (const f of ['favicon.png', 'apple-touch-icon.png']) {
   const p = path.join(siteRoot, f);
   if (!fs.existsSync(p)) ok(`${f} 已移除`);
   else meh(`${f} 还留在站点根，但已无页面引用，可以删掉`);
+}
+
+/* ═══ 10. 博客首页（/p/index.html）+ 文章页 ═══
+   这一页是构建产出的（模板 build/template/blog.html）。
+   检查点都是「少了就一定坏」的那种：导航、列表、标签筛选、时间线、RSS。 */
+console.log('\n── 10. 博客首页与文章页 ──');
+{
+  const homePath = path.join(pDir, 'index.html');
+  if (!fs.existsSync(homePath)) {
+    bad('p/index.html 不存在（博客首页是构建产出的，跑 node build/build.mjs）');
+  } else {
+    const home = fs.readFileSync(homePath, 'utf8');
+    ok(`p/index.html 在（${(fs.statSync(homePath).size / 1024).toFixed(1)} KB）`);
+    const checks = [
+      [/<header class="topnav">/, '顶栏'],
+      [/<nav class="nav" aria-label="站点导航">[\s\S]*?时间线[\s\S]*?标签/, '顶栏导航项（时间线 / 标签）'],
+      [/id="latestCards"/, '最新列表容器'],
+      [/class="post-card"/, '最新卡片'],
+      [/id="tagbar"/, '标签筛选栏'],
+      [/class="tag-chip"[^>]*data-tag=/, '标签按钮'],
+      [/id="timelineBody"/, '时间线容器'],
+      [/class="tl-year"/, '时间线年份分组'],
+      [/href="\.\/feed\.xml"/, 'RSS 链接'],
+      [/rel="canonical" href="https:\/\/jinsuper\.rth1\.xyz\/p\/"/, 'canonical'],
+      [/application\/ld\+json/, '结构化数据'],
+      [/data-tags="/, '标签筛选用的 data-tags'],
+    ];
+    for (const [re, label] of checks) {
+      if (re.test(home)) ok(`博客首页：${label}`);
+      else bad(`博客首页缺少：${label}`);
+    }
+    if (/__[A-Z_]+__/.test(home)) bad('博客首页里还有没替换掉的占位符');
+    /* 归档稿也要在时间线 / 标签里（不能只在阅读器侧栏看得到） */
+    const archivedRows = [...home.matchAll(/<li data-tags="[^"]*"[^>]*data-archived="1"/g)].length;
+    if (archivedRows > 0) ok(`博客首页：时间线里有归档稿 ${archivedRows} 条`);
+    else bad('博客首页的时间线里一条归档稿都没有（/p/archive/** 的该列出来）');
+    if (/data-tag="归档"/.test(home)) ok('博客首页：有「归档」标签可以单独筛');
+    else bad('博客首页缺少「归档」标签');
+    /* 导航里不再单列「工具站」，只留「百宝箱」 */
+    const navHtml = (home.match(/<nav class="nav"[\s\S]*?<\/nav>/) || [''])[0];
+    if (navHtml.includes('百宝箱') && !navHtml.includes('工具站')) ok('博客首页：顶栏只留百宝箱，没有工具站');
+    else bad('博客首页顶栏导航不对：' + navHtml);
+    /* 文章链接要真的指得着：抽前 5 个 post-card 的 href 验存在 */
+    const hrefs = [...home.matchAll(/<a class="pc-link" href="([^"]+)"/g)].map((m) => m[1]).slice(0, 5);
+    for (const h of hrefs) {
+      /* 地址里的中文是 percent-encoded 的，磁盘上是原文，比之前先解码 */
+      const disk = h.split('#')[0].split('/').map((seg) => {
+        try { return decodeURIComponent(seg); } catch { return seg; }
+      }).join('/');
+      const f = path.resolve(pDir, disk);
+      if (fs.existsSync(f)) ok(`  文章页 ${h} 存在`);
+      else bad(`  文章页 ${h} 不存在`);
+    }
+    /* 归档稿的链接也要存在（时间线里那些 /p/archive/**） */
+    for (const [, h] of home.matchAll(/<a href="(archive\/[^"]+)"/g)) {
+      const f = path.resolve(pDir, decodeSitePath(h));
+      if (fs.existsSync(f)) ok(`  归档稿 ${h} 存在`);
+      else bad(`  归档稿 ${h} 不存在`);
+    }
+
+    /* 侧栏目录的布局开关：没有目录的文章页不能还是两列（否则正文被挤进 212px 那一列） */
+    const postDir = path.join(pDir, 'post');
+    const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+      e.isDirectory() ? walk(path.join(dir, e.name)) : (e.name.endsWith('.html') ? [path.join(dir, e.name)] : []));
+    let tocPages = 0, plainPages = 0, badWrap = 0;
+    for (const f of (fs.existsSync(postDir) ? walk(postDir) : [])) {
+      const html = fs.readFileSync(f, 'utf8');
+      const hasToc = /<aside class="ptoc"/.test(html);
+      const wrapHasToc = /<main class="wrap has-toc">/.test(html);
+      const wrapPlain = /<main class="wrap">/.test(html);
+      if (hasToc) tocPages++; else plainPages++;
+      if (hasToc !== wrapHasToc || (!hasToc && !wrapPlain)) {
+        bad(`文章页 .wrap 的类名和目录对不上：${path.relative(pDir, f)}`);
+        badWrap++;
+      }
+      /* 「本页目录」现在每篇都有：没有小节的短文也有一条「文章标题 → #post」兜底 */
+      if (!hasToc) {
+        bad(`文章页没有「本页目录」：${path.relative(pDir, f)}`);
+        badWrap++;
+      }
+    }
+    if (!badWrap) ok(`文章页布局：${tocPages} 篇都带侧栏目录（含没有小节的短文），两列 / 单列对得上`);
+    /* 带目录的文章页，标题层级要有缩进（归一成 lv-1 起，且至少两个层级才对得上） */
+    const sciPath = path.join(postDir, 'science.html');
+    if (fs.existsSync(sciPath)) {
+      const sci = fs.readFileSync(sciPath, 'utf8');
+      const okLv = /class="lv-1"/.test(sci) && /class="lv-2"/.test(sci) && /class="lv-3"/.test(sci);
+      if (okLv) ok('文章页目录：层级（lv-1 / lv-2 / lv-3）都在');
+      else bad('文章页目录缺少层级标记');
+    }
+  }
+}
+
+/* ═══ 11. 归档产物（/p/archive/**）
+   控制台烘出来的成品，外壳必须和静态文章页**同一套**：
+   站点顶栏、侧栏目录、正文容器、共享的 chrome 样式/脚本。
+   这一节就是钉住「归档的也得有顶栏和目录」这件事。 */
+console.log('\n── 11. 归档产物：外壳与文章页一致 ──');
+{
+  const archiveDir = path.join(pDir, 'archive');
+  const walkAll = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory() ? walkAll(path.join(dir, e.name))
+      : (e.name.endsWith('.html') ? [path.join(dir, e.name)] : []));
+  const files = fs.existsSync(archiveDir) ? walkAll(archiveDir) : [];
+  if (!files.length) {
+    ok('还没有归档产物（没归档过就跳过这一节）');
+  } else {
+    let withToc = 0;
+    for (const f of files) {
+      const rel = path.relative(pDir, f).split(path.sep).join('/');
+      const html = fs.readFileSync(f, 'utf8');
+      const checks = [
+        [/<header class="top">/, '站点顶栏'],
+        [/<nav class="top-nav" aria-label="站点导航">[\s\S]*?百宝箱/, '顶栏导航项'],
+        [/<article class="md" id="post">/, '正文容器'],
+        [/build\/template\/post-chrome\.css|文章外壳的样式/, '共享的 chrome 样式'],
+        [/\/docs-md\.css/, 'docs-md.css'],
+      ];
+      let badThis = 0;
+      for (const [re, label] of checks) {
+        if (!re.test(html)) { bad(`归档产物缺${label}：${rel}`); badThis++; }
+      }
+      /* 与文章页同一条规矩：**每一篇都有**侧栏目录（没有小节的短文也有兜底那一条） */
+      const heads = (html.match(/<h[123]\b[^>]*\bid="/g) || []).length;
+      const hasToc = /<aside class="ptoc"/.test(html);
+      if (!hasToc) { bad(`归档产物没有侧栏目录：${rel}`); badThis++; }
+      if (hasToc) {
+        withToc++;
+        if (!/<main class="wrap has-toc">/.test(html)) { bad(`归档产物有目录但不是两列：${rel}`); badThis++; }
+        if (!/<ul id="ptocList">[\s\S]*?class="lv-1"/.test(html)) { bad(`归档产物目录没有层级：${rel}`); badThis++; }
+      } else if (!/<main class="wrap">/.test(html)) {
+        bad(`归档产物没有目录时 .wrap 该是单列：${rel}`); badThis++;
+      }
+      /* canonical 不能空着（老产物没写这一行，重刷外壳时要落回自己的地址） */
+      if (/<link rel="canonical" href="">/.test(html)) { bad(`归档产物 canonical 是空的：${rel}`); badThis++; }
+      if (!badThis) ok(`  ${rel}`);
+    }
+    ok(`归档产物 ${files.length} 篇：顶栏 / 目录 / 正文容器都在（其中 ${withToc} 篇带侧栏目录）`);
+  }
 }
 
 /* ═══ 汇总 ═══ */

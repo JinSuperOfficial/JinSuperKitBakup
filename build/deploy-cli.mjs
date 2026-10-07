@@ -25,6 +25,8 @@ import { buildDir, siteRoot } from './paths.mjs';
 import { PIPELINES, resolveSteps } from './lib/pipeline.mjs';
 import { stepArgv } from './lib/proc.mjs';
 import { BACKUP_REPO } from './lib/git-backup.mjs';
+import { findLocalDeno } from './lib/deno.mjs';
+import { safeArgs } from './lib/git-safe.mjs';
 
 const projectRoot = path.resolve(buildDir, '..');
 const distDir = path.join(projectRoot, 'dist');
@@ -162,6 +164,13 @@ function capture(cmd, args, cwd = projectRoot) {
   }
 }
 
+/* git 的包装：项目/仓库可能整个在 UNC 路径里（Windows 上的工具链 + WSL 里的项目），
+   那种情况下 git 会认为仓库「不属于当前用户」而拒绝服务（dubious ownership）。
+   每次调用都带上 safe.directory 放行，见 build/lib/git-safe.mjs。 */
+function gitAt(dir, args) {
+  return capture('git', [...safeArgs(dir), ...args], dir);
+}
+
 /* 子进程跑着的时候，Ctrl+C 交给它自己处理（同一个控制台，它也会收到）。
    我们只在没人跑子进程时接管，免得把 serve 的服务器杀一半。 */
 let inChild = false;
@@ -202,12 +211,7 @@ function run(label, args, opts = {}) {
    ═══════════════════════════════════════════════════ */
 
 function findDeno() {
-  const local = [
-    path.join(projectRoot, 'node_modules', '.bin', 'deno.cmd'),
-    path.join(projectRoot, 'node_modules', '.bin', 'deno'),
-    path.join(buildDir, 'node_modules', '.bin', 'deno.cmd'),
-    path.join(buildDir, 'node_modules', '.bin', 'deno'),
-  ].find((p) => fs.existsSync(p));
+  const local = findLocalDeno(projectRoot, [buildDir]);
   if (local) return { ok: true, where: '项目内 ' + path.relative(projectRoot, local) };
 
   const sys = capture('deno', ['--version']);
@@ -256,7 +260,7 @@ function siteInfo() {
   const sites = readSites();
   /* git 只查本地，不 fetch —— 状态要秒出，不能等网络 */
   const distRepo = fs.existsSync(path.join(distDir, '.git'));
-  const dgit = (args) => capture('git', args, distDir);
+  const dgit = (args) => gitAt(distDir, args);
   return {
     sites,
     deno: findDeno(),
@@ -269,10 +273,10 @@ function siteInfo() {
     last: distRepo ? dgit(['log', '-1', '--format=%s']) : null,
     /* 源码备份仓库（项目根那份 .git）—— 和 dist/ 那份是两回事，别混着看 */
     srcRepo: fs.existsSync(path.join(projectRoot, '.git')),
-    srcBranch: capture('git', ['symbolic-ref', '--quiet', '--short', 'HEAD'], projectRoot),
-    srcDirty: (capture('git', ['status', '--porcelain'], projectRoot) || '').split(/\r?\n/).filter(Boolean).length,
-    srcOrigin: capture('git', ['remote', 'get-url', 'origin'], projectRoot),
-    srcCommits: Number(capture('git', ['rev-list', '--count', 'HEAD'], projectRoot) || 0),
+    srcBranch: gitAt(projectRoot, ['symbolic-ref', '--quiet', '--short', 'HEAD']),
+    srcDirty: (gitAt(projectRoot, ['status', '--porcelain']) || '').split(/\r?\n/).filter(Boolean).length,
+    srcOrigin: gitAt(projectRoot, ['remote', 'get-url', 'origin']),
+    srcCommits: Number(gitAt(projectRoot, ['rev-list', '--count', 'HEAD']) || 0),
   };
 }
 
@@ -303,7 +307,7 @@ function printInfo() {
   if (!i.srcRepo) {
     line('源码备份', yellow('! 项目根还没有 .git，第一次跑「备份源码」时会自动建'));
   } else {
-    const tagN = (capture('git', ['tag', '-l'], projectRoot) || '').split(/\r?\n/).filter(Boolean).length;
+    const tagN = (gitAt(projectRoot, ['tag', '-l']) || '').split(/\r?\n/).filter(Boolean).length;
     const bits = [
       i.srcCommits ? `${i.srcCommits} 个提交` : '还没有提交',
       i.srcDirty ? yellow(`${i.srcDirty} 个改动待提交`) : '无待提交改动',
@@ -425,7 +429,7 @@ async function askTag() {
   }
 
   /* 已经有 tag 的话给个「下一个版本号」的默认值：v1.0.0 → v1.0.1 */
-  const existing = (capture('git', ['tag', '-l'], projectRoot) || '').split(/\r?\n/).filter(Boolean);
+  const existing = (gitAt(projectRoot, ['tag', '-l']) || '').split(/\r?\n/).filter(Boolean);
   const lastV = existing.filter((t) => /^v\d+\.\d+\.\d+$/.test(t)).pop();
   const suggest = lastV
     ? lastV.replace(/(\d+)$/, (n) => String(Number(n) + 1))
@@ -454,7 +458,7 @@ async function cmdBakup() {
   title('备份源码到 GitHub');
   printInfo();
 
-  const cur = capture('git', ['remote', 'get-url', 'origin'], projectRoot);
+  const cur = gitAt(projectRoot, ['remote', 'get-url', 'origin']);
   console.log('');
   console.log('  目标：' + cyan(cur || BACKUP_REPO) + (cur ? '' : dim('（还没配远程，会自动加上）')));
   /* 远程被人改过的话，backup-github.mjs 会直接停下来报错，这里先说一句 */

@@ -1,0 +1,1886 @@
+/* ═══════════════════════════════════════════════════
+   文档站样式 · 由 build/lib/css.mjs 生成，请勿手改
+   组成：KaTeX 数学排版 + 扩展元素样式 + 剧透块 + 卡片
+   字体：./fonts/ 本地自托管，无任何 CDN
+   ═══════════════════════════════════════════════════ */
+
+/* ─────────── 1. KaTeX（精简：仅 woff2） ─────────── */
+/* stylelint-disable font-family-no-missing-generic-family-keyword */
+@font-face {
+  font-family: "KaTeX_AMS";
+  src: url(./fonts/KaTeX_AMS-Regular.woff2) format("woff2");
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "KaTeX_Caligraphic";
+  src: url(./fonts/KaTeX_Caligraphic-Bold.woff2) format("woff2");
+  font-weight: bold;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "KaTeX_Caligraphic";
+  src: url(./fonts/KaTeX_Caligraphic-Regular.woff2) format("woff2");
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "KaTeX_Fraktur";
+  src: url(./fonts/KaTeX_Fraktur-Bold.woff2) format("woff2");
+  font-weight: bold;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "KaTeX_Fraktur";
+  src: url(./fonts/KaTeX_Fraktur-Regular.woff2) format("woff2");
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "KaTeX_Main";
+  src: url(./fonts/KaTeX_Main-Bold.woff2) format("woff2");
+  font-weight: bold;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "KaTeX_Main";
+  src: url(./fonts/KaTeX_Main-BoldItalic.woff2) format("woff2");
+  font-weight: bold;
+  font-style: italic;
+  font-display: block;
+}
+@font-face {
+  font-family: "KaTeX_Main";
+  src: url(./fonts/KaTeX_Main-Italic.woff2) format("woff2");
+  font-weight: normal;
+  font-style: italic;
+  font-display: block;
+}
+@font-face {
+  font-family: "KaTeX_Main";
+  src: url(./fonts/KaTeX_Main-Regular.woff2) format("woff2");
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "KaTeX_Math";
+  src: url(./fonts/KaTeX_Math-BoldItalic.woff2) format("woff2");
+  font-weight: bold;
+  font-style: italic;
+  font-display: block;
+}
+@font-face {
+  font-family: "KaTeX_Math";
+  src: url(./fonts/KaTeX_Math-Italic.woff2) format("woff2");
+  font-weight: normal;
+  font-style: italic;
+  font-display: block;
+}
+@font-face {
+  font-family: "KaTeX_SansSerif";
+  src: url(./fonts/KaTeX_SansSerif-Bold.woff2) format("woff2");
+  font-weight: bold;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "KaTeX_SansSerif";
+  src: url(./fonts/KaTeX_SansSerif-Italic.woff2) format("woff2");
+  font-weight: normal;
+  font-style: italic;
+  font-display: block;
+}
+@font-face {
+  font-family: "KaTeX_SansSerif";
+  src: url(./fonts/KaTeX_SansSerif-Regular.woff2) format("woff2");
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "KaTeX_Script";
+  src: url(./fonts/KaTeX_Script-Regular.woff2) format("woff2");
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "KaTeX_Size1";
+  src: url(./fonts/KaTeX_Size1-Regular.woff2) format("woff2");
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "KaTeX_Size2";
+  src: url(./fonts/KaTeX_Size2-Regular.woff2) format("woff2");
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "KaTeX_Size3";
+  src: url(./fonts/KaTeX_Size3-Regular.woff2) format("woff2");
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "KaTeX_Size4";
+  src: url(./fonts/KaTeX_Size4-Regular.woff2) format("woff2");
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "KaTeX_Typewriter";
+  src: url(./fonts/KaTeX_Typewriter-Regular.woff2) format("woff2");
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+/* stylelint-disable font-family-no-missing-generic-family-keyword */
+.katex {
+  font: normal 1.21em KaTeX_Main, Times New Roman, serif;
+  line-height: 1.2;
+  position: relative;
+  text-indent: 0;
+  text-rendering: auto;
+}
+.katex * {
+  -ms-high-contrast-adjust: none !important;
+}
+.katex * {
+  border-color: currentColor;
+}
+.katex .katex-version::after {
+  content: "0.18.9";
+}
+.katex .katex-mathml {
+  /* Accessibility hack to only show to screen readers
+   Found at: http://a11yproject.com/posts/how-to-hide-content/ */
+  position: absolute;
+  -webkit-clip-path: inset(50%);
+          clip-path: inset(50%);
+  padding: 0;
+  border: 0;
+  height: 1px;
+  width: 1px;
+  overflow: hidden;
+}
+.katex .katex-html {
+  /* \newline is an empty block at top level, between .katex-base elements */
+}
+.katex .katex-html > .katex-newline {
+  display: block;
+}
+.katex .katex-base {
+  position: relative;
+  display: inline-block;
+  white-space: nowrap;
+  width: -webkit-min-content;
+  width: -moz-min-content;
+  width: min-content;
+}
+.katex .katex-strut {
+  display: inline-block;
+}
+.katex .textbf {
+  font-weight: bold;
+}
+.katex .textit {
+  font-style: italic;
+}
+.katex .textrm {
+  font-family: KaTeX_Main;
+}
+.katex .textsf {
+  font-family: KaTeX_SansSerif;
+}
+.katex .texttt {
+  font-family: KaTeX_Typewriter;
+}
+.katex .mathnormal {
+  font-family: KaTeX_Math;
+  font-style: italic;
+}
+.katex .mathit {
+  font-family: KaTeX_Main;
+  font-style: italic;
+}
+.katex .mathrm {
+  font-style: normal;
+}
+.katex .mathbf {
+  font-family: KaTeX_Main;
+  font-weight: bold;
+}
+.katex .boldsymbol {
+  font-family: KaTeX_Math;
+  font-weight: bold;
+  font-style: italic;
+}
+.katex .amsrm {
+  font-family: KaTeX_AMS;
+}
+.katex .mathbb,
+.katex .textbb {
+  font-family: KaTeX_AMS;
+}
+.katex .mathcal {
+  font-family: KaTeX_Caligraphic;
+}
+.katex .mathfrak,
+.katex .textfrak {
+  font-family: KaTeX_Fraktur;
+}
+.katex .mathboldfrak,
+.katex .textboldfrak {
+  font-family: KaTeX_Fraktur;
+  font-weight: bold;
+}
+.katex .mathtt {
+  font-family: KaTeX_Typewriter;
+}
+.katex .mathscr,
+.katex .textscr {
+  font-family: KaTeX_Script;
+}
+.katex .mathsf,
+.katex .textsf {
+  font-family: KaTeX_SansSerif;
+}
+.katex .mathboldsf,
+.katex .textboldsf {
+  font-family: KaTeX_SansSerif;
+  font-weight: bold;
+}
+.katex .mathsfit,
+.katex .mathitsf,
+.katex .textitsf {
+  font-family: KaTeX_SansSerif;
+  font-style: italic;
+}
+.katex .mainrm {
+  font-family: KaTeX_Main;
+  font-style: normal;
+}
+.katex .vlist-t {
+  display: inline-table;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+.katex .vlist-r {
+  display: table-row;
+}
+.katex .vlist {
+  display: table-cell;
+  vertical-align: bottom;
+  position: relative;
+}
+.katex .vlist > span {
+  display: block;
+  height: 0;
+  position: relative;
+}
+.katex .vlist > span > span {
+  display: inline-block;
+}
+.katex .vlist > span > .pstrut {
+  overflow: hidden;
+  width: 0;
+}
+.katex .vlist-t2 {
+  margin-right: -2px;
+}
+.katex .vlist-s {
+  display: table-cell;
+  vertical-align: bottom;
+  font-size: 1px;
+  width: 2px;
+  min-width: 2px;
+}
+.katex .katex-vbox {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: baseline;
+}
+.katex .katex-thinbox {
+  display: inline-flex;
+  flex-direction: row;
+  width: 0;
+  max-width: 0;
+}
+.katex .msupsub {
+  text-align: left;
+}
+.katex .mfrac > span > span {
+  text-align: center;
+}
+.katex .mfrac .frac-line {
+  display: inline-block;
+  width: 100%;
+  border-bottom-style: solid;
+}
+.katex .mfrac .frac-line,
+.katex .katex-overline .overline-line,
+.katex .katex-underline .underline-line,
+.katex .katex-hline,
+.katex .katex-hdashline,
+.katex .katex-rule {
+  min-height: 1px;
+}
+.katex .mspace {
+  display: inline-block;
+}
+.katex .katex-smash {
+  display: inline;
+  line-height: 0;
+}
+.katex .llap,
+.katex .rlap,
+.katex .clap {
+  width: 0;
+  position: relative;
+}
+.katex .llap > .katex-inner,
+.katex .rlap > .katex-inner,
+.katex .clap > .katex-inner {
+  position: absolute;
+}
+.katex .llap > .katex-fix,
+.katex .rlap > .katex-fix,
+.katex .clap > .katex-fix {
+  display: inline-block;
+}
+.katex .llap > .katex-inner {
+  right: 0;
+}
+.katex .rlap > .katex-inner,
+.katex .clap > .katex-inner {
+  left: 0;
+}
+.katex .clap > .katex-inner > span {
+  margin-left: -50%;
+  margin-right: 50%;
+}
+.katex .katex-rule {
+  display: inline-block;
+  border: solid 0;
+  position: relative;
+}
+.katex .katex-overline .overline-line,
+.katex .katex-underline .underline-line,
+.katex .katex-hline {
+  display: inline-block;
+  width: 100%;
+  border-bottom-style: solid;
+}
+.katex .katex-hdashline {
+  display: inline-block;
+  width: 100%;
+  border-bottom-style: dashed;
+}
+.katex .sqrt > .katex-root {
+  /* These values are taken from the definition of `\r@@t`,
+   `\mkern 5mu` and `\mkern -10mu`. */
+  /* stylelint-disable-next-line declaration-property-value-no-unknown */
+  margin-left: 0.2777777778em;
+  /* stylelint-disable-next-line declaration-property-value-no-unknown */
+  margin-right: -0.5555555556em;
+}
+.katex .katex-sizing.reset-size1.size1,
+.katex .fontsize-ensurer.reset-size1.size1 {
+  /* stylelint-disable-next-line */
+  font-size: 1em;
+}
+.katex .katex-sizing.reset-size1.size2,
+.katex .fontsize-ensurer.reset-size1.size2 {
+  /* stylelint-disable-next-line */
+  font-size: 1.2em;
+}
+.katex .katex-sizing.reset-size1.size3,
+.katex .fontsize-ensurer.reset-size1.size3 {
+  /* stylelint-disable-next-line */
+  font-size: 1.4em;
+}
+.katex .katex-sizing.reset-size1.size4,
+.katex .fontsize-ensurer.reset-size1.size4 {
+  /* stylelint-disable-next-line */
+  font-size: 1.6em;
+}
+.katex .katex-sizing.reset-size1.size5,
+.katex .fontsize-ensurer.reset-size1.size5 {
+  /* stylelint-disable-next-line */
+  font-size: 1.8em;
+}
+.katex .katex-sizing.reset-size1.size6,
+.katex .fontsize-ensurer.reset-size1.size6 {
+  /* stylelint-disable-next-line */
+  font-size: 2em;
+}
+.katex .katex-sizing.reset-size1.size7,
+.katex .fontsize-ensurer.reset-size1.size7 {
+  /* stylelint-disable-next-line */
+  font-size: 2.4em;
+}
+.katex .katex-sizing.reset-size1.size8,
+.katex .fontsize-ensurer.reset-size1.size8 {
+  /* stylelint-disable-next-line */
+  font-size: 2.88em;
+}
+.katex .katex-sizing.reset-size1.size9,
+.katex .fontsize-ensurer.reset-size1.size9 {
+  /* stylelint-disable-next-line */
+  font-size: 3.456em;
+}
+.katex .katex-sizing.reset-size1.size10,
+.katex .fontsize-ensurer.reset-size1.size10 {
+  /* stylelint-disable-next-line */
+  font-size: 4.148em;
+}
+.katex .katex-sizing.reset-size1.size11,
+.katex .fontsize-ensurer.reset-size1.size11 {
+  /* stylelint-disable-next-line */
+  font-size: 4.976em;
+}
+.katex .katex-sizing.reset-size2.size1,
+.katex .fontsize-ensurer.reset-size2.size1 {
+  /* stylelint-disable-next-line */
+  font-size: 0.8333333333em;
+}
+.katex .katex-sizing.reset-size2.size2,
+.katex .fontsize-ensurer.reset-size2.size2 {
+  /* stylelint-disable-next-line */
+  font-size: 1em;
+}
+.katex .katex-sizing.reset-size2.size3,
+.katex .fontsize-ensurer.reset-size2.size3 {
+  /* stylelint-disable-next-line */
+  font-size: 1.1666666667em;
+}
+.katex .katex-sizing.reset-size2.size4,
+.katex .fontsize-ensurer.reset-size2.size4 {
+  /* stylelint-disable-next-line */
+  font-size: 1.3333333333em;
+}
+.katex .katex-sizing.reset-size2.size5,
+.katex .fontsize-ensurer.reset-size2.size5 {
+  /* stylelint-disable-next-line */
+  font-size: 1.5em;
+}
+.katex .katex-sizing.reset-size2.size6,
+.katex .fontsize-ensurer.reset-size2.size6 {
+  /* stylelint-disable-next-line */
+  font-size: 1.6666666667em;
+}
+.katex .katex-sizing.reset-size2.size7,
+.katex .fontsize-ensurer.reset-size2.size7 {
+  /* stylelint-disable-next-line */
+  font-size: 2em;
+}
+.katex .katex-sizing.reset-size2.size8,
+.katex .fontsize-ensurer.reset-size2.size8 {
+  /* stylelint-disable-next-line */
+  font-size: 2.4em;
+}
+.katex .katex-sizing.reset-size2.size9,
+.katex .fontsize-ensurer.reset-size2.size9 {
+  /* stylelint-disable-next-line */
+  font-size: 2.88em;
+}
+.katex .katex-sizing.reset-size2.size10,
+.katex .fontsize-ensurer.reset-size2.size10 {
+  /* stylelint-disable-next-line */
+  font-size: 3.4566666667em;
+}
+.katex .katex-sizing.reset-size2.size11,
+.katex .fontsize-ensurer.reset-size2.size11 {
+  /* stylelint-disable-next-line */
+  font-size: 4.1466666667em;
+}
+.katex .katex-sizing.reset-size3.size1,
+.katex .fontsize-ensurer.reset-size3.size1 {
+  /* stylelint-disable-next-line */
+  font-size: 0.7142857143em;
+}
+.katex .katex-sizing.reset-size3.size2,
+.katex .fontsize-ensurer.reset-size3.size2 {
+  /* stylelint-disable-next-line */
+  font-size: 0.8571428571em;
+}
+.katex .katex-sizing.reset-size3.size3,
+.katex .fontsize-ensurer.reset-size3.size3 {
+  /* stylelint-disable-next-line */
+  font-size: 1em;
+}
+.katex .katex-sizing.reset-size3.size4,
+.katex .fontsize-ensurer.reset-size3.size4 {
+  /* stylelint-disable-next-line */
+  font-size: 1.1428571429em;
+}
+.katex .katex-sizing.reset-size3.size5,
+.katex .fontsize-ensurer.reset-size3.size5 {
+  /* stylelint-disable-next-line */
+  font-size: 1.2857142857em;
+}
+.katex .katex-sizing.reset-size3.size6,
+.katex .fontsize-ensurer.reset-size3.size6 {
+  /* stylelint-disable-next-line */
+  font-size: 1.4285714286em;
+}
+.katex .katex-sizing.reset-size3.size7,
+.katex .fontsize-ensurer.reset-size3.size7 {
+  /* stylelint-disable-next-line */
+  font-size: 1.7142857143em;
+}
+.katex .katex-sizing.reset-size3.size8,
+.katex .fontsize-ensurer.reset-size3.size8 {
+  /* stylelint-disable-next-line */
+  font-size: 2.0571428571em;
+}
+.katex .katex-sizing.reset-size3.size9,
+.katex .fontsize-ensurer.reset-size3.size9 {
+  /* stylelint-disable-next-line */
+  font-size: 2.4685714286em;
+}
+.katex .katex-sizing.reset-size3.size10,
+.katex .fontsize-ensurer.reset-size3.size10 {
+  /* stylelint-disable-next-line */
+  font-size: 2.9628571429em;
+}
+.katex .katex-sizing.reset-size3.size11,
+.katex .fontsize-ensurer.reset-size3.size11 {
+  /* stylelint-disable-next-line */
+  font-size: 3.5542857143em;
+}
+.katex .katex-sizing.reset-size4.size1,
+.katex .fontsize-ensurer.reset-size4.size1 {
+  /* stylelint-disable-next-line */
+  font-size: 0.625em;
+}
+.katex .katex-sizing.reset-size4.size2,
+.katex .fontsize-ensurer.reset-size4.size2 {
+  /* stylelint-disable-next-line */
+  font-size: 0.75em;
+}
+.katex .katex-sizing.reset-size4.size3,
+.katex .fontsize-ensurer.reset-size4.size3 {
+  /* stylelint-disable-next-line */
+  font-size: 0.875em;
+}
+.katex .katex-sizing.reset-size4.size4,
+.katex .fontsize-ensurer.reset-size4.size4 {
+  /* stylelint-disable-next-line */
+  font-size: 1em;
+}
+.katex .katex-sizing.reset-size4.size5,
+.katex .fontsize-ensurer.reset-size4.size5 {
+  /* stylelint-disable-next-line */
+  font-size: 1.125em;
+}
+.katex .katex-sizing.reset-size4.size6,
+.katex .fontsize-ensurer.reset-size4.size6 {
+  /* stylelint-disable-next-line */
+  font-size: 1.25em;
+}
+.katex .katex-sizing.reset-size4.size7,
+.katex .fontsize-ensurer.reset-size4.size7 {
+  /* stylelint-disable-next-line */
+  font-size: 1.5em;
+}
+.katex .katex-sizing.reset-size4.size8,
+.katex .fontsize-ensurer.reset-size4.size8 {
+  /* stylelint-disable-next-line */
+  font-size: 1.8em;
+}
+.katex .katex-sizing.reset-size4.size9,
+.katex .fontsize-ensurer.reset-size4.size9 {
+  /* stylelint-disable-next-line */
+  font-size: 2.16em;
+}
+.katex .katex-sizing.reset-size4.size10,
+.katex .fontsize-ensurer.reset-size4.size10 {
+  /* stylelint-disable-next-line */
+  font-size: 2.5925em;
+}
+.katex .katex-sizing.reset-size4.size11,
+.katex .fontsize-ensurer.reset-size4.size11 {
+  /* stylelint-disable-next-line */
+  font-size: 3.11em;
+}
+.katex .katex-sizing.reset-size5.size1,
+.katex .fontsize-ensurer.reset-size5.size1 {
+  /* stylelint-disable-next-line */
+  font-size: 0.5555555556em;
+}
+.katex .katex-sizing.reset-size5.size2,
+.katex .fontsize-ensurer.reset-size5.size2 {
+  /* stylelint-disable-next-line */
+  font-size: 0.6666666667em;
+}
+.katex .katex-sizing.reset-size5.size3,
+.katex .fontsize-ensurer.reset-size5.size3 {
+  /* stylelint-disable-next-line */
+  font-size: 0.7777777778em;
+}
+.katex .katex-sizing.reset-size5.size4,
+.katex .fontsize-ensurer.reset-size5.size4 {
+  /* stylelint-disable-next-line */
+  font-size: 0.8888888889em;
+}
+.katex .katex-sizing.reset-size5.size5,
+.katex .fontsize-ensurer.reset-size5.size5 {
+  /* stylelint-disable-next-line */
+  font-size: 1em;
+}
+.katex .katex-sizing.reset-size5.size6,
+.katex .fontsize-ensurer.reset-size5.size6 {
+  /* stylelint-disable-next-line */
+  font-size: 1.1111111111em;
+}
+.katex .katex-sizing.reset-size5.size7,
+.katex .fontsize-ensurer.reset-size5.size7 {
+  /* stylelint-disable-next-line */
+  font-size: 1.3333333333em;
+}
+.katex .katex-sizing.reset-size5.size8,
+.katex .fontsize-ensurer.reset-size5.size8 {
+  /* stylelint-disable-next-line */
+  font-size: 1.6em;
+}
+.katex .katex-sizing.reset-size5.size9,
+.katex .fontsize-ensurer.reset-size5.size9 {
+  /* stylelint-disable-next-line */
+  font-size: 1.92em;
+}
+.katex .katex-sizing.reset-size5.size10,
+.katex .fontsize-ensurer.reset-size5.size10 {
+  /* stylelint-disable-next-line */
+  font-size: 2.3044444444em;
+}
+.katex .katex-sizing.reset-size5.size11,
+.katex .fontsize-ensurer.reset-size5.size11 {
+  /* stylelint-disable-next-line */
+  font-size: 2.7644444444em;
+}
+.katex .katex-sizing.reset-size6.size1,
+.katex .fontsize-ensurer.reset-size6.size1 {
+  /* stylelint-disable-next-line */
+  font-size: 0.5em;
+}
+.katex .katex-sizing.reset-size6.size2,
+.katex .fontsize-ensurer.reset-size6.size2 {
+  /* stylelint-disable-next-line */
+  font-size: 0.6em;
+}
+.katex .katex-sizing.reset-size6.size3,
+.katex .fontsize-ensurer.reset-size6.size3 {
+  /* stylelint-disable-next-line */
+  font-size: 0.7em;
+}
+.katex .katex-sizing.reset-size6.size4,
+.katex .fontsize-ensurer.reset-size6.size4 {
+  /* stylelint-disable-next-line */
+  font-size: 0.8em;
+}
+.katex .katex-sizing.reset-size6.size5,
+.katex .fontsize-ensurer.reset-size6.size5 {
+  /* stylelint-disable-next-line */
+  font-size: 0.9em;
+}
+.katex .katex-sizing.reset-size6.size6,
+.katex .fontsize-ensurer.reset-size6.size6 {
+  /* stylelint-disable-next-line */
+  font-size: 1em;
+}
+.katex .katex-sizing.reset-size6.size7,
+.katex .fontsize-ensurer.reset-size6.size7 {
+  /* stylelint-disable-next-line */
+  font-size: 1.2em;
+}
+.katex .katex-sizing.reset-size6.size8,
+.katex .fontsize-ensurer.reset-size6.size8 {
+  /* stylelint-disable-next-line */
+  font-size: 1.44em;
+}
+.katex .katex-sizing.reset-size6.size9,
+.katex .fontsize-ensurer.reset-size6.size9 {
+  /* stylelint-disable-next-line */
+  font-size: 1.728em;
+}
+.katex .katex-sizing.reset-size6.size10,
+.katex .fontsize-ensurer.reset-size6.size10 {
+  /* stylelint-disable-next-line */
+  font-size: 2.074em;
+}
+.katex .katex-sizing.reset-size6.size11,
+.katex .fontsize-ensurer.reset-size6.size11 {
+  /* stylelint-disable-next-line */
+  font-size: 2.488em;
+}
+.katex .katex-sizing.reset-size7.size1,
+.katex .fontsize-ensurer.reset-size7.size1 {
+  /* stylelint-disable-next-line */
+  font-size: 0.4166666667em;
+}
+.katex .katex-sizing.reset-size7.size2,
+.katex .fontsize-ensurer.reset-size7.size2 {
+  /* stylelint-disable-next-line */
+  font-size: 0.5em;
+}
+.katex .katex-sizing.reset-size7.size3,
+.katex .fontsize-ensurer.reset-size7.size3 {
+  /* stylelint-disable-next-line */
+  font-size: 0.5833333333em;
+}
+.katex .katex-sizing.reset-size7.size4,
+.katex .fontsize-ensurer.reset-size7.size4 {
+  /* stylelint-disable-next-line */
+  font-size: 0.6666666667em;
+}
+.katex .katex-sizing.reset-size7.size5,
+.katex .fontsize-ensurer.reset-size7.size5 {
+  /* stylelint-disable-next-line */
+  font-size: 0.75em;
+}
+.katex .katex-sizing.reset-size7.size6,
+.katex .fontsize-ensurer.reset-size7.size6 {
+  /* stylelint-disable-next-line */
+  font-size: 0.8333333333em;
+}
+.katex .katex-sizing.reset-size7.size7,
+.katex .fontsize-ensurer.reset-size7.size7 {
+  /* stylelint-disable-next-line */
+  font-size: 1em;
+}
+.katex .katex-sizing.reset-size7.size8,
+.katex .fontsize-ensurer.reset-size7.size8 {
+  /* stylelint-disable-next-line */
+  font-size: 1.2em;
+}
+.katex .katex-sizing.reset-size7.size9,
+.katex .fontsize-ensurer.reset-size7.size9 {
+  /* stylelint-disable-next-line */
+  font-size: 1.44em;
+}
+.katex .katex-sizing.reset-size7.size10,
+.katex .fontsize-ensurer.reset-size7.size10 {
+  /* stylelint-disable-next-line */
+  font-size: 1.7283333333em;
+}
+.katex .katex-sizing.reset-size7.size11,
+.katex .fontsize-ensurer.reset-size7.size11 {
+  /* stylelint-disable-next-line */
+  font-size: 2.0733333333em;
+}
+.katex .katex-sizing.reset-size8.size1,
+.katex .fontsize-ensurer.reset-size8.size1 {
+  /* stylelint-disable-next-line */
+  font-size: 0.3472222222em;
+}
+.katex .katex-sizing.reset-size8.size2,
+.katex .fontsize-ensurer.reset-size8.size2 {
+  /* stylelint-disable-next-line */
+  font-size: 0.4166666667em;
+}
+.katex .katex-sizing.reset-size8.size3,
+.katex .fontsize-ensurer.reset-size8.size3 {
+  /* stylelint-disable-next-line */
+  font-size: 0.4861111111em;
+}
+.katex .katex-sizing.reset-size8.size4,
+.katex .fontsize-ensurer.reset-size8.size4 {
+  /* stylelint-disable-next-line */
+  font-size: 0.5555555556em;
+}
+.katex .katex-sizing.reset-size8.size5,
+.katex .fontsize-ensurer.reset-size8.size5 {
+  /* stylelint-disable-next-line */
+  font-size: 0.625em;
+}
+.katex .katex-sizing.reset-size8.size6,
+.katex .fontsize-ensurer.reset-size8.size6 {
+  /* stylelint-disable-next-line */
+  font-size: 0.6944444444em;
+}
+.katex .katex-sizing.reset-size8.size7,
+.katex .fontsize-ensurer.reset-size8.size7 {
+  /* stylelint-disable-next-line */
+  font-size: 0.8333333333em;
+}
+.katex .katex-sizing.reset-size8.size8,
+.katex .fontsize-ensurer.reset-size8.size8 {
+  /* stylelint-disable-next-line */
+  font-size: 1em;
+}
+.katex .katex-sizing.reset-size8.size9,
+.katex .fontsize-ensurer.reset-size8.size9 {
+  /* stylelint-disable-next-line */
+  font-size: 1.2em;
+}
+.katex .katex-sizing.reset-size8.size10,
+.katex .fontsize-ensurer.reset-size8.size10 {
+  /* stylelint-disable-next-line */
+  font-size: 1.4402777778em;
+}
+.katex .katex-sizing.reset-size8.size11,
+.katex .fontsize-ensurer.reset-size8.size11 {
+  /* stylelint-disable-next-line */
+  font-size: 1.7277777778em;
+}
+.katex .katex-sizing.reset-size9.size1,
+.katex .fontsize-ensurer.reset-size9.size1 {
+  /* stylelint-disable-next-line */
+  font-size: 0.2893518519em;
+}
+.katex .katex-sizing.reset-size9.size2,
+.katex .fontsize-ensurer.reset-size9.size2 {
+  /* stylelint-disable-next-line */
+  font-size: 0.3472222222em;
+}
+.katex .katex-sizing.reset-size9.size3,
+.katex .fontsize-ensurer.reset-size9.size3 {
+  /* stylelint-disable-next-line */
+  font-size: 0.4050925926em;
+}
+.katex .katex-sizing.reset-size9.size4,
+.katex .fontsize-ensurer.reset-size9.size4 {
+  /* stylelint-disable-next-line */
+  font-size: 0.462962963em;
+}
+.katex .katex-sizing.reset-size9.size5,
+.katex .fontsize-ensurer.reset-size9.size5 {
+  /* stylelint-disable-next-line */
+  font-size: 0.5208333333em;
+}
+.katex .katex-sizing.reset-size9.size6,
+.katex .fontsize-ensurer.reset-size9.size6 {
+  /* stylelint-disable-next-line */
+  font-size: 0.5787037037em;
+}
+.katex .katex-sizing.reset-size9.size7,
+.katex .fontsize-ensurer.reset-size9.size7 {
+  /* stylelint-disable-next-line */
+  font-size: 0.6944444444em;
+}
+.katex .katex-sizing.reset-size9.size8,
+.katex .fontsize-ensurer.reset-size9.size8 {
+  /* stylelint-disable-next-line */
+  font-size: 0.8333333333em;
+}
+.katex .katex-sizing.reset-size9.size9,
+.katex .fontsize-ensurer.reset-size9.size9 {
+  /* stylelint-disable-next-line */
+  font-size: 1em;
+}
+.katex .katex-sizing.reset-size9.size10,
+.katex .fontsize-ensurer.reset-size9.size10 {
+  /* stylelint-disable-next-line */
+  font-size: 1.2002314815em;
+}
+.katex .katex-sizing.reset-size9.size11,
+.katex .fontsize-ensurer.reset-size9.size11 {
+  /* stylelint-disable-next-line */
+  font-size: 1.4398148148em;
+}
+.katex .katex-sizing.reset-size10.size1,
+.katex .fontsize-ensurer.reset-size10.size1 {
+  /* stylelint-disable-next-line */
+  font-size: 0.2410800386em;
+}
+.katex .katex-sizing.reset-size10.size2,
+.katex .fontsize-ensurer.reset-size10.size2 {
+  /* stylelint-disable-next-line */
+  font-size: 0.2892960463em;
+}
+.katex .katex-sizing.reset-size10.size3,
+.katex .fontsize-ensurer.reset-size10.size3 {
+  /* stylelint-disable-next-line */
+  font-size: 0.337512054em;
+}
+.katex .katex-sizing.reset-size10.size4,
+.katex .fontsize-ensurer.reset-size10.size4 {
+  /* stylelint-disable-next-line */
+  font-size: 0.3857280617em;
+}
+.katex .katex-sizing.reset-size10.size5,
+.katex .fontsize-ensurer.reset-size10.size5 {
+  /* stylelint-disable-next-line */
+  font-size: 0.4339440694em;
+}
+.katex .katex-sizing.reset-size10.size6,
+.katex .fontsize-ensurer.reset-size10.size6 {
+  /* stylelint-disable-next-line */
+  font-size: 0.4821600771em;
+}
+.katex .katex-sizing.reset-size10.size7,
+.katex .fontsize-ensurer.reset-size10.size7 {
+  /* stylelint-disable-next-line */
+  font-size: 0.5785920926em;
+}
+.katex .katex-sizing.reset-size10.size8,
+.katex .fontsize-ensurer.reset-size10.size8 {
+  /* stylelint-disable-next-line */
+  font-size: 0.6943105111em;
+}
+.katex .katex-sizing.reset-size10.size9,
+.katex .fontsize-ensurer.reset-size10.size9 {
+  /* stylelint-disable-next-line */
+  font-size: 0.8331726133em;
+}
+.katex .katex-sizing.reset-size10.size10,
+.katex .fontsize-ensurer.reset-size10.size10 {
+  /* stylelint-disable-next-line */
+  font-size: 1em;
+}
+.katex .katex-sizing.reset-size10.size11,
+.katex .fontsize-ensurer.reset-size10.size11 {
+  /* stylelint-disable-next-line */
+  font-size: 1.1996142719em;
+}
+.katex .katex-sizing.reset-size11.size1,
+.katex .fontsize-ensurer.reset-size11.size1 {
+  /* stylelint-disable-next-line */
+  font-size: 0.2009646302em;
+}
+.katex .katex-sizing.reset-size11.size2,
+.katex .fontsize-ensurer.reset-size11.size2 {
+  /* stylelint-disable-next-line */
+  font-size: 0.2411575563em;
+}
+.katex .katex-sizing.reset-size11.size3,
+.katex .fontsize-ensurer.reset-size11.size3 {
+  /* stylelint-disable-next-line */
+  font-size: 0.2813504823em;
+}
+.katex .katex-sizing.reset-size11.size4,
+.katex .fontsize-ensurer.reset-size11.size4 {
+  /* stylelint-disable-next-line */
+  font-size: 0.3215434084em;
+}
+.katex .katex-sizing.reset-size11.size5,
+.katex .fontsize-ensurer.reset-size11.size5 {
+  /* stylelint-disable-next-line */
+  font-size: 0.3617363344em;
+}
+.katex .katex-sizing.reset-size11.size6,
+.katex .fontsize-ensurer.reset-size11.size6 {
+  /* stylelint-disable-next-line */
+  font-size: 0.4019292605em;
+}
+.katex .katex-sizing.reset-size11.size7,
+.katex .fontsize-ensurer.reset-size11.size7 {
+  /* stylelint-disable-next-line */
+  font-size: 0.4823151125em;
+}
+.katex .katex-sizing.reset-size11.size8,
+.katex .fontsize-ensurer.reset-size11.size8 {
+  /* stylelint-disable-next-line */
+  font-size: 0.578778135em;
+}
+.katex .katex-sizing.reset-size11.size9,
+.katex .fontsize-ensurer.reset-size11.size9 {
+  /* stylelint-disable-next-line */
+  font-size: 0.6945337621em;
+}
+.katex .katex-sizing.reset-size11.size10,
+.katex .fontsize-ensurer.reset-size11.size10 {
+  /* stylelint-disable-next-line */
+  font-size: 0.8336012862em;
+}
+.katex .katex-sizing.reset-size11.size11,
+.katex .fontsize-ensurer.reset-size11.size11 {
+  /* stylelint-disable-next-line */
+  font-size: 1em;
+}
+.katex .delimsizing.size1 {
+  font-family: KaTeX_Size1;
+}
+.katex .delimsizing.size2 {
+  font-family: KaTeX_Size2;
+}
+.katex .delimsizing.size3 {
+  font-family: KaTeX_Size3;
+}
+.katex .delimsizing.size4 {
+  font-family: KaTeX_Size4;
+}
+.katex .delimsizing.mult .delim-size1 > span {
+  font-family: KaTeX_Size1;
+}
+.katex .delimsizing.mult .delim-size4 > span {
+  font-family: KaTeX_Size4;
+}
+.katex .nulldelimiter {
+  display: inline-block;
+  width: 0.12em;
+}
+.katex .delimcenter {
+  position: relative;
+}
+.katex .op-symbol {
+  position: relative;
+}
+.katex .op-symbol.small-op {
+  font-family: KaTeX_Size1;
+}
+.katex .op-symbol.large-op {
+  font-family: KaTeX_Size2;
+}
+.katex .op-limits > .vlist-t {
+  text-align: center;
+}
+.katex .katex-accent > .vlist-t {
+  text-align: center;
+}
+.katex .katex-accent .accent-body {
+  position: relative;
+}
+.katex .katex-accent .accent-body:not(.accent-full) {
+  width: 0;
+}
+.katex .katex-overlay {
+  display: block;
+}
+.katex .mtable .vertical-separator {
+  display: inline-block;
+  min-width: 1px;
+}
+.katex .mtable .arraycolsep {
+  display: inline-block;
+}
+.katex .mtable .col-align-c > .vlist-t {
+  text-align: center;
+}
+.katex .mtable .col-align-l > .vlist-t {
+  text-align: left;
+}
+.katex .mtable .col-align-r > .vlist-t {
+  text-align: right;
+}
+.katex .svg-align {
+  text-align: left;
+}
+.katex svg {
+  display: block;
+  position: absolute;
+  width: 100%;
+  height: inherit;
+  fill: currentColor;
+  stroke: currentColor;
+}
+.katex svg path {
+  stroke: none;
+}
+.katex svg {
+  fill-rule: nonzero;
+  fill-opacity: 1;
+  stroke-width: 1;
+  stroke-linecap: butt;
+  stroke-linejoin: miter;
+  stroke-miterlimit: 4;
+  stroke-dasharray: none;
+  stroke-dashoffset: 0;
+  stroke-opacity: 1;
+}
+.katex img {
+  border-style: none;
+  min-width: 0;
+  min-height: 0;
+  max-width: none;
+  max-height: none;
+}
+.katex .katex-stretchy {
+  width: 100%;
+  display: block;
+  position: relative;
+  overflow: hidden;
+}
+.katex .katex-stretchy::before, .katex .katex-stretchy::after {
+  content: "";
+}
+.katex .hide-tail {
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+.katex .halfarrow-left {
+  position: absolute;
+  left: 0;
+  width: 50.2%;
+  overflow: hidden;
+}
+.katex .halfarrow-right {
+  position: absolute;
+  right: 0;
+  width: 50.2%;
+  overflow: hidden;
+}
+.katex .brace-left {
+  position: absolute;
+  left: 0;
+  width: 25.1%;
+  overflow: hidden;
+}
+.katex .brace-center {
+  position: absolute;
+  left: 25%;
+  width: 50%;
+  overflow: hidden;
+}
+.katex .brace-right {
+  position: absolute;
+  right: 0;
+  width: 25.1%;
+  overflow: hidden;
+}
+.katex .x-arrow-pad {
+  padding: 0 0.5em;
+}
+.katex .cd-arrow-pad {
+  padding: 0 0.55556em 0 0.27778em;
+}
+.katex .x-arrow,
+.katex .mover,
+.katex .munder {
+  text-align: center;
+}
+.katex .boxpad {
+  padding: 0 0.3em;
+}
+.katex .fbox,
+.katex .fcolorbox {
+  box-sizing: border-box;
+  border: 0.04em solid;
+}
+.katex .cancel-pad {
+  padding: 0 0.2em;
+}
+.katex .cancel-lap {
+  margin-left: -0.2em;
+  margin-right: -0.2em;
+}
+.katex .katex-sout {
+  border-bottom-style: solid;
+  border-bottom-width: 0.08em;
+}
+.katex .angl {
+  box-sizing: border-box;
+  border-top: 0.049em solid;
+  border-right: 0.049em solid;
+  margin-right: 0.03889em;
+}
+.katex .anglpad {
+  padding: 0 0.03889em;
+}
+.katex .reflectbox {
+  display: inline-block;
+  transform: scaleX(-1);
+}
+.katex .eqn-num::before {
+  counter-increment: katexEqnNo;
+  content: "(" counter(katexEqnNo) ")";
+}
+.katex .mml-eqn-num::before {
+  counter-increment: mmlEqnNo;
+  content: "(" counter(mmlEqnNo) ")";
+}
+.katex .mtr-glue {
+  width: 50%;
+}
+.katex .cd-vert-arrow {
+  display: inline-block;
+  position: relative;
+}
+.katex .cd-label-left {
+  display: inline-block;
+  position: absolute;
+  right: calc(50% + 0.3em);
+  text-align: left;
+}
+.katex .cd-label-right {
+  display: inline-block;
+  position: absolute;
+  left: calc(50% + 0.3em);
+  text-align: right;
+}
+
+.katex-display {
+  display: block;
+  margin: 1em 0;
+  text-align: center;
+}
+.katex-display > .katex {
+  display: block;
+  text-align: center;
+  white-space: nowrap;
+}
+.katex-display > .katex > .katex-html {
+  display: block;
+  position: relative;
+}
+.katex-display > .katex > .katex-html > .katex-tag {
+  position: absolute;
+  right: 0;
+}
+
+.katex-display.leqno > .katex > .katex-html > .katex-tag {
+  left: 0;
+  right: auto;
+}
+
+.katex-display.fleqn > .katex {
+  text-align: left;
+  padding-left: 2em;
+}
+
+body {
+  counter-reset: katexEqnNo mmlEqnNo;
+}
+
+/* ─────────── 2. 扩展元素样式 ─────────── */
+/* ═══════════════════════════════════════════════════
+   文档页 · markdown-it 扩展元素样式
+   覆盖：公式 / 代码高亮 / 告示 / 提示框 / 任务列表 /
+         脚注 / 定义列表 / 上下标标记 / 目录 / 注音 /
+         剧透 / 图片（figure·尺寸·主题图·灯箱）/ Mermaid
+   全部基于主题变量，12 套主题自动适配
+   ═══════════════════════════════════════════════════ */
+
+/* ── 公式（KaTeX） ── */
+.md .katex{ color:inherit }
+.md .katex-display{
+  margin:1.35em 0;padding:2px 0;
+  overflow-x:auto;overflow-y:hidden;
+  scrollbar-width:thin;scrollbar-color:var(--line) transparent;
+}
+.md .katex-display::-webkit-scrollbar{ height:8px }
+.md .katex-display::-webkit-scrollbar-thumb{ background:var(--line); border-radius:var(--radius-badge) }
+.md .katex-error{ color:var(--accent); font-family:var(--mono); font-size:.92em }
+
+/* ── 代码高亮（highlight.js）：配色按明/暗主题各一套 ── */
+html[data-theme="obsidian"],html[data-theme="ink"],html[data-theme="forest"],
+html[data-theme="ocean"],html[data-theme="midnight"],html[data-theme="amber"]{
+  --c-key:#C792EA; --c-str:#C3E88D; --c-num:#F78C6C; --c-fun:#82AAFF;
+  --c-com:#7E8A90; --c-typ:#FFCB6B; --c-tag:#F07178;
+}
+html[data-theme="cloud"],html[data-theme="linen"],html[data-theme="rose"],
+html[data-theme="sepia"],html[data-theme="paper"],html[data-theme="moss"]{
+  --c-key:#A626A4; --c-str:#50A14F; --c-num:#986801; --c-fun:#4078F2;
+  --c-com:#9AA0A6; --c-typ:#C18401; --c-tag:#E45649;
+}
+.md pre code.hljs{ display:block;background:transparent;padding:0 }
+.md .hljs-comment,.md .hljs-quote{ color:var(--c-com); font-style:italic }
+.md .hljs-keyword,.md .hljs-selector-tag,.md .hljs-literal,.md .hljs-doctag,
+.md .hljs-template-tag,.md .hljs-name{ color:var(--c-key) }
+.md .hljs-string,.md .hljs-regexp,.md .hljs-addition,.md .hljs-meta-string{ color:var(--c-str) }
+.md .hljs-number,.md .hljs-built_in,.md .hljs-symbol,.md .hljs-bullet,
+.md .hljs-variable,.md .hljs-template-variable{ color:var(--c-num) }
+.md .hljs-title,.md .hljs-title.function_,.md .hljs-function .hljs-title,
+.md .hljs-section,.md .hljs-selector-id{ color:var(--c-fun) }
+.md .hljs-type,.md .hljs-class .hljs-title,.md .hljs-title.class_,
+.md .hljs-attr,.md .hljs-attribute,.md .hljs-params{ color:var(--c-typ) }
+.md .hljs-tag,.md .hljs-selector-class,.md .hljs-deletion,.md .hljs-meta{ color:var(--c-tag) }
+.md .hljs-emphasis{ font-style:italic }
+.md .hljs-strong{ font-weight:700 }
+
+/* 代码行号与高亮行：```js:line-numbers 或 ```js {1,3-5} */
+.md pre.with-lines{ position:relative }
+.md pre code.with-lines{ display:block }
+.md pre code.with-lines .cl{
+  display:block;position:relative;
+  min-height:1.72em;
+}
+.md pre code.with-lines.show-lines .cl{ padding-left:3.4em }
+.md pre code.with-lines .cl.hl{
+  background:color-mix(in srgb,var(--accent) 12%,transparent);
+  box-shadow:inset 2px 0 0 var(--accent);
+}
+.md pre code.with-lines.show-lines{ counter-reset:cl }
+.md pre code.with-lines.show-lines .cl::before{
+  counter-increment:cl;
+  content:counter(cl);
+  position:absolute;left:0;width:2.4em;
+  text-align:right;
+  color:var(--faint);opacity:.7;
+  -webkit-user-select:none;user-select:none;
+}
+
+/* ── GitHub 告示：> [!NOTE] / ::: 提示框 ── */
+.md .markdown-alert,
+.md .md-box{
+  --md-hl:var(--dim);
+  margin:1.2em 0;padding:12px 16px;
+  border:1px solid color-mix(in srgb,var(--md-hl) 26%,transparent);
+  border-left:3px solid var(--md-hl);
+  border-radius:0 var(--radius-card) var(--radius-card) 0;
+  background:color-mix(in srgb,var(--md-hl) 8%,transparent);
+}
+/* 标题里允许行内 Markdown，所以这里不能用 flex：
+   flex 会把「文字 + code + 文字」拆成带间距的独立项，读起来是断的。 */
+.md .markdown-alert-title,
+.md .md-box-title{
+  margin:0 0 6px;
+  font-size:13px;font-weight:640;line-height:1.4;
+  color:var(--md-hl);
+}
+.md .markdown-alert-title svg{
+  width:15px;height:15px;fill:currentColor;
+  display:inline-block;vertical-align:-2px;margin-right:6px;
+}
+.md .markdown-alert-title code,
+.md .md-box-title code{
+  font-size:.92em;padding:1px 5px;border-radius:var(--radius-badge);
+  color:inherit;
+  background:color-mix(in srgb,var(--md-hl) 15%,transparent);
+}
+.md .markdown-alert-title strong,
+.md .md-box-title strong{ font-weight:700 }
+.md .markdown-alert > :last-child,
+.md .md-box > :last-child{ margin-bottom:0 }
+.md .markdown-alert-note,.md .md-box-note,.md .md-box-info{ --md-hl:#4A90D9 }
+.md .markdown-alert-tip,.md .md-box-tip,.md .md-box-success{ --md-hl:#3FA96B }
+.md .markdown-alert-important,.md .md-box-question{ --md-hl:#8A6BD9 }
+.md .markdown-alert-warning,.md .md-box-warning{ --md-hl:#D9A44A }
+.md .markdown-alert-caution,.md .md-box-danger{ --md-hl:#D9605A }
+
+/* ── 任务列表 ── */
+.md .task-list-item{ list-style:none;margin-left:-1.35em }
+.md .task-list-item label{ display:inline }
+.md .task-list-item input[type=checkbox]{
+  -webkit-appearance:none;appearance:none;
+  width:14px;height:14px;flex:none;
+  margin:0 8px 0 0;padding:0;
+  position:relative;vertical-align:-2px;
+  border:1px solid var(--dim);border-radius:var(--radius-xs);
+  background:transparent;cursor:default;
+}
+.md .task-list-item input[type=checkbox]:checked{
+  background:var(--accent);border-color:var(--accent);
+}
+.md .task-list-item input[type=checkbox]:checked::after{
+  content:'';position:absolute;left:4px;top:1px;
+  width:4px;height:8px;
+  border:solid var(--bg);border-width:0 2px 2px 0;
+  transform:rotate(45deg);
+}
+.md .contains-task-list{ padding-left:1.35em }
+
+/* ── 脚注 ── */
+.md .footnotes{
+  margin-top:2.6em;padding-top:14px;
+  border-top:1px solid var(--line-soft);
+  font-size:12.5px;color:var(--md-dim);
+}
+.md .footnotes-sep{ display:none }
+.md .footnotes-list{ padding-left:1.4em }
+.md .footnote-item{ margin:.4em 0 }
+.md sup.footnote-ref{ line-height:0 }
+.md .footnote-ref a{ text-decoration:none;padding:0 2px }
+.md .footnote-backref{ text-decoration:none;margin-left:4px;color:var(--faint) }
+.md .footnote-backref:hover{ color:var(--accent) }
+
+/* ── 定义列表 ── */
+.md dl{ margin:1.1em 0 }
+.md dt{ font-weight:640;color:var(--ink);margin-top:.8em }
+.md dd{ margin:.25em 0 0 1.4em;color:var(--md-dim) }
+
+/* ── 上下标 / 标记 / 缩写 ── */
+.md sub,.md sup{ font-size:.76em;line-height:0 }
+.md mark{
+  background:color-mix(in srgb,var(--accent) 26%,transparent);
+  color:var(--ink);padding:0 2px;border-radius:var(--radius-xs);
+}
+.md ins{ text-decoration:none;border-bottom:1px solid var(--accent-line) }
+.md abbr{ text-decoration:underline dotted;text-underline-offset:2px;cursor:help }
+
+/* ── 目录 [[toc]] ── */
+.md .md-toc{
+  margin:1.4em 0;padding:14px 18px;
+  border:1px solid var(--line);border-radius:var(--radius-card);
+  background:color-mix(in srgb,var(--ink) 3%,transparent);
+  font-size:13px;
+}
+.md .md-toc-title{
+  margin:0 0 8px;
+  font-family:var(--mono);font-size:10.5px;
+  letter-spacing:.13em;text-transform:uppercase;color:var(--faint);
+}
+.md .md-toc a{
+  display:block;margin:.28em 0;
+  color:var(--dim);text-decoration:none;
+  transition:color .13s var(--ease);
+}
+.md .md-toc a:hover{ color:var(--accent) }
+.md .md-toc-lv2{ padding-left:1.1em }
+.md .md-toc-lv3{ padding-left:2.2em }
+/* 兼容其它 TOC 插件的输出结构 */
+.md .table-of-contents{
+  margin:1.4em 0;padding:14px 18px;
+  border:1px solid var(--line);border-radius:var(--radius-card);
+  background:color-mix(in srgb,var(--ink) 3%,transparent);
+  font-size:13px;
+}
+.md .table-of-contents ul,.md .table-of-contents ol{ list-style:none;margin:0;padding:0 }
+.md .table-of-contents li{ margin:.3em 0 }
+.md .table-of-contents a{ color:var(--dim);text-decoration:none }
+.md .table-of-contents a:hover{ color:var(--accent) }
+
+/* ── 注音（ruby） ── */
+.md ruby{ ruby-position:over;ruby-align:center }
+.md rt{ font-size:.55em;font-weight:400;color:var(--faint);letter-spacing:0 }
+.md rp{ color:var(--faint) }
+
+/* ── 剧透 !!内容!! ── */
+.md .spoiler{
+  background:var(--ink);color:transparent;
+  border-radius:var(--radius-xs);padding:0 3px;
+  cursor:pointer;
+  transition:color .16s var(--ease),background .16s var(--ease);
+}
+.md .spoiler:hover,
+.md .spoiler:focus{
+  background:color-mix(in srgb,var(--ink) 8%,transparent);
+  color:var(--ink);outline:none;
+}
+
+/* ── 图片：figure / 尺寸 / 主题图 / 灯箱 ── */
+.md figure{ margin:1.5em 0;text-align:center }
+.md figure img{ margin:0 auto }
+.md figcaption{ margin-top:.6em;font-size:12.5px;color:var(--faint) }
+.md img{ cursor:zoom-in }
+.md img[tabindex]:focus-visible{ outline:2px solid var(--accent);outline-offset:2px }
+
+/* 按主题明暗切换图片：![alt](url#dark) / ![alt](url#light) */
+:is(html[data-theme="obsidian"],html[data-theme="ink"],html[data-theme="forest"],
+    html[data-theme="ocean"],html[data-theme="midnight"],html[data-theme="amber"])
+  .md img[data-mode="lightmode-only"],
+:is(html[data-theme="obsidian"],html[data-theme="ink"],html[data-theme="forest"],
+    html[data-theme="ocean"],html[data-theme="midnight"],html[data-theme="amber"])
+  .md figure:has(img[data-mode="lightmode-only"]){ display:none }
+:is(html[data-theme="cloud"],html[data-theme="linen"],html[data-theme="rose"],
+    html[data-theme="sepia"],html[data-theme="paper"],html[data-theme="moss"])
+  .md img[data-mode="darkmode-only"],
+:is(html[data-theme="cloud"],html[data-theme="linen"],html[data-theme="rose"],
+    html[data-theme="sepia"],html[data-theme="paper"],html[data-theme="moss"])
+  .md figure:has(img[data-mode="darkmode-only"]){ display:none }
+
+/* 灯箱 */
+.md-lightbox{
+  position:fixed;inset:0;z-index:400;
+  display:flex;align-items:center;justify-content:center;
+  padding:32px;
+  background:rgba(0,0,0,.74);
+  opacity:0;cursor:zoom-out;
+  transition:opacity .18s var(--ease);
+}
+.md-lightbox.on{ opacity:1 }
+.md-lightbox img{
+  max-width:100%;max-height:100%;
+  border-radius:var(--radius-control);box-shadow:var(--shadow);cursor:zoom-out;
+}
+
+/* ── 表情 ── */
+.md .emoji{ font-style:normal;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",var(--sans) }
+
+/* ─────────── 3. 新增样式 ─────────── */
+
+/* ═══════════════════════════════════════════════════
+   markdown-it-texmath 的外层标签
+   ---------------------------------------------------
+   它不是官方插件，输出会多包一层 <eq>（行内）/<eqn>（块级）。
+   这两个标签不在 KaTeX 官方样式表里，不给规则的话
+   块级公式在某些浏览器上会被当成行内元素，导致不居中、左右贴边。
+   ═══════════════════════════════════════════════════ */
+.md eq{
+  display:inline;
+}
+.md eqn{
+  display:block;
+  text-align:center;
+  margin:1.35em 0;
+}
+.md eqn > .katex-display{
+  margin:0;
+}
+/* 公式里的错误提示（throwOnError:false 时 KaTeX 会输出红色源码） */
+.md .katex-error{
+  color:var(--accent);
+}
+
+/* ═══════════════════════════════════════════════════
+   剧透块  >! 内容
+   与行内 !!剧透!! 的区别：这是块级、默认折起、可键盘操作
+   ═══════════════════════════════════════════════════ */
+.md .md-spoiler{
+  margin:1.2em 0;
+  border:1px solid var(--line);
+  border-left:3px solid var(--accent-line);
+  border-radius:0 var(--radius-card) var(--radius-card) 0;
+  overflow:hidden;
+  background:color-mix(in srgb,var(--ink) 3%,transparent);
+}
+.md .md-spoiler-head{
+  display:flex;align-items:center;gap:8px;
+  width:100%;
+  padding:9px 14px;
+  margin:0;
+  border:0;
+  background:transparent;
+  color:var(--dim);
+  font-family:var(--mono);font-size:12px;
+  text-align:left;
+  cursor:pointer;
+  transition:color .14s var(--ease),background .14s var(--ease);
+}
+.md .md-spoiler-head:hover{
+  color:var(--ink);
+  background:color-mix(in srgb,var(--ink) 5%,transparent);
+}
+.md .md-spoiler-head:active{ transform:translateY(1px) }
+.md .md-spoiler-head:focus-visible{ outline:2px solid var(--accent);outline-offset:-2px }
+.md .md-spoiler-mark{
+  flex:none;
+  width:15px;height:15px;
+  display:grid;place-items:center;
+  border-radius:var(--radius-badge);
+  border:1px solid var(--accent-line);
+  background:var(--accent-soft);
+  color:var(--accent);
+  font-size:10px;font-weight:700;line-height:1;
+}
+.md .md-spoiler-body{
+  display:none;
+  padding:2px 16px 12px;
+  border-top:1px solid var(--line-soft);
+}
+.md .md-spoiler-body > :first-child{ margin-top:.8em }
+.md .md-spoiler-body > :last-child{ margin-bottom:0 }
+.md .md-spoiler[data-open="true"] .md-spoiler-body{ display:block }
+.md .md-spoiler[data-open="true"] .md-spoiler-head{ color:var(--ink) }
+.md .md-spoiler[data-open="true"] .md-spoiler-mark::before{ content:'−' }
+.md .md-spoiler[data-open="false"] .md-spoiler-mark::before,
+.md .md-spoiler:not([data-open]) .md-spoiler-mark::before{ content:'!' }
+
+/* ═══════════════════════════════════════════════════
+   告示（> [!NOTE]）的自定义名字
+   ---------------------------------------------------
+   写了名字 → 标题行显示你写的；没写 → 不画标题行，
+   只剩内容 + 左侧色条。类型仍通过 aria-label 暴露给读屏。
+   ═══════════════════════════════════════════════════ */
+.md .markdown-alert[data-untitled="true"]{
+  padding-top:13px;
+  padding-bottom:13px;
+}
+.md .markdown-alert[data-untitled="true"] > :first-child{ margin-top:0 }
+.md .markdown-alert[data-untitled="true"] > :last-child{ margin-bottom:0 }
+
+/* ═══════════════════════════════════════════════════
+   代码组 ::: code-group
+   ---------------------------------------------------
+   结构由渲染器输出（.code-group > .cg-tabs + .cg-body > .cg-panel*），
+   标签按钮由客户端按真实面板数生成。
+   ═══════════════════════════════════════════════════ */
+.md .code-group{
+  margin:1.2em 0;
+  border:1px solid var(--line);
+  border-radius:var(--radius-card);
+  overflow:hidden;
+  background:var(--md-code-bg);
+}
+.md .cg-tabs{
+  display:flex;
+  flex-wrap:wrap;
+  gap:2px;
+  padding:6px 8px 0;
+  border-bottom:1px solid var(--line);
+  background:color-mix(in srgb,var(--ink) 3%,transparent);
+}
+.md .cg-tab{
+  padding:6px 12px;
+  border:0;
+  border-bottom:2px solid transparent;
+  background:transparent;
+  color:var(--dim);
+  font-family:var(--mono);
+  font-size:12px;
+  cursor:pointer;
+  border-radius:var(--radius-xs) var(--radius-xs) 0 0;
+  transition:color .14s var(--ease),border-color .14s var(--ease),background .14s var(--ease);
+}
+.md .cg-tab:hover{
+  color:var(--ink);
+  background:color-mix(in srgb,var(--ink) 5%,transparent);
+}
+.md .cg-tab:focus-visible{
+  outline:2px solid var(--accent);
+  outline-offset:-2px;
+}
+.md .cg-tab.is-active{
+  color:var(--accent);
+  border-bottom-color:var(--accent);
+}
+/* 面板：JS 没跑起来时第一个也是显示的，不会整块空白 */
+.md .cg-panel[hidden]{ display:none }
+.md .cg-panel > pre{
+  margin:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+}
+/* 一组里只有一个代码块时，标签行没意义，藏掉 */
+.md .code-group[data-single="true"] .cg-tabs{ display:none }
+
+/* ═══════════════════════════════════════════════════
+   标签页 ::: tabs / @tab（@mdit/plugin-tab）
+   ---------------------------------------------------
+   渲染器输出：
+     .tabs-tabs-wrapper[data-single]
+       .tabs-tabs-header > button.tabs-tab-button(.active)
+       .tabs-tabs-container > .tabs-tab-content(.active)
+   类名沿用插件的默认约定，方便它对外的客户端脚本也能用。
+
+   注意：插件自带的 tab.css 是一套写死的浅色（#f8fafc / #64748b / #2563eb），
+   在暗色主题下对比度直接不合格，所以这里不用它的样式表，
+   全部走本站在用的主题变量（--line / --ink / --dim / --accent）。
+   ═══════════════════════════════════════════════════ */
+.md .tabs-tabs-wrapper{
+  margin:1.2em 0;
+  border:1px solid var(--line);
+  border-radius:var(--radius-card);
+  overflow:hidden;
+  background:color-mix(in srgb,var(--ink) 2%,transparent);
+}
+.md .tabs-tabs-header{
+  display:flex;
+  flex-wrap:wrap;
+  gap:2px;
+  padding:6px 8px 0;
+  border-bottom:1px solid var(--line);
+  background:color-mix(in srgb,var(--ink) 4%,transparent);
+}
+.md .tabs-tab-button{
+  padding:6px 12px;
+  border:0;
+  border-bottom:2px solid transparent;
+  border-radius:var(--radius-xs) var(--radius-xs) 0 0;
+  background:transparent;
+  color:var(--dim);
+  font-family:inherit;
+  font-size:13px;
+  font-weight:500;
+  line-height:1.5;
+  white-space:nowrap;
+  cursor:pointer;
+  transition:color .14s var(--ease),border-color .14s var(--ease),background .14s var(--ease);
+}
+.md .tabs-tab-button code{
+  font-size:.92em;
+  padding:1px 4px;
+  border-radius:var(--radius-badge);
+  background:color-mix(in srgb,var(--ink) 8%,transparent);
+}
+.md .tabs-tab-button:hover{
+  color:var(--ink);
+  background:color-mix(in srgb,var(--ink) 6%,transparent);
+}
+.md .tabs-tab-button:focus-visible{
+  outline:2px solid var(--accent);
+  outline-offset:-2px;
+}
+.md .tabs-tab-button.active{
+  color:var(--accent);
+  border-bottom-color:var(--accent);
+}
+.md .tabs-tabs-container{ padding:14px 16px }
+/* 只靠 .active 控制显隐（不用 hidden）：
+   这样官方 register-tab 客户端脚本切 .active 时也是对的。
+   渲染期一定会有一个 .active，所以没有 JS 也看得见内容。 */
+.md .tabs-tab-content{ display:none }
+.md .tabs-tab-content.active{ display:block }
+.md .tabs-tab-content > :first-child{ margin-top:0 }
+.md .tabs-tab-content > :last-child{ margin-bottom:0 }
+/* 只有一个标签页时标签行没意义 */
+.md .tabs-tabs-wrapper[data-single="true"] .tabs-tabs-header{ display:none }
+
+/* ═══════════════════════════════════════════════════
+   代码块复制按钮
+   ---------------------------------------------------
+   由客户端 addCodeCopyButtons() 插进每个 <pre>。
+   图标来自 asset/icon/file-copy-fill.svg（常态）
+   和 file-copy.svg（悬停/聚焦）—— 内联成 SVG，
+   这样 fill:currentColor 能跟着主题色走。
+   图标取不到就退回「复制」文字，功能不受影响。
+   ═══════════════════════════════════════════════════ */
+.md pre{ position:relative }
+.md pre > .code-copy{
+  position:absolute;
+  top:8px; right:8px;          /* 比原来略微内收一点 */
+  z-index:2;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  min-width:26px;
+  height:26px;
+  padding:0 7px;
+  border:1px solid transparent;
+  border-radius:var(--radius-control);
+  background:transparent;
+  color:var(--faint);
+  font-family:var(--mono);
+  font-size:11px;
+  line-height:1;
+  cursor:pointer;
+  opacity:.45;
+  transition:opacity .14s var(--ease), color .14s var(--ease),
+             background .14s var(--ease), border-color .14s var(--ease),
+             transform .1s var(--ease);
+}
+.md pre:hover > .code-copy{ opacity:1 }
+
+/* 有图标时：常态显示填充版，悬停/聚焦换成描边版 */
+.md pre > .code-copy.with-icon{ padding:0 }
+.md pre > .code-copy .cc-ico{
+  display:flex; align-items:center; justify-content:center;
+  width:15px; height:15px;
+}
+.md pre > .code-copy .cc-ico svg{
+  width:15px; height:15px; display:block;
+  fill:currentColor;
+}
+.md pre > .code-copy .cc-ico-line{ display:none }
+.md pre > .code-copy.with-icon:hover .cc-ico-fill,
+.md pre > .code-copy.with-icon:focus-visible .cc-ico-fill{ display:none }
+.md pre > .code-copy.with-icon:hover .cc-ico-line,
+.md pre > .code-copy.with-icon:focus-visible .cc-ico-line{ display:flex }
+
+.md pre > .code-copy:hover{
+  color:var(--ink);
+  border-color:var(--line);
+  background:color-mix(in srgb,var(--ink) 7%,transparent);
+}
+.md pre > .code-copy:focus-visible{
+  opacity:1;
+  outline:2px solid var(--accent);
+  outline-offset:2px;
+}
+.md pre > .code-copy:active{ transform:scale(.92) }
+
+/* 复制成功 / 失败：颜色变化，不靠文字 */
+.md pre > .code-copy.ok{
+  opacity:1;
+  color:var(--accent);
+  border-color:var(--accent-line);
+  background:var(--accent-soft);
+}
+.md pre > .code-copy.err{
+  opacity:1;
+  color:#D9605A;
+  border-color:rgba(217,96,90,.4);
+  background:color-mix(in srgb,#D9605A 10%,transparent);
+}
+
+/* 触摸设备没有 hover，按钮必须常显，否则点不到 */
+@media (hover:none){
+  .md pre > .code-copy{ opacity:1 }
+}
+
+/* ═══════════════════════════════════════════════════
+   已砍掉的图表语法降级
+   mermaid / plantuml / flow / echarts 这几类围栏现在就是普通代码块
+   ═══════════════════════════════════════════════════ */
+.md .md-chart-off{
+  margin:-0.9em 0 1.4em;
+  font-family:var(--mono);font-size:11.5px;
+  color:var(--faint);
+}
+
+/* ═══════════════════════════════════════════════════
+   顶栏 static 角标：说明这是预渲染的静态页面
+   ═══════════════════════════════════════════════════ */
+.load-badge.static,
+.load-badge[title*="预渲染"]{
+  cursor:default;
+  font-family:var(--mono);
+}
+.load-badge[title*="预渲染"] .load-dot{
+  animation:none;
+  opacity:.9;
+}
+
+
+/* ─────────── 4. 卡片（来自 p/docs-card.js） ─────────── */
+.card {
+  display: block;
+  position: relative;
+  padding: 18px 22px 18px 26px;
+  background: var(--panel, #13181B);
+  border: 1px solid var(--line, #232C31);
+  border-radius: 8px;
+  color: var(--ink, #E7E9E6);
+  text-decoration: none;
+  overflow: hidden;
+  transition: background .18s ease, border-color .18s ease, transform .18s ease;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 14px;
+  bottom: 14px;
+  width: 3px;
+  background: #D97757;
+  opacity: 0;
+  transform: scaleY(.4);
+  transition: opacity .18s ease, transform .18s ease;
+}
+
+.card:hover {
+  background: var(--raised, #191F23);
+  border-color: rgba(217, 119, 87, .36);
+  transform: translateY(-2px);
+}
+
+.card:hover::before {
+  opacity: 1;
+  transform: scaleY(1);
+}
+
+.card:focus-visible {
+  outline: 2px solid #D97757;
+  outline-offset: 3px;
+  border-color: rgba(217, 119, 87, .36);
+}
+
+.card-title {
+  display: block;
+  font-size: 1.05em;
+  font-weight: 600;
+  letter-spacing: -.005em;
+}
+
+.card-date {
+  display: block;
+  margin-top: 4px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: .78em;
+  color: var(--dim, #7E8A90);
+}
+
+.md a.card,
+.md a.card:hover,
+.md a.card:focus-visible {
+  color: var(--ink, #E7E9E6);
+  text-decoration: none;
+  border-bottom: 0;
+}

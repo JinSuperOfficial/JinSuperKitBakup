@@ -12,12 +12,32 @@
 站点的「有什么工具」由清单决定，**加工具不要改 HTML**：
 
 - 工具清单：`jinsuper.rth1.xyz/Skills/skills.json`（工具站）、`jinsuper.rth1.xyz/811/tools.json`（811 专区）
-- 站点目录：`jinsuper.rth1.xyz/site.json`
+- 站点目录 / 博客身份：`jinsuper.rth1.xyz/site.json`（`blog` 段 = 标题 / 简介 / 主域名）
+- 文章清单：`jinsuper.rth1.xyz/sk.json`（博客「JinSuper 奇思妙想」，分组 → `/p/` 下的路径）
 - 唯一运行时：`jinsuper.rth1.xyz/lib/manifest.js`（归一 / 排序 / 渲染 + 图标注册表；页面里不许再写自己的解析 / 猜图标 / 路径编码逻辑）
-- 生成物不许手改：`sitemap.xml`、`docs/info/site-index.js`
+- 生成物不许手改：`sitemap.xml`、`docs/info/site-index.js`、`p/index.html`（博客首页）、`p/post/`（每篇文章的独立网址）、`p/feed.xml`
 - 改完清单跑：`node build/verify-manifests.mjs && node build/test-manifest.mjs`
 
 完整字段表与三步流程见 **`MANIFEST.md`**。
+
+## 文章与 frontmatter
+
+对外这个站点是一份博客（**JinSuper 奇思妙想**，阅读器 `/p/docs.html`）。
+文章靠**正文顶上的 frontmatter**（标题 / 日期 / 标签 / 摘要）带元数据；
+构建时每篇还会生成 `/p/post/…` 独立网址 —— 搜索引擎只认这个，hash 地址不算。
+
+- 解析规则只有一份：`build/lib/markdown.cjs` 的 `parseFrontmatter`（Node 与浏览器共用）
+- 作者默认 `JinSuper`（`site.json` 的 `blog.author`），`author:` 单个或数组都收
+- 阅读器与博客首页共用一条顶栏导航（`siteNavHtml()`）；阅读器的侧栏 / 目录是**嵌入式、不跟随滚动**的
+- 归档稿（`/p/archive/**.html`）**不隐藏**：博客首页的时间线里也列，并带一枚「归档」标签；
+  只有「最新」那几张卡片放活稿（归档版是同一篇的旧版本）
+- **文章外壳只有一份**：顶栏 / 两列布局 / 侧栏目录 / 页脚的样式、脚本、标记都在
+  `build/lib/chrome.mjs` + `template/post-chrome.css` + `template/post-script.js`，
+  静态文章页与归档稿共用；改了外壳，老归档产物要在控制台点「重刷外壳」（正文不动）
+- 目录的层级先归一成**相对级别**（最浅的一级 = `lv-1`）再缩进；**一节也算，每篇都有**：
+  没有小节的短文退回一条「文章标题 → `#post`」兜底条目。三处目录共用这一条规则
+- 改了元数据行为或加了 Markdown 语法：更新 `build/test-render.mjs` 的断言 + `MANIFEST.md` §7
+- 字段表、canonical / OG / JSON-LD / RSS / sitemap 的做法见 **`MANIFEST.md` §7**
 
 ## UI 圆角规范
 

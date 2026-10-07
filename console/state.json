@@ -7,7 +7,12 @@
     "archiveDir": "p/archive",
     "paraDir": "para",
     "skPath": "sk.json",
-    "confirmDanger": true
+    "confirmDanger": true,
+    "previewPort": 8790,
+    "previewAutoStart": false,
+    "previewOpenAfterStart": true,
+    "previewClickMode": "auto",
+    "previewTreeSource": "auto"
   },
   "archiveMeta": {
     "p/archive/TEST.html": {
@@ -17,6 +22,22 @@
       "title": "测试文档",
       "group": "启程",
       "archivedAt": "2026-10-01T11:57:13.501Z"
+    },
+    "archive/idea/1.归途且慢.html": {
+      "originalRel": "idea/1.归途且慢.md",
+      "archivedPath": "archive/idea/1.归途且慢.html",
+      "articlePath": "idea/1.归途且慢.md",
+      "title": "1.归途，且慢.",
+      "group": "奇思妙想",
+      "archivedAt": "2026-10-06T13:44:53.512Z"
+    },
+    "archive/idea/3.枣香童年.html": {
+      "originalRel": "idea/枣香童年.md",
+      "archivedPath": "archive/idea/3.枣香童年.html",
+      "articlePath": "idea/枣香童年.md",
+      "title": "枣香童年",
+      "group": "奇思妙想",
+      "archivedAt": "2026-10-06T14:48:08.728Z"
     }
   },
   "drafts": {}

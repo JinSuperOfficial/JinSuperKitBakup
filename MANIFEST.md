@@ -9,10 +9,10 @@
 
 | 文件 | collection | 管什么 | 谁渲染 |
 |:--|:--|:--|:--|
-| `jinsuper.rth1.xyz/site.json` | — | 站点级目录：有哪些 collection、忽略名单、sitemap 额外条目 | 生成器 + 校验器 |
+| `jinsuper.rth1.xyz/site.json` | — | 站点级目录：有哪些 collection、忽略名单、sitemap 额外条目、**博客身份**（`blog` 段的标题/简介/主域名） | 生成器 + 校验器 |
 | `jinsuper.rth1.xyz/Skills/skills.json` | `skills` | 工具站（/Skills/ 下的工具） | `/index.html`、`/web/index.html`、`/Skills/index.html` |
 | `jinsuper.rth1.xyz/811/tools.json` | `811` | 811 专区（含 `english.html` 英语听力页） | `/index.html`、`/web/index.html`、`/811/index.html` |
-| `jinsuper.rth1.xyz/sk.json` | — | 文档站（分组 → 文档路径），格式**不同**，见 §7 | `p/docs.html` |
+| `jinsuper.rth1.xyz/sk.json` | — | 博客「JinSuper 奇思妙想」（分组 → 文章路径），格式**不同**，见 §7 | 阅读器 `p/docs.html` + 构建出的 `p/post/*.html` |
 
 运行时只有一份实现：`jinsuper.rth1.xyz/lib/manifest.js` —— 数据归一 + 排序 + 去重 + 渲染兜底 + 图标注册表。
 页面里不再有各自的解析 / 猜图标逻辑。
@@ -103,7 +103,7 @@ node build/test-manifest.mjs         # jsdom 真跑四个页面：排序 / hidde
 
 | 文件 | 生成者 | 内容 |
 |:--|:--|:--|
-| `jinsuper.rth1.xyz/sitemap.xml` | `build/gen-site-index.mjs` | 站点地图（保留 `jinsuper{$rthSuffix}` 服务端变量） |
+| `jinsuper.rth1.xyz/sitemap.xml` | `build/gen-site-index.mjs` | 站点地图：页面 + 工具 + **每篇文章的独立网址**（带 `lastmod`），保留 `jinsuper{$rthSuffix}` 服务端变量 |
 | `jinsuper.rth1.xyz/docs/info/site-index.js` | 同上 | `window.SITE_INDEX`：站点目录树（说明文字在 `docs/info/info.js` 的 `DESC` 里） |
 
 （`/asset/icon` 的图标名单没有生成：那是第三方图标集的静态清单，由 `verify-manifests.mjs` 盯着数量。）
@@ -119,17 +119,99 @@ node build/gen-site-index.mjs --check   # 只比对，不写（校验器用的�
 
 ---
 
-## 7. 文档站（sk.json）为什么不长这样
+## 7. 博客（sk.json）：文档站已经正式变成「JinSuper 奇思妙想」
+
+文档站现在对外是一份博客：**JinSuper 奇思妙想**（阅读器还是 `/p/docs.html`，
+名字、简介、主域名写在 `site.json` 的 `blog` 段里）。
 
 `sk.json` 是「分组 → 文档路径」的两层结构，路径相对 `/p/`，还被 `build/build.mjs` 在构建期内联进
-`p/docs.html` 当离线兜底。它服务的是文档阅读器，不是卡片列表，所以**保持原格式**：
+`p/docs.html` 当离线兜底。它服务的是文章阅读器，不是卡片列表，所以**保持原格式**：
 
 ```json
-{ "分组名": { "文档标题": "文件名.md" } }
+{ "分组名": { "文章标题": "文件名.md" } }
 ```
 
-加一篇文档：把 `.md` 丢进 `p/`，在 `sk.json` 加一行，刷新文档站即可（不必重新构建）。
+加一篇文章：把 `.md` 丢进 `p/`，在 `sk.json` 加一行，刷新阅读器即可（不必重新构建）。
 校验器会检查里面每条路径是否真实存在。
+
+### 7.1 Frontmatter（正文顶上的头信息）
+
+文章最上面可以写一段 frontmatter，渲染器会把里面的键**渲染成元数据卡片**，
+构建期还会拿它去生成搜索与订阅要的东西：
+
+```yaml
+---
+title: 枣香童年
+date: 2026-10-06
+updated: 2026-10-07
+author: JinSuper
+category: 奇思妙想
+tags: [随笔, 童年]
+summary: 爷爷的红枣饼干齁得恰到好处。
+---
+```
+
+| 字段 | 用在哪 |
+|:--|:--|
+| `title` | 阅读器顶栏 / `<title>` / 文章页 h1 / 结构化数据。**写了它，正文开头一模一样的 `# 标题` 会自动去掉**（避免一页两个 h1） |
+| `date` / `updated` | sitemap 的 `lastmod`、RSS 的 `pubDate`、JSON-LD 的 `datePublished` / `dateModified` |
+| `author` | 作者。`author: JinSuper` 与 `author: [JinSuper, ABC]` 都收（也认 `authors:`），一个都没写就是默认作者（`site.json` 的 `blog.author`）。多作者会画成多枚，并分别进 RSS 的 `<dc:creator>` 与 JSON-LD 的 `author` |
+| `category` / `tags` | 元数据卡片；`tags` 还进 RSS 的 `<category>`、JSON-LD 的 `keywords`，并且是可点的链接 —— 指向博客首页的标签筛选（`/p/#tag-xxx`） |
+| `summary` | `<meta name="description">`、Open Graph、RSS 的 `<description>` |
+| `canonical` | 选填。同一篇文章既有活着的 `/p/` 正文、又有归档稿时，在**归档稿的源文件**里写 `canonical: /p/post/…`，归档产物就把 canonical 指过去，免得两个地址被当成两份内容（见 §7.2） |
+| `toc` | 写 `toc: true` 在**正文开头**再插一份目录（默认不插：阅读器与文章页都另有侧栏目录，重复摆一份通常多余） |
+| `draft` / `nopage` / `hidden` | 值为真时**不生成独立文章页**、不进订阅源与 sitemap（文章仍留在清单里可读） |
+
+目录有三处（阅读器侧栏 / 文章页侧栏 / 归档稿侧栏都是同一份取标题逻辑；
+正文里 `toc: true` 那份也是），全都走 `build/lib/markdown.cjs` 的 `tocEntries()` +
+`normalizeTocLevels()`：
+
+- **阅读器**：左边栏「本页目录」，嵌在页面里跟着滚，高亮当前小节
+- **文章页**（`/p/post/…`）：左侧一列「本页目录」，sticky 跟随阅读，高亮当前小节。
+  **每篇都有**：正文里一个小节都没有的短文（随笔那种）就退回一条「文章标题 → `#post`」兜底条目。
+  两列网格只在「有目录」时才加，没有目录就单列铺满（否则文章会被挤进 212px 那一列）
+- 想另外在**正文开头**再摆一份（元数据卡片之后、正文之前），frontmatter 写 `toc: true`；
+  正文里自己写 `[[toc]]` 也照画（标记与它完全一致，样式只有一份）
+
+层级按**相对级别**缩进：文档里最浅的那一级算 `lv-1`。标题写在 frontmatter 里时正文从 `h2` 起，
+按绝对级别缩进会让整份目录平白缩进一格（看着就是「没有层次」），所以三处一律先归一。
+
+其余键不会丢：不认识的会原样列在元数据卡片下半部分。
+解析规则在 `build/lib/markdown.cjs` 的 `parseFrontmatter`（Node 与浏览器共用同一份），
+只实现 Markdown 真用得上的 YAML 子集（标量 / 行内与块数组 / 一层嵌套 / `>` 与 `|` 块标量 / `#` 注释）。
+文件开头是水平线（`---` 但中间没有 `键: 值`）时**不会**被当成 frontmatter。
+
+### 7.2 构建会额外产出什么
+
+| 产物 | 生成者 | 作用 |
+|:--|:--|:--|
+| `p/index.html` | `build/build.mjs`（模板 `build/template/blog.html`） | **博客首页**：最新几篇 + 标签筛选 + 完整时间线。列表全部构建期渲染成静态 HTML（爬虫读得到），脚本只做筛选。原来这里是个浏览器端写作台，已经舍弃 |
+| `p/post/<路径>.html` | `build/build.mjs`（`build/lib/posts.mjs` 算清单） | 每篇文章的**独立网址**：服务端渲染正文 + 元数据卡片 + 上下篇 + canonical/OG/JSON-LD。`/p/docs.html#xxx` 在搜索引擎眼里和 `/p/docs.html` 是同一个页面，所以独立网址只能这样来 |
+| `p/feed.xml` | 同上 | RSS 2.0，最新 30 篇（作者写 `<dc:creator>`） |
+| `sitemap.xml` 里的文章条目 | `build/lib/site-index.mjs` | 每篇文章页 +（没有活 `.md` 对应的）归档稿，带 `lastmod` |
+| 时间线 / 标签里的归档稿 | `build/lib/posts.mjs` 的 `listArchivedPosts()` | 归档稿（`/p/archive/**.html`）**不隐藏**：也列进博客首页的时间线，并额外挂一枚「归档」标签（点一下只看归档）。元数据从成品页自己的 head 里读回来（描述 / 日期 / 标签 / 作者），读不到就用 `sk.json` 里的名字兜底。**「最新」那几张卡片只放活稿**——归档版是同一篇的旧版本，摆在最新里等于自己跟自己重样 |
+
+这些是**生成物，不要手改**：`/p/post/` 下不是这一轮生成的文件会在构建时被清掉。
+发布控制台归档出来的 `/p/archive/*.html` 是**另一个来源**（控制台烘的成品，阅读器直接注入正文）：
+它是能独立打开的页面，所以控制台那边的外壳（`console/lib/render.mjs`）也会按同一套规则写
+canonical / OG / JSON-LD —— 元数据同样取自源文件的 frontmatter。
+**外壳与静态文章页共用同一份**（`build/lib/chrome.mjs` + `template/post-chrome.css` + `template/post-script.js`）：
+顶栏导航、侧栏目录、`.wrap` 单列 / 两列、主题 token 全从那儿来 —— 归档稿也有顶栏和目录，和 `/p/post/*.html` 一个样。
+改了外壳之后，老产物在控制台「归档与预渲染」面板点一下**重刷外壳**即可（正文不动，原文没留底也能刷）。
+想让一篇归档稿回到「活文章」的状态，把 Markdown 放回 `/p/` 并在 `sk.json` 里登记即可。
+
+### 7.3 搜索引擎
+
+- `robots.txt`：对主流搜索引擎（Googlebot / Bingbot / Baiduspider / Sogou / 360 / Yandex / Applebot…）
+  与 AI 抓取一律 `Allow: /`，并指向 sitemap。
+- `site.json` 的 `blog.origin` 是**主域名**：canonical / `og:url` / JSON-LD 都指它，
+  同一篇文章同时挂在两个热铁盒域名和 GitHub Pages 上时，搜索引擎才知道收录哪一份。
+- 改了文章标题 / 简介 / 域名 / 默认作者，只需要改 `site.json` 的 `blog` 段，然后重新构建。
+- 阅读器（`/p/docs.html`）、博客首页、文章页共用同一条**顶栏导航**（构建期由 `siteNavHtml()` 注入），
+  改导航项只需要动 `build/build.mjs` 里的那一个数组。当前是：博客 / 时间线 / 标签 / 阅读器 / RSS / 百宝箱
+  （「工具站」不再单列，站点总入口只留「百宝箱」`/`）。
+- 百宝箱首页的博客卡片指向**博客首页 `/p/`**（不是阅读器）；`/Skills/docs/docs.html` 是老地址，
+  仍会跳到 `/p/`。
 
 ---
 
@@ -142,3 +224,8 @@ node build/gen-site-index.mjs --check   # 只比对，不写（校验器用的�
 | 控制台报 `HTTP 404` | 清单路径写错；或页面用 `file://` 直接打开（清单页必须走 http，用 `部署.cmd serve`） |
 | 页面显示「清单没加载出来」 | 同上，见上一条 |
 | `sitemap.xml` 被校验器判为过期 | 你手改了生成物；跑 `node build/gen-site-index.mjs` 重新生成 |
+| 校验器说 `/p/post/…` 是孤儿页 | 那是构建生成的文章页，已经写在 `site.json` 的 `ignore` 里；生成目录改名了要同步这一条 |
+| 文章页没生成 | 看 `sk.json` 里那一条：路径要存在；frontmatter 里 `draft / nopage / hidden` 为真会**故意**不生成 |
+| 博客首页（`/p/`）还是旧写作台 | 那一页也是构建产物：跑 `node build/build.mjs`，模板在 `build/template/blog.html` |
+| 标签点了没反应 / 筛不掉东西 | 列表项的 `data-tags` 是构建期写的 JSON；blog.html 里的脚本按它筛选，控制台看有没有 `JSON.parse` 报错 |
+| 元数据卡片没出现 | frontmatter 必须以文件第一行的 `---` 开头、单独一行的 `---` 收尾，中间至少有一个 `键: 值` |

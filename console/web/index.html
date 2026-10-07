@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>发布控制台 · JinSuper</title>
 <!-- 本地工具，不联网：没有 CDN、没有外部字体、没有 base64 图片 -->
+<!-- 预览按文档站的真实样式渲染：先引站点那份扩展样式（公式 / 告示 / 选项卡 /
+     代码组 / 剧透 / 目录 / 脚注 / 高亮…），再用 console.css 补控制台自己的外壳。
+     站点没构建过时这两个 404，预览退回 console.css 里的基础排版，不会白屏。 -->
+<link rel="stylesheet" href="/p/docs-md.css">
 <link rel="stylesheet" href="./console.css">
 </head>
 <body>
@@ -71,6 +75,14 @@
         <path d="m4 17 4.5-4.5 3 3 3-2.5L20 17"/>
       </svg>
       <span>素材库</span>
+    </button>
+
+    <button class="nav-item" role="tab" id="tab-preview" data-view="preview" aria-controls="panel-preview" aria-selected="false" tabindex="-1">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/>
+        <circle cx="12" cy="12" r="2.6"/>
+      </svg>
+      <span>预览</span>
     </button>
 
     <button class="nav-item" role="tab" id="tab-manifest" data-view="manifest" aria-controls="panel-manifest" aria-selected="false" tabindex="-1">
@@ -207,8 +219,11 @@
         <div class="pv">
           <div class="pv-head">
             <span class="mono" id="pvMeta">预览</span>
+            <span class="pv-extras" id="pvExtras" hidden></span>
             <span class="mono" id="pvMs"></span>
           </div>
+          <!-- 这篇用了、但当前画不出来的语法：一句人话，别让人自己发现图没了 -->
+          <div class="pv-hint" id="pvHint" hidden></div>
           <div class="pv-scroll">
             <div class="md" id="preview"></div>
           </div>
@@ -291,6 +306,7 @@
         </div>
         <div class="ph-right">
           <button class="btn" id="btnArchiveRefresh">刷新</button>
+          <button class="btn" id="btnReshell" title="按当前模板重写产物的 head / 顶栏 / 侧栏目录 / 页脚，正文一个字都不动（不需要原文）">重刷外壳</button>
           <button class="btn primary" id="btnRebuild">重新构建选中</button>
         </div>
       </header>
@@ -311,6 +327,7 @@
           <div class="dual-head">
             <h2>已归档 <em class="mono" id="archCount">0</em></h2>
             <p class="hint" id="archSize">产物在 /p/archive/，会被一起上传</p>
+            <p class="hint">「重刷外壳」= 正文不动，只按当前模板重写头部 / 顶栏 / 目录 / 页脚（原文没留底也能刷）</p>
           </div>
           <ul class="alist" id="archList"></ul>
         </div>
@@ -349,6 +366,71 @@
 
       <div class="assets" id="assetGrid"></div>
       <p class="empty" id="assetEmpty" hidden>这里还没有素材。把文件拖进窗口就会入队。</p>
+    </section>
+
+    <!-- 预览：一键列出所有页面 -->
+    <section class="panel" id="panel-preview" role="tabpanel" aria-labelledby="tab-preview" tabindex="0" hidden>
+      <header class="panel-head">
+        <div class="ph-left">
+          <h1>预览</h1>
+          <p class="ph-sub">一键列出站点所有页面，点一下就在浏览器里打开；路径和线上一致。</p>
+        </div>
+        <div class="ph-right">
+          <div class="seg" id="pvSource" role="group" aria-label="清单来源">
+            <button class="seg-btn on" data-source="auto">自动</button>
+            <button class="seg-btn" data-source="manifest">清单</button>
+            <button class="seg-btn" data-source="dir">目录</button>
+          </div>
+          <button class="btn" id="btnPvExpand">全部展开</button>
+          <button class="btn" id="btnPvCollapse">全部折叠</button>
+          <button class="btn" id="btnPvReload">重新列出</button>
+          <button class="btn primary" id="btnPvServer">Server On</button>
+        </div>
+      </header>
+
+      <div class="bar">
+        <div class="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+          <input id="pvQuery" class="input" placeholder="搜标题 / 路径…" aria-label="搜索页面">
+        </div>
+        <select id="pvFilter" class="input" aria-label="类型">
+          <option value="">全部类型</option>
+          <option value="page">页面（.html）</option>
+          <option value="doc">文档（.md / 阅读器）</option>
+        </select>
+        <label class="chk"><input type="checkbox" id="pvHideIgnored"><span>隐藏忽略项</span></label>
+        <span class="tool-spacer"></span>
+        <span class="pv-state" id="pvState">
+          <span class="dot" id="pvDot" aria-hidden="true"></span>
+          <span id="pvStateText">预览服务没开</span>
+        </span>
+      </div>
+
+      <div class="prev-wrap">
+        <div class="prev-tree" id="pvTree" role="tree" aria-label="页面清单">
+          <div class="pv-list" id="pvList"></div>
+          <p class="empty" id="pvEmpty">点右上角「重新列出」把站点里的页面列出来。</p>
+        </div>
+
+        <aside class="prev-side">
+          <div class="prev-card">
+            <h2>预览服务</h2>
+            <dl class="kv" id="pvInfo"></dl>
+            <div class="prev-actions">
+              <button class="btn" id="btnPvOpenRoot">打开站点根</button>
+              <button class="btn" id="btnPvCopy">复制地址</button>
+            </div>
+            <p class="hint" id="pvHint">不开服务也能点页面：默认会先把服务开起来再打开。</p>
+          </div>
+
+          <div class="prev-card">
+            <h2>这一棵树</h2>
+            <dl class="kv" id="pvStats"></dl>
+          </div>
+        </aside>
+      </div>
+
+      <p class="note" id="pvNote" hidden></p>
     </section>
 
     <!-- 文档清单（sk.json） -->
@@ -455,8 +537,14 @@
       </div>
 
       <div class="panel-sub">
-        <h2>最近的作业</h2>
-        <div class="hist" id="deployHistory"></div>
+        <!-- 可折叠：作业列表长起来会把日志卡片挤没，折起来就只占一行标题 -->
+        <details class="fold" id="deployHist">
+          <summary>
+            <span>最近的作业</span>
+            <em class="mono" id="deployHistCount"></em>
+          </summary>
+          <div class="hist" id="deployHistory"></div>
+        </details>
       </div>
     </section>
 
@@ -644,6 +732,9 @@
 
 <div class="toasts" id="toasts" aria-live="polite"></div>
 
+<!-- 卡片插件：站点自带的那份（<card link="…">→ a.card），顺带注入卡片样式。
+     预渲染稿里残留的 <card> 由它 DocsCard.enhance() 兜底。 -->
+<script src="/p/docs-card.js"></script>
 <script src="./app.js"></script>
 </body>
 </html>

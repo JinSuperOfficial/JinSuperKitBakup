@@ -1,0 +1,24 @@
+{
+  "说明": [
+    "控制台预览的外部 markdown-it 插件清单（只影响预览，不影响文档站产物）。",
+    "每一项：package=包名（装在 build/ 或 console/ 的 node_modules 里），",
+    "export=取哪个导出（不写就取 default / 模块本身），umd=ESM 包里的 UMD 文件相对路径，",
+    "options=传给 md.use 的第二个参数。装不上的插件会在预览右上角标 ✗ 并说明原因。",
+    "加插件：改这个文件 → 在 build/ 里 npm i <包名> → 刷新控制台页面。"
+  ],
+  "plugins": [
+    {
+      "id": "figure",
+      "label": "图片图注",
+      "package": "@mdit/plugin-figure",
+      "export": "figure",
+      "umd": "dist/cdn.umd.js",
+      "detail": "独立成段的图片包成 <figure> + <figcaption>（取 alt/title）",
+      "options": {
+        "figcaption": "title",
+        "copyAttrs": true,
+        "link": false
+      }
+    }
+  ]
+}

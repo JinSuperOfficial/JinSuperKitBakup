@@ -20,13 +20,22 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { renderMarkdown } from './lib/markdown.cjs';
+import { renderMarkdown, parseFrontmatter, tagAnchor, tocEntries, normalizeTocLevels } from './lib/markdown.cjs';
 import { buildBrowserBundle } from './lib/bundle.mjs';
 import { buildDocsCss } from './lib/css.mjs';
 import { siteRoot as SITE_ROOT, pDir as P_DIR, templateDir as TEMPLATE_DIR } from './paths.mjs';
 import { FAVICON_PLACEHOLDER, relPrefix, faviconTags } from './lib/favicon.mjs';
 import { LOGO_PLACEHOLDER, inlineLogo } from './lib/logo.mjs';
 import { collectOutputs, writeOutputs } from './lib/site-index.mjs';
+import { extractThemeCss } from './lib/theme.mjs';
+import {
+  chromeCss, chromeScript, siteNavHtml, tocAsideHtml, wrapClassOf, chromeBody, footRowHtml,
+} from './lib/chrome.mjs';
+import {
+  FEED_FILE, FEED_URL, POST_DIR, BLOG_HOME,
+  listPosts, listArchivedPosts, postDiskPath, prefixesOf, relativeBetween, decodeSitePath, encodeSitePath,
+  rewriteContentUrls, prunePosts, buildFeed, readBlog, tallyTags, groupByYear,
+} from './lib/posts.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -115,6 +124,24 @@ function kindOf(p) {
 }
 
 /* ═══════════════════════════════════════════════════
+   0. 站点身份（site.json 的 blog 段）
+   ---------------------------------------------------
+   这个站点现在对外是一份博客：**JinSuper 奇思妙想**。
+   名字、简介、主域名只写在 site.json 一处，这里读出来给
+   阅读器、静态文章页、feed.xml、结构化数据用 —— 以后改名
+   不用满仓库搜字符串。
+
+   origin 是「文章的正经网址」用的主域名。canonical / og:url /
+   JSON-LD 都指它，把 .cn 域名和 GitHub Pages 的副本归并到一处，
+   免得同一篇文章在搜索引擎那里被拆成三份。
+
+   读取实现在 build/lib/posts.mjs（`readBlog()`）—— 它同时被文章清单、
+   博客首页与控制台用，只能有一份。
+   ═══════════════════════════════════════════════════ */
+
+const BLOG = readBlog();
+
+/* ═══════════════════════════════════════════════════
    1. 读清单
    ═══════════════════════════════════════════════════ */
 
@@ -167,7 +194,7 @@ const ROOT_PREFIX = locationPrefix();
  * 静态资源版本号，写进 docs-md.css 的查询串用来破缓存。
  * 改了样式就把它 +1；不要用时间戳，否则每次构建产物哈希都变。
  */
-const ASSET_VERSION = 3;
+const ASSET_VERSION = 4;
 
 function locationPrefix() {
   /* p/docs.html 在网站根目录下的 p/ 里，所以相对路径要 ../ 才到根 */
@@ -189,7 +216,7 @@ function locationPrefix() {
  *    两种都得能读 —— 以前只按 /p/ 解析，遇到 `p/archive/…` 会拼成 `p/p/archive/…`，
  *    报「文件不存在」。所以这里统一把开头的 `p/` 剥掉。
  */
-function renderOne(pathFromP) {
+function renderOne(pathFromP, displayName) {
   const assetMatch = /^\.\.\/asset\/(.+)$/.exec(pathFromP);
   /* sk.json 里两种写法都收：`p/xxx` 与 `xxx`（都当相对 /p/ 看） */
   const fromP = String(pathFromP).replace(/^\.?\//, '').replace(/^p\//, '');
@@ -215,12 +242,24 @@ function renderOne(pathFromP) {
     bytes: buf.length,
     text: null,
     html: null,
+    /* frontmatter：data 是解析出来的元数据，bodyHtml 是**不含**元数据卡片的正文。
+       文章页（/p/post/*.html）要自己摆放元数据，所以这两种都要留一份。 */
+    fm: null,
+    body: null,
+    bodyHtml: null,
   };
 
   if (kind === 'md') {
     const src = decodeBytes(buf);
+    const fm = parseFrontmatter(src);
     out.text = src;
-    out.html = renderMarkdown(src);
+    out.fm = fm.ok ? fm.data : null;
+    out.body = fm.ok ? fm.body : src;
+    /* 元数据卡片 + 正文（阅读器 / 预渲染稿用的就是这一份）
+       defaultAuthor：frontmatter 没写作者时用站点身份里的那个 */
+    out.html = renderMarkdown(src, { title: displayName, defaultAuthor: BLOG.author });
+    /* 只要正文：静态文章页自己画标题与元数据 */
+    out.bodyHtml = renderMarkdown(src, { meta: false });
   } else if (kind === 'code' || kind === 'html') {
     out.text = decodeBytes(buf);
   }
@@ -253,6 +292,141 @@ function buildStaticContent(groups, docs) {
 
 function slugFor(s) {
   return String(s).toLowerCase().replace(/[^\w\u4e00-\u9fa5]+/g, '-').replace(/^-|-$/g, '');
+}
+
+/* ═══════════════════════════════════════════════════
+   2.5 搜索引擎 / 分享卡片要的那点东西
+   ---------------------------------------------------
+   全是静态标签：标题、描述、canonical、Open Graph、Twitter 卡、
+   JSON-LD 结构化数据。**没有一条依赖运行时**，爬虫抓到的就是最终结果
+   （浏览器端渲染的阅读器，很多爬虫是不跑 JS 的）。
+
+   地址一律用 site.json 里的 blog.origin（主域名）：同一篇文章会同时挂在
+   热铁盒的两个域名和 GitHub Pages 上，canonical 指同一个地方，
+   搜索引擎才知道该收录哪一份。
+   ═══════════════════════════════════════════════════ */
+
+/** 空值不输出空标签 —— 宁缺毋滥，空 content 会被判成「有标签没内容」 */
+function metaTag(attr, key, val) {
+  if (val == null || val === '') return '';
+  return `<meta ${attr}="${esc(key)}" content="${esc(val)}">`;
+}
+
+/** 结构化数据：JSON-LD 里出现 </script 会提前关闭脚本，必须走 safeJson 转义 */
+function jsonLdTag(obj) {
+  return `<script type="application/ld+json">${safeJson(obj)}</script>`;
+}
+
+/** 一篇文章的作者 → schema.org 的 author（一个就对象、多个就数组） */
+function ldAuthors(post) {
+  const list = (post.authors && post.authors.length ? post.authors : [post.author || BLOG.author])
+    .filter(Boolean)
+    .map((name) => ({ '@type': 'Person', name }));
+  return list.length === 1 ? list[0] : list;
+}
+
+/**
+ * 站点顶栏（阅读器 / 博客首页 / 文章页共用一份）。
+ * ---------------------------------------------------
+ * 侧栏改成随页面滚动的嵌入式之后，翻到文章中间就看不到列表了，
+ * 所以顶栏是这几页唯一的常驻导航。
+ */
+/* 导航项住在 build/lib/chrome.mjs（与控制台烘的归档稿共用一份）；
+   这里只是把站点自己的两个地址传进去，省得每个调用点都写一遍。 */
+const nav = (current) => siteNavHtml(current, { blogHome: BLOG_HOME, feedUrl: FEED_URL });
+
+/** 阅读器（博客首页）的 head */
+function readerSeoHead(posts) {
+  const url = `${BLOG.origin}/p/docs.html`;
+  const ld = {
+    '@context': 'https://schema.org',
+    '@type': 'Blog',
+    name: BLOG.title,
+    description: BLOG.desc,
+    url,
+    inLanguage: 'zh-CN',
+    author: { '@type': 'Person', name: BLOG.author },
+    blogPost: posts.map((p) => ({
+      '@type': 'BlogPosting',
+      headline: p.title,
+      url: BLOG.origin + p.href,
+      datePublished: p.date || undefined,
+      dateModified: p.updated || undefined,
+      author: ldAuthors(p),
+      keywords: p.tags.length ? p.tags.join(',') : undefined,
+    })),
+  };
+
+  return [
+    `<title>${esc(BLOG.title)}</title>`,
+    metaTag('name', 'description', BLOG.desc),
+    metaTag('name', 'author', BLOG.author),
+    '<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1">',
+    `<link rel="canonical" href="${esc(url)}">`,
+    `<link rel="alternate" type="application/rss+xml" title="${esc(BLOG.title)} · RSS" href="./feed.xml">`,
+    metaTag('property', 'og:type', 'website'),
+    metaTag('property', 'og:site_name', BLOG.title),
+    metaTag('property', 'og:title', BLOG.title),
+    metaTag('property', 'og:description', BLOG.desc),
+    metaTag('property', 'og:url', url),
+    metaTag('property', 'og:locale', 'zh_CN'),
+    metaTag('name', 'twitter:card', 'summary'),
+    metaTag('name', 'twitter:title', BLOG.title),
+    metaTag('name', 'twitter:description', BLOG.desc),
+    jsonLdTag(ld),
+  ].filter(Boolean).join('\n');
+}
+
+/** 静态文章页的 head */
+function postSeoHead(post, opts) {
+  const { index, total, prev, next } = opts || {};
+  const url = BLOG.origin + post.href;
+  const { toP } = prefixesOf(post.href);
+  const desc = post.summary || `${post.title} —— ${BLOG.title}`;
+  const ld = {
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: post.title,
+    description: desc,
+    url,
+    mainEntityOfPage: { '@type': 'WebPage', '@id': url },
+    datePublished: post.date || undefined,
+    dateModified: post.updated || undefined,
+    author: ldAuthors(post),
+    publisher: { '@type': 'Organization', name: BLOG.title },
+    inLanguage: 'zh-CN',
+    articleSection: post.group || undefined,
+    keywords: post.tags.length ? post.tags.join(',') : undefined,
+    isPartOf: { '@type': 'Blog', name: BLOG.title, url: `${BLOG.origin}/p/docs.html` },
+  };
+
+  return [
+    `<title>${esc(post.title)} · ${esc(BLOG.title)}</title>`,
+    metaTag('name', 'description', desc),
+    metaTag('name', 'author', post.author || BLOG.author),
+    '<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1">',
+    `<link rel="canonical" href="${esc(url)}">`,
+    `<link rel="alternate" type="application/rss+xml" title="${esc(BLOG.title)} · RSS" href="${esc(toP)}feed.xml">`,
+    metaTag('property', 'og:type', 'article'),
+    metaTag('property', 'og:site_name', BLOG.title),
+    metaTag('property', 'og:title', post.title),
+    metaTag('property', 'og:description', desc),
+    metaTag('property', 'og:url', url),
+    metaTag('property', 'og:locale', 'zh_CN'),
+    metaTag('property', 'article:published_time', post.date),
+    metaTag('property', 'article:modified_time', post.updated),
+    ...post.tags.map((t) => metaTag('property', 'article:tag', t)),
+    metaTag('name', 'twitter:card', 'summary'),
+    metaTag('name', 'twitter:title', post.title),
+    metaTag('name', 'twitter:description', desc),
+    /* 顶栏那行「第几篇 / 共几篇」的小字：页面脚本读它，不参与 SEO */
+    metaTag('name', 'x-post-index', index && total ? `第 ${index} / ${total} 篇` : ''),
+    /* 上下篇：给爬虫一条明确的「同系列」线索（可见的那两个按钮也指向同一地址）。
+       用**相对地址**：同一份页面在三个域名下都对，不把人往主域名上带。 */
+    prev ? `<link rel="prev" href="${esc(relativeBetween(post.href, prev.href))}">` : '',
+    next ? `<link rel="next" href="${esc(relativeBetween(post.href, next.href))}">` : '',
+    jsonLdTag(ld),
+  ].filter(Boolean).join('\n');
 }
 
 /* 注意：这里只放 JS 本体，不要带 <script> 标签。
@@ -402,6 +576,16 @@ function detectKind(p){
 /* 页面在 /p/ 下，相对路径要 ../ 才回到网站根 */
 var ROOT_PREFIX = '../';
 
+/* 站点身份：构建期由 build.mjs 从 site.json 的 blog 段注入 */
+var BLOG = window.__BLOG__ || { title:'JinSuper 奇思妙想', desc:'', origin:'', author:'JinSuper' };
+
+/* 每篇文章的 frontmatter 元数据（构建期扫出来的）：{ '路径': { title, date, tags… } }。
+   运行时新丢进来的稿子不在表里，会现场解析一遍，见 fmOf()。 */
+var FM = window.__FM__ || {};
+
+/* 清单里的路径 → 静态文章页地址（/p/post/…）；没有静态页的就不在这个表里 */
+var POSTS = window.__POSTS__ || {};
+
 var GLASS_NAMES = { mica:'云母', aero:'Aero', acrylic:'亚克力' };
 
 var LIBS = {
@@ -414,7 +598,7 @@ var LIBS = {
 
 var settings = {
   theme:'obsidian', fontSize:15, glass:'mica',
-  barOpacity:78, outline:'docked', sideCollapsed:false
+  barOpacity:78, outline:'on', sideCollapsed:false
 };
 
 var activePath = null;
@@ -491,7 +675,7 @@ function syncFromHash(){
 
   /* 卡片通常在页面底部：换完正文把视口带回顶部，
      不然人是从页脚开始读的。 */
-  try { contentEl.scrollTop = 0; }catch(e){}
+  try { window.scrollTo(0, 0); }catch(e){}
 
   toast('已切换：' + doc.name);
 }
@@ -661,22 +845,28 @@ function classifyContent(res){
  */
 function extractArchiveBody(html){
   var s = String(html || '');
-  var start = s.indexOf('<div class="md">');
-  if (start < 0) return s;
-  var from = start + '<div class="md">'.length;
+  /* 外壳换过代：老产物是 <div class="md">…</div>，新产物和文章页一样是
+     <article class="md" id="post">…</article>（见 build/lib/chrome.mjs）。
+     两种都认，别只认老的那一种 —— 否则整页会被当成正文塞进阅读器。 */
+  var open = /<(div|article)\b[^>]*\bclass="md"[^>]*>/i.exec(s);
+  if (!open) return s;
+  var tag = open[1];
+  var from = open.index + open[0].length;
 
-  /* 从正文起点往后找配对的 </div>：数一下嵌套层数 */
-  var depth = 1, i = from;
-  var re = /<div\b|<\/div>/gi;
+  /* 从正文起点往后找配对的收尾标签：数一下同名的嵌套层数 */
+  var depth = 1;
+  var re = new RegExp('<' + tag + '\\b[^>]*>|<\\/' + tag + '\\s*>', 'gi');
   re.lastIndex = from;
   var m;
   while ((m = re.exec(s))){
-    if (m[0].charAt(1) === '/'){ depth--; if (!depth){ i = m.index; break; } }
-    else depth++;
+    if (m[0].slice(0, 2) === '</'){
+      depth--;
+      if (!depth) return s.slice(from, m.index);
+    } else if (!/\/\s*>$/.test(m[0])) {
+      depth++;
+    }
   }
-  if (!i || i <= from) return s.slice(from).replace(/<\/div>[\s\S]*$/, '');
-
-  return s.slice(from, i);
+  return s.slice(from);
 }
 
 /** 读文本：raw.php 优先，退回平台渲染版 */
@@ -809,7 +999,8 @@ function getRaw(doc, cb){ loadText(doc, function(err, text){ cb(err ? null : tex
 /* ═══ DOM ═══ */
 var $ = function(id){ return document.getElementById(id); };
 var loadBadgeEl = $('loadBadge'), btnSideToggle = $('btnSideToggle'), btnSideCollapse = $('btnSideCollapse');
-var glassGridEl = $('glassGrid'), outlineGridEl = $('outlineGrid'), outlineXEl = $('outlineX'), outlinePillEl = $('outlinePill');
+var glassGridEl = $('glassGrid'), outlineGridEl = $('outlineGrid'), outlineXEl = $('outlineX');
+var outlineBadgeEl = $('outlineBadge');
 var searchInput = $('searchInput'), searchClear = $('searchClear'), fileListEl = $('fileList');
 var contentEl = $('content'), docNameEl = $('docName'), docMetaEl = $('docMeta');
 var btnToggle = $('btnToggle'), btnViewer = $('btnViewer'), btnCopy = $('btnCopy'), btnOpen = $('btnOpen');
@@ -833,16 +1024,31 @@ function fmtSize(n){
 }
 
 /**
- * 把文档里的相对链接补回网站根。
+ * 把一个地址解析成「从当前页面出发」的相对地址。
  *
  * 规则与浏览器一致：
  *   · #锚点、//协议相对、http(s):/mailto: 等绝对地址 —— 原样不动
- *   · / 开头的根路径 —— 原样不动（它本来就是相对站点根的）
- *   · 其余（a.md、./a.md、../asset/a.md、img/x.png）—— 补 ROOT_PREFIX
+ *   · / 开头的根路径 —— 补 ROOT_PREFIX（从 /p/ 回到网站根）
+ *   · 其余相对路径 —— 按 base 决定基准目录
+ *
+ * base 有两种，务必分清楚，混了就是 404：
+ *   · 'site'（默认）—— 相对「网站根」。doc.root 是这种
+ *     （renderOne 用 path.relative(siteRoot, …) 算出来的 "p/para/x.md"）。
+ *   · 'p'           —— 相对「/p/」。正文里的链接、图片和 sk.json 是这种
+ *     （"archive/a.html" 指 /p/archive/a.html）。页面自己就在 /p/ 下，
+ *     所以原样返回即可。
+ *
+ * 给正文链接补 ROOT_PREFIX 是错的：会把 "archive/a.html" 顶到网站根去
+ * （../archive/a.html → /archive/a.html），而它其实在 /p/archive/ 下，
+ * 于是卡片一点开就 404。
+ *
+ * 注意：注释里别写星号紧跟斜杠（星号加粗两个词那种），那会提前闭合这个块注释，
+ * 后面的字会变成代码。（本项目踩过一次：写「相对 星号星号/p/星号星号」直接
+ * 让整页脚本报 ReferenceError。）
  *
  * 为什么不在构建期写死前缀：站点目录层级将来可能变，运行时算最稳。
  */
-function renderURL(u){
+function renderURL(u, base){
   var s = String(u || '');
   if (!s) return s;
   if (s.charAt(0) === '#') return s;
@@ -851,7 +1057,9 @@ function renderURL(u){
      "/sk.json" 得变成 "../sk.json" 才真的指向网站根。
      这样整站挪进子目录也不会断。 */
   if (s.charAt(0) === '/') return ROOT_PREFIX + s.replace(/^\/+/, '');
-  return ROOT_PREFIX + s.split('/').map(encodeURIComponent).join('/');
+  /* 相对路径逐段编码（中文文件名必须编码），.. 与 . 编码后不变 */
+  var rel = s.split('/').map(encodeURIComponent).join('/');
+  return base === 'p' ? rel : ROOT_PREFIX + rel;
 }
 
 /* 命中的关键词高亮：先切段再逐段转义，避免注入 */
@@ -874,6 +1082,78 @@ function toast(msg, isErr){
   toastEl.className = 'toast show' + (isErr ? ' error' : '');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(function(){ toastEl.className = 'toast'; }, 2200);
+}
+
+/* ═══ 文章元数据（frontmatter）═══
+   ---------------------------------------------------
+   标题 / 日期 / 标签这些东西有两个来源：
+     · 构建期扫出来的 window.__FM__（快，且和静态文章页完全一致）
+     · 现场用渲染器拆一遍（刚丢进 /p 还没重新构建的新稿）
+
+   两边走的是同一个 parseFrontmatter（docs-md.js 里的那份），
+   所以不会出现「阅读器显示一个标题、文章页显示另一个」。 */
+
+function fmOf(doc, text){
+  if (FM[doc.path]) return FM[doc.path];
+  if (text && window.DocsMd && typeof window.DocsMd.frontmatter === 'function'){
+    try {
+      var r = window.DocsMd.frontmatter(text);
+      if (r && r.ok) return r.data;
+    }catch(e){ /* 拆不出来就当这篇没有头信息 */ }
+  }
+  return null;
+}
+
+/* 显示用标题：frontmatter 的 title（或 name）优先，其次才是清单里的名字 */
+function fmTitle(doc, fm){
+  var t = fm && (fm.title || fm.name);
+  return t ? String(t) : doc.name;
+}
+
+function fmDate(fm){
+  if (!fm) return '';
+  return String(fm.date || fm.updated || '');
+}
+
+/* 把 <title> / 描述 / canonical / og:* 换成当前这一篇的。
+   hash 路由在爬虫眼里和 /p/docs.html 是同一个页面，所以 canonical
+   指向**静态文章页**（有的话）—— 那才是它该被收录的地址。 */
+function setTag(sel, make){
+  var el = document.head.querySelector(sel);
+  if (!el){
+    el = make();
+    if (!el) return;
+    document.head.appendChild(el);
+  }
+  return el;
+}
+
+function applyDocMeta(doc, fm){
+  var title = fmTitle(doc, fm);
+  document.title = title + ' · ' + BLOG.title;
+
+  var desc = (fm && (fm.summary || fm.description || fm.excerpt)) || BLOG.desc || '';
+  var href = POSTS[doc.path] || '';
+  var canonical = href && BLOG.origin ? BLOG.origin + href : (BLOG.origin ? BLOG.origin + '/p/docs.html' : '');
+
+  var d = setTag('meta[name="description"]', function(){
+    var m = document.createElement('meta'); m.setAttribute('name', 'description'); return m;
+  });
+  if (d && desc) d.setAttribute('content', desc);
+
+  var c = document.head.querySelector('link[rel="canonical"]');
+  if (c && canonical) c.setAttribute('href', canonical);
+
+  var pairs = [
+    ['meta[property="og:title"]', title],
+    ['meta[property="og:description"]', desc],
+    ['meta[property="og:url"]', canonical],
+    ['meta[property="og:type"]', href ? 'article' : 'website'],
+  ];
+  for (var i = 0; i < pairs.length; i++){
+    var el = document.head.querySelector(pairs[i][0]);
+    if (el && pairs[i][1]) el.setAttribute('content', pairs[i][1]);
+  }
 }
 
 /* ═══ 侧栏 ═══ */
@@ -903,10 +1183,13 @@ function renderSidebar(){
     html += '<div class="group-items">';
     for (var ii = 0; ii < items.length; ii++){
       var it = items[ii];
+      /* 日期来自 frontmatter：写了才有这一段，没写的条目照样对齐 */
+      var itDate = fmDate(FM[it.path]);
       html += '<div class="file-item' + (it.path === activePath ? ' active' : '') + '" data-path="' + esc(it.path) +
         '" role="button" tabindex="0" title="' + esc(it.path) + '">' +
         '<span class="file-icon">' + (LIBS[it.kind] || LIBS.unknown) + '</span>' +
-        '<span class="file-name">' + (ql ? highlightText(it.name, q) : esc(it.name)) + '</span></div>';
+        '<span class="file-name">' + (ql ? highlightText(it.name, q) : esc(it.name)) + '</span>' +
+        (itDate ? '<span class="file-date">' + esc(itDate) + '</span>' : '') + '</div>';
     }
     html += '</div>';
     totalShown += items.length;
@@ -939,13 +1222,14 @@ function openDoc(p, fromHash){
   if (!fromHash){
     try { history.pushState(null, '', '#' + encodeURIComponent(p)); } catch(e){}
   }
-  document.title = doc.name + ' · JinSuper';
+  /* 顶栏与 <head> 都跟着这一篇走（标题优先用 frontmatter 里的） */
+  applyDocMeta(doc, FM[doc.path] || null);
   renderSidebar();
 
   /* 手机端：选完文档就把侧栏收回，别让它继续挡着正文 */
   if (isNarrow() && !settings.sideCollapsed) setSideCollapsed(true);
 
-  docNameEl.textContent = doc.name;
+  docNameEl.textContent = fmTitle(doc, FM[doc.path] || null);
   docMetaEl.textContent = '';
   outlineEl.classList.remove('on');
   progressEl.style.transform = 'scaleX(0)';
@@ -1087,18 +1371,20 @@ function openDoc(p, fromHash){
     function showPrerendered(text){
       if (!text || !text.trim()){ showLoadError(doc, new Error('产物是空的')); return; }
       contentEl.innerHTML = '<div class="md">' + extractArchiveBody(text) + '</div>';
-      /* 后面这几步和 Markdown 路线共用：相对路径、代码组、选项卡、复制按钮、卡片兜底 */
+      /* 卡片兜底必须排在 fixURLs 前面：enhance 换出来的 a.card 也要过一遍链接改写，
+         否则残留的 <card> 会留下没改写过的相对地址。 */
+      if (window.DocsCard && typeof window.DocsCard.enhance === 'function'){
+        try { window.DocsCard.enhance(contentEl); }catch(e){}
+      }
+      /* 后面这几步和 Markdown 路线共用：相对路径、代码组、选项卡、复制按钮 */
       fixURLs(contentEl);
       fixChartBlocks(contentEl);
       initCodeGroups(contentEl);
       initTabs(contentEl);
       addCodeCopyButtons(contentEl);
-      if (window.DocsCard && typeof window.DocsCard.enhance === 'function'){
-        try { window.DocsCard.enhance(contentEl); }catch(e){}
-      }
       buildOutline();
       appendDocNav();
-      contentEl.scrollTop = 0;
+      window.scrollTo(0, 0);
       updateProgress();
       docMetaEl.textContent = 'HTML · 归档预渲染';
     }
@@ -1125,13 +1411,22 @@ function doRenderMarkdown(doc, text, preHtml, fromPlatform){
   var html = preHtml;
   var fromPrerender = !!preHtml;
 
+  /* 元数据：构建期扫过就用现成的，没有（新丢进来的稿子）就现场拆一遍，
+     顺手把顶栏和 <head> 也换成这一篇的标题 */
+  var fm = fmOf(doc, text);
+  if (fm && !FM[doc.path]){
+    FM[doc.path] = fm;
+    applyDocMeta(doc, fm);
+  }
+  var suffix = fmDate(fm) ? ' · ' + fmDate(fm) : '';
+
   if (html == null){
     if (fromPlatform){
       /* 平台已经把 md 渲染成 HTML 了（raw.php 不可用时的降级路径）。
          这已经是成品，再交给 Markdown 渲染器处理只会画蛇添足，
          直接当正文用。代价是公式退化成平台渲染的样子。 */
       html = text;
-      docMetaEl.textContent = 'Markdown · 平台渲染';
+      docMetaEl.textContent = 'Markdown · 平台渲染' + suffix;
     } else {
       if (!window.DocsMd || !window.DocsMd.ready()){
         showNoRenderer(doc);
@@ -1144,26 +1439,28 @@ function doRenderMarkdown(doc, text, preHtml, fromPlatform){
         return;
       }
     }
-    if (!fromPlatform) docMetaEl.textContent = 'Markdown';
+    if (!fromPlatform) docMetaEl.textContent = 'Markdown' + suffix;
   }
 
-  if (fromPrerender) docMetaEl.textContent = 'Markdown · 预渲染';
+  if (fromPrerender) docMetaEl.textContent = 'Markdown · 预渲染' + suffix;
   contentEl.innerHTML = '<div class="md">' + html + '</div>';
+
+  /* <card> 兜底：预渲染稿和平台渲染稿没走行内规则，
+     里面残留的 <card> 元素到这里才被换成真卡片。
+     必须排在 fixURLs 前面，换出来的 a.card 才会被一起改写地址。 */
+  if (window.DocsCard && typeof window.DocsCard.enhance === 'function'){
+    try { window.DocsCard.enhance(contentEl); }catch(e){}
+  }
+
   fixURLs(contentEl);
   fixChartBlocks(contentEl);
   initCodeGroups(contentEl);
   initTabs(contentEl);
   addCodeCopyButtons(contentEl);
 
-  /* <card> 兜底：预渲染稿和平台渲染稿没走行内规则，
-     里面残留的 <card> 元素到这里才被换成真卡片。 */
-  if (window.DocsCard && typeof window.DocsCard.enhance === 'function'){
-    try { window.DocsCard.enhance(contentEl); }catch(e){}
-  }
-
   buildOutline();
   appendDocNav();
-  contentEl.scrollTop = 0;
+  window.scrollTo(0, 0);
   updateProgress();
 }
 
@@ -1516,17 +1813,44 @@ function renderCodeView(text){
   contentEl.innerHTML = '<div class="code-view"><div class="gutter">' + g + '</div>' +
     '<div class="code" id="__code"></div></div>';
   contentEl.querySelector('#__code').textContent = text;
-  contentEl.scrollTop = 0;
+  window.scrollTo(0, 0);
   updateProgress();
 }
 
-/** 把正文里的相对链接补回网站根 */
+/**
+ * 正文里的链接指向清单里的某一篇时，改成阅读器的深链接。
+ * ---------------------------------------------------
+ * 点卡片、点文档链接本来就该是在同一个页面里换一篇（只换 hash、不重新加载），
+ * 而不是跳到一篇没有侧栏 / 目录 / 上下篇的裸页面：
+ *
+ *   archive/idea/3.枣香童年.html
+ *   → ../p/docs.html#archive%2Fidea%2F3.%E6%9E%A3%E9%A6%99%E7%AB%A5%E5%B9%B4.html
+ *
+ * 认不认得出「这是一篇文档」只查清单（sk.json）—— 路径的唯一来源，
+ * 不在这里另写一套解析。查不到就返回 null，交回 renderURL 按普通地址处理
+ * （工具页、图片、外链、归档片段里指向自己的链接都走那条）。
+ * 清单还没读到时 ALL 是空的，findDoc 返回 null，同样安全退化成普通链接。
+ */
+function docDeepLink(raw){
+  var s = String(raw == null ? '' : raw);
+  if (!s || s.charAt(0) === '#') return null;
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(s)) return null; /* 外链不绕 */
+  var doc = findDoc(s);
+  if (!doc) return null;
+  return ROOT_PREFIX + 'p/docs.html#' + encodeURIComponent(doc.path);
+}
+
+/** 把正文里的链接与图片补成「从本页出发」的地址。
+    正文里的相对路径是相对 /p/ 的（和 sk.json 一个写法），所以传 base='p'。
+    链接先看是不是清单里的文档（是就走阅读器深链接），不是再按普通地址解析。 */
 function fixURLs(root){
-  var i, el;
+  var i, el, raw, deep;
   var as = root.querySelectorAll('a[href]');
   for (i = 0; i < as.length; i++){
     el = as[i];
-    el.setAttribute('href', renderURL(el.getAttribute('href')));
+    raw = el.getAttribute('href');
+    deep = docDeepLink(raw);
+    el.setAttribute('href', deep != null ? deep : renderURL(raw, 'p'));
     if (/^https?:\/\//i.test(el.getAttribute('href'))){
       el.setAttribute('target', '_blank');
       el.setAttribute('rel', 'noopener');
@@ -1535,7 +1859,7 @@ function fixURLs(root){
   var imgs = root.querySelectorAll('img[src]');
   for (i = 0; i < imgs.length; i++){
     el = imgs[i];
-    el.setAttribute('src', renderURL(el.getAttribute('src')));
+    el.setAttribute('src', renderURL(el.getAttribute('src'), 'p'));
   }
 }
 
@@ -1553,56 +1877,63 @@ function fixChartBlocks(root){
   }
 }
 
-/* ═══ 本页目录 ═══ */
+/* ═══ 本页目录 ═══
+   ---------------------------------------------------
+   目录现在**嵌在左边栏里**（不再是右侧常驻栏位、也不跟着滚动走）：
+   页面整体滚动，目录跟着正文一起往上走 —— 想按目录跳，就在文章开头用它。
 
-/**
- * 还放得下「停靠」的目录吗。
- * ---------------------------------------------------
- * 停靠目录是 226px 的常驻栏位，侧栏又是 280px：窗口不够宽时
- * 正文只剩一两百像素，英文单词都换行、中文一行几个字。
- * 900px 是「正文还能舒服读」的下限（那时正文栏还有 ~310px）。
- */
-function fitsDockedOutline(){
-  try { return matchMedia('(min-width: 901px)').matches; }
-  catch(e){ return true; }
+   设置里只有「显示 / 隐藏」两态；老版本存过 'docked' / 'float' 的，
+   一律当成显示。 */
+
+/** 目录该不该出现：用户没关、且目录里至少有一条（一节也算，见 buildOutline 的兜底） */
+function outlineWanted(){
+  return settings.outline !== 'off' && outlineListEl.children.length > 0;
 }
 
-/**
- * 这次会话里目录该用哪种形态。
- * ---------------------------------------------------
- * 放不下停靠就用悬浮：它是浮层，不占正文的宽度。
- * 这只影响本次会话的呈现，不动用户存下来的设置 ——
- * 窗口拉宽回来还是他原来挑的那一种。
- */
-function outlineMode(){
-  if (settings.outline === 'off') return 'off';
-  return fitsDockedOutline() ? settings.outline : 'float';
-}
-
-/* 悬浮形态默认收起：浮层展开着会压住正文标题（窄屏首屏就只剩它了）。
-   要看目录点右上角那颗「本页目录」胶囊。 */
-function syncOutlineOpen(){
-  if (outlineMode() === 'float') outlineEl.classList.add('hide');
-  else outlineEl.classList.remove('hide');
+function refreshOutline(){
+  outlineEl.classList.toggle('on', outlineWanted());
+  if (outlineBadgeEl) outlineBadgeEl.textContent = outlineListEl.children.length + ' 节';
 }
 
 function buildOutline(){
   var heads = contentEl.querySelectorAll('.md h1, .md h2, .md h3, .md h4');
-  var html = '';
+  var items = [];
   for (var i = 0; i < heads.length; i++){
     var h = heads[i];
     if (!h.id) continue;
     var lvl = parseInt(h.tagName.charAt(1), 10);
     if (lvl < 1 || lvl > 4) continue;
-    var label = h.textContent.replace(/#\s*$/, '').trim();
-    html += '<li class="lv-' + lvl + '"><a href="#' + esc(h.id) + '" data-target="' + esc(h.id) + '">' + esc(label) + '</a></li>';
+    items.push({ id: h.id, lvl: lvl, label: h.textContent.replace(/#\s*$/, '').trim() });
+  }
+  /* 一个小节都没有的短文（随笔那种）：退回「文章标题 → 正文容器」这一条，
+     别让「本页目录」整块消失 —— 文章页 / 归档稿也是这条规矩（build/lib/chrome.mjs）。 */
+  if (!items.length){
+    var label = docNameEl ? String(docNameEl.textContent || '').trim() : '';
+    if (label) items.push({ id: 'content', lvl: 1, label: label });
+  }
+  /* 层级归一：最浅的那一级算 1。文章从 h2 起（标题写在 frontmatter 里）时，
+     按绝对级别缩进会让整份目录平白缩进一格 —— 看着就是「没有层次」。 */
+  var minLvl = 4;
+  for (var m = 0; m < items.length; m++) if (items[m].lvl < minLvl) minLvl = items[m].lvl;
+  var html = '';
+  for (var j = 0; j < items.length; j++){
+    var lv = items[j].lvl - minLvl + 1;
+    html += '<li class="lv-' + lv + '"><a href="#' + esc(items[j].id) + '" data-target="' + esc(items[j].id) +
+            '" title="' + esc(items[j].label) + '">' + esc(items[j].label) + '</a></li>';
   }
   outlineListEl.innerHTML = html;
-  syncOutlineOpen();
-  var has = heads.length > 1 && outlineMode() !== 'off';
-  outlineEl.classList.toggle('on', has);
-  if (has) setupOutlineSpy();
-  updateOutlinePill();
+  refreshOutline();
+  if (outlineWanted()) setupOutlineSpy();
+}
+
+/** 顶栏 / 文档栏各有多高（CSS 变量给的值，读不到就退回默认） */
+function navHeight(){
+  var v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--nav-h'));
+  return isNaN(v) ? 40 : v;
+}
+function barHeight(){
+  var bar = document.querySelector('.main-bar');
+  return bar ? bar.offsetHeight : 52;
 }
 
 var outlineSpyOff = null;
@@ -1614,10 +1945,11 @@ function setupOutlineSpy(){
   function onScroll(){
     var heads = contentEl.querySelectorAll('.md h1, .md h2, .md h3, .md h4');
     if (!heads.length) return;
-    var top = contentEl.getBoundingClientRect().top;
+    /* 判据：标题顶边越过「顶栏 + 文档栏 + 一点余量」的就是当前这一节 */
+    var line = navHeight() + barHeight() + 24;
     var current = heads[0];
     for (var i = 0; i < heads.length; i++){
-      if (heads[i].getBoundingClientRect().top - top <= 90) current = heads[i];
+      if (heads[i].getBoundingClientRect().top <= line) current = heads[i];
       else break;
     }
     var id = current ? current.id : null;
@@ -1627,10 +1959,11 @@ function setupOutlineSpy(){
     updateProgress();
   }
 
-  contentEl.addEventListener('scroll', onScroll, { passive: true });
+  /* 页面整体滚动：监听 window，不再监听内容区 */
+  window.addEventListener('scroll', onScroll, { passive: true });
   window.addEventListener('resize', onScroll);
   outlineSpyOff = function(){
-    contentEl.removeEventListener('scroll', onScroll);
+    window.removeEventListener('scroll', onScroll);
     window.removeEventListener('resize', onScroll);
   };
   onScroll();
@@ -1642,39 +1975,23 @@ outlineListEl.addEventListener('click', function(e){
   e.preventDefault();
   var target = document.getElementById(a.dataset.target);
   if (!target) return;
-  var offset = target.getBoundingClientRect().top - contentEl.getBoundingClientRect().top;
-  var bar = document.querySelector('.main-bar');
-  var barH = bar ? bar.offsetHeight : 52;
-  contentEl.scrollTo({ top: contentEl.scrollTop + offset - barH - 14, behavior: 'smooth' });
+  var top = target.getBoundingClientRect().top + window.pageYOffset - navHeight() - barHeight() - 14;
+  window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
 });
 
-outlineXEl.addEventListener('click', function(){
-  outlineEl.classList.add('hide');
-  updateOutlinePill();
+/* 目录右上角的 ×：关掉目录（记住这个选择） */
+if (outlineXEl) outlineXEl.addEventListener('click', function(){
+  settings.outline = 'off';
+  saveSetting('outline', 'off');
+  applySettings();
 });
-outlinePillEl.addEventListener('click', function(){
-  outlineEl.classList.remove('hide');
-  updateOutlinePill();
-});
-
-function updateOutlinePill(){
-  var has = outlineListEl.children.length > 1;
-  outlinePillEl.classList.toggle('shown',
-    outlineMode() === 'float' && has && outlineEl.classList.contains('hide'));
-}
-
-function refreshOutline(){
-  syncOutlineOpen();
-  var has = outlineListEl.children.length > 1 && outlineMode() !== 'off';
-  outlineEl.classList.toggle('on', has);
-  updateOutlinePill();
-}
 
 function updateProgress(){
-  var max = contentEl.scrollHeight - contentEl.clientHeight;
-  var p = max > 0 ? contentEl.scrollTop / max : 0;
+  var doc = document.documentElement;
+  var max = doc.scrollHeight - window.innerHeight;
+  var p = max > 0 ? window.pageYOffset / max : 0;
   progressEl.style.transform = 'scaleX(' + Math.min(1, Math.max(0, p)) + ')';
-  btnTopEl.classList.toggle('on', contentEl.scrollTop > 240);
+  btnTopEl.classList.toggle('on', window.pageYOffset > 240);
 }
 
 /* ═══ 上一篇 / 下一篇 ═══ */
@@ -1693,9 +2010,11 @@ function appendDocNav(){
   nav.className = 'doc-nav';
 
   function card(d, isNext){
+    /* 标题同样优先用 frontmatter 的 title：清单里的名字常带序号前缀，
+       「3.枣香童年」当标题读起来像文件名，「枣香童年」才像文章 */
     return '<a href="#" data-path="' + esc(d.path) + '"' + (isNext ? ' class="next"' : '') + '>' +
       '<span class="dir">' + (isNext ? '下一篇 →' : '← 上一篇') + '</span>' +
-      '<span class="ttl">' + esc(d.name) + '</span></a>';
+      '<span class="ttl">' + esc(fmTitle(d, FM[d.path] || null)) + '</span></a>';
   }
 
   /* 目录是两列栅格。只有一边有卡片时（第一篇没有上一篇、最后一篇没有下一篇）
@@ -1774,7 +2093,7 @@ function applySettings(){
   var root = document.documentElement;
   root.setAttribute('data-theme', settings.theme);
   root.setAttribute('data-glass', settings.glass);
-  root.setAttribute('data-outline', outlineMode());
+  root.setAttribute('data-outline', settings.outline === 'off' ? 'off' : 'on');
   root.style.setProperty('--bar-alpha', settings.barOpacity + '%');
   root.classList.toggle('side-collapsed', !!settings.sideCollapsed);
   btnSideToggle.setAttribute('aria-expanded', String(!settings.sideCollapsed));
@@ -1813,7 +2132,9 @@ function saveSetting(k, v){
     var a = parseInt(localStorage.getItem('docs.barOpacity'), 10);
     if (a >= 10 && a <= 100) settings.barOpacity = a;
     var o = localStorage.getItem('docs.outline');
-    if (o === 'docked' || o === 'float' || o === 'off') settings.outline = o;
+    /* 老版本存的是 'docked' / 'float'：那时目录跟着滚动走，
+       现在只有显示 / 隐藏两种，老值一律当显示 */
+    if (o) settings.outline = (o === 'off') ? 'off' : 'on';
     settings.sideCollapsed = localStorage.getItem('docs.sideCollapsed') === 'true';
     var f = parseInt(localStorage.getItem('docs.fontSize'), 10);
     if (f && f >= 13 && f <= 20) settings.fontSize = f;
@@ -1915,7 +2236,7 @@ function syncSideScrim(){
 
 btnSideToggle.addEventListener('click', function(){ setSideCollapsed(!settings.sideCollapsed); });
 btnSideCollapse.addEventListener('click', function(){ setSideCollapsed(true); });
-btnTopEl.addEventListener('click', function(){ contentEl.scrollTo({ top: 0, behavior: 'smooth' }); });
+btnTopEl.addEventListener('click', function(){ window.scrollTo({ top: 0, behavior: 'smooth' }); });
 
 if (sideScrimEl){
   sideScrimEl.addEventListener('click', function(){ setSideCollapsed(true); });
@@ -1925,20 +2246,13 @@ if (sideScrimEl){
    从桌面拉窄 → 按手机端默认收起（别让常驻栏突然变遮罩挡屏）
    从手机拉宽 → 恢复桌面端上次的选择 */
 var lastNarrow = isNarrow();
-var lastDock = fitsDockedOutline();
 window.addEventListener('resize', function(){
   var now = isNarrow();
-  var nowDock = fitsDockedOutline();
-  if (now === lastNarrow && nowDock === lastDock){ syncSideScrim(); return; }
-
-  if (now !== lastNarrow){
-    lastNarrow = now;
-    if (now) setSideCollapsedEphemeral(true);
-    else setSideCollapsed(settings.sideCollapsed);
-  }
-  lastDock = nowDock;
-  /* 跨过断点要把目录形态重算一遍：位置不够就用悬浮（不占栏位） */
-  applySettings();
+  if (now === lastNarrow){ syncSideScrim(); return; }
+  lastNarrow = now;
+  if (now) setSideCollapsedEphemeral(true);
+  else setSideCollapsed(settings.sideCollapsed);
+  syncSideScrim();
 });
 
 /* 手机端按 Esc 收起侧栏；侧栏展开时锁住背景滚动 */
@@ -2105,7 +2419,7 @@ const PRE_RENDER = new Set([
  * 刻意不写构建时间戳：写进去会让每次构建都产出不同的 docs.html，
  * 哈希一变缓存全废。要版本就手动抬 ASSET_VERSION。
  */
-function buildPayload(groups, docs, siteRootDir) {
+function buildPayload(groups, docs, siteRootDir, posts) {
   /* 内联清单兜底：优先会在运行时 fetch 最新版，取不到才用它 */
   const skPath = path.join(siteRootDir, 'sk.json');
   const inlineManifest = fs.existsSync(skPath) ? fs.readFileSync(skPath, 'utf8') : null;
@@ -2119,11 +2433,34 @@ function buildPayload(groups, docs, siteRootDir) {
     preCount++;
   }
 
-  return { inlineManifest, prerendered, preCount };
+  /* 每篇的 frontmatter（阅读器拿它显示标题 / 日期 / 标签，也是新稿的兜底缓存） */
+  const frontmatter = {};
+  for (const [p, d] of docs) {
+    if (d.fm && Object.keys(d.fm).length) frontmatter[p] = d.fm;
+  }
+
+  /* 清单路径 → 静态文章页地址：阅读器据此把 canonical 指向真正的收录地址 */
+  const postMap = {};
+  for (const post of posts || []) postMap[post.path] = post.href;
+
+  return { inlineManifest, prerendered, preCount, frontmatter, postMap };
 }
 
-function buildHtml({ groups, docs, cssHref }) {
+function buildHtml({ groups, docs, cssHref, posts }) {
   let tpl = fs.readFileSync(path.join(templateDir, 'docs.html'), 'utf8');
+
+  /* ── 3.-1 站点身份 + 搜索引擎要的 head ──
+     模板里只留了一个 __SEO__ 占位；标题、描述、canonical、OG、
+     JSON-LD 全在这里生成，改名字只需要改 site.json。 */
+  if (!tpl.includes('<!-- __SEO__ -->')) throw new Error('模板里找不到 <!-- __SEO__ --> 占位');
+  tpl = tpl.replace('<!-- __SEO__ -->', readerSeoHead(posts || []));
+
+  /* 站点顶栏：阅读器、博客首页、文章页共用同一份导航（见 siteNavHtml） */
+  if (!tpl.includes('<!-- __NAV__ -->')) throw new Error('模板里找不到 <!-- __NAV__ --> 顶栏占位');
+  tpl = tpl.replace('<!-- __NAV__ -->', nav('reader'));
+
+  if (!tpl.includes('__BLOG_TITLE__')) throw new Error('模板里找不到 __BLOG_TITLE__ 占位（侧栏标题 / noscript 标题）');
+  tpl = tpl.split('__BLOG_TITLE__').join(esc(BLOG.title));
 
   /* ── 3.0 favicon：模板里留了占位行，按页面位置换成相对路径 ── */
   if (tpl.includes(FAVICON_PLACEHOLDER)) {
@@ -2167,12 +2504,18 @@ function buildHtml({ groups, docs, cssHref }) {
   if (!/class="load-dot"/.test(tpl)) throw new Error('#loadBadge 里没有状态点 .load-dot');
   if (!/class="lb-txt"/.test(tpl)) throw new Error('#loadBadge 里没有状态词 .lb-txt');
 
-  /* ── 3.3 注入内联清单（兜底用）+ 预渲染稿 ── */
-  const payload = buildPayload(groups, docs, siteRoot);
+  /* ── 3.3 注入内联清单（兜底用）+ 预渲染稿 + 文章元数据 ── */
+  const payload = buildPayload(groups, docs, siteRoot, posts);
   tpl = tpl.replace(
     '<!-- __DOCS_BOOT__ -->',
     `<script>\nwindow.__SK__ = ${safeJson(payload.inlineManifest)};\n` +
-    `window.__PRERENDERED__ = ${safeJson(payload.prerendered)};\n</script>\n` +
+    `window.__PRERENDERED__ = ${safeJson(payload.prerendered)};\n` +
+    /* frontmatter 元数据：key 是清单里的路径 */
+    `window.__FM__ = ${safeJson(payload.frontmatter)};\n` +
+    /* 路径 → 静态文章页地址（canonical / 分享链接用） */
+    `window.__POSTS__ = ${safeJson(payload.postMap)};\n` +
+    /* 站点身份：标题 / 简介 / 主域名 */
+    `window.__BLOG__ = ${safeJson({ title: BLOG.title, desc: BLOG.desc, origin: BLOG.origin, author: BLOG.author })};\n</script>\n` +
     /* <card> 的支持在 p/docs-card.js（站点自带，随页面一起上传）。
        必须排在 docs-md.js 之前：渲染器初始化时要 md.use(DocsCard.plugin)。 */
     `<script src="./docs-card.js?v=${ASSET_VERSION}"></script>`,
@@ -2200,7 +2543,7 @@ function buildHtml({ groups, docs, cssHref }) {
      浏览器端渲染的文档在无 JS 环境下本来就显示不了，列链接最诚实。 */
   tpl = tpl.replace(
     /<noscript>[\s\S]*?<\/noscript>/,
-    `<noscript>\n${buildNoscript(groups, docs, payload.prerendered)}\n</noscript>`,
+    `<noscript>\n${buildNoscript(groups, docs, payload.prerendered, payload.postMap)}\n</noscript>`,
   );
 
   return tpl;
@@ -2209,18 +2552,30 @@ function buildHtml({ groups, docs, cssHref }) {
 /* noscript 里的链接前缀（页面在 /p/ 下） */
 const ROOT_PREFIX_FOR_NOSCRIPT = '../';
 
-/** noscript 内容：预渲染全文 + 其余条目链接 */
-function buildNoscript(groups, docs, prerendered) {
+/**
+ * noscript 内容：文章清单 + 预渲染全文。
+ *
+ * 这一段是给「不跑 JS 的爬虫 / 关了 JS 的读者」看的，所以它得是一份
+ * 真目录：每篇都给出可点的地址 —— 有独立文章页（/p/post/…）就指过去，
+ * 那才是能被单独收录的地址；没有的退回原文件。
+ */
+function buildNoscript(groups, docs, prerendered, postMap) {
+  const rel = (href) => ROOT_PREFIX_FOR_NOSCRIPT + String(href).replace(/^\/+/, '');
+
   let html = '<div class="noscript-wrap">' +
-    '<h1>文档 · JinSuper</h1>' +
-    '<p>这个页面用 JavaScript 在现场排版 Markdown。下面先把预渲染好的正文列出来，' +
-    '其余资料给出原文件链接。</p>';
+    `<h1>${esc(BLOG.title)}</h1>` +
+    `<p>${esc(BLOG.desc)}</p>` +
+    '<p>本页用 JavaScript 现场排版；下面是不依赖脚本的完整目录，' +
+    '每篇的正文也有各自的独立地址。</p>';
 
   for (const g of groups) {
     html += `<section><h2>${esc(g.name)}</h2><ul>`;
     for (const it of g.items) {
+      const d = docs.get(it.path);
+      const title = (d && d.fm && (d.fm.title || d.fm.name)) || it.name;
+      const target = (postMap && postMap[it.path]) || it.path;
+      html += `<li><a href="${esc(rel(target))}">${esc(title)}</a>`;
       const pre = prerendered[it.path];
-      html += `<li><a href="${esc(ROOT_PREFIX_FOR_NOSCRIPT + it.path)}">${esc(it.name)}</a>`;
       if (pre) html += `<div class="md">${pre}</div>`;
       html += '</li>';
     }
@@ -2228,6 +2583,315 @@ function buildNoscript(groups, docs, prerendered) {
   }
 
   return html + '</div>';
+}
+
+/* ═══════════════════════════════════════════════════
+   4. 静态文章页 /p/post/*.html
+   ---------------------------------------------------
+   为什么要多这一步：阅读器是「一个页面 + hash 换文章」，
+   /p/docs.html#idea%2F3.xxx.md 在搜索引擎眼里和 /p/docs.html
+   是同一个地址 —— 文章再多，能被收录的也只有一个页面。
+   博客要有独立网址，所以构建期为每篇 .md 再出一份完整的静态页：
+
+     · 服务端渲染好的正文（和阅读器同一套渲染核心，语法一个不少）
+     · frontmatter 渲染出来的元数据卡片
+     · 独立 <title> / description / canonical / OG / JSON-LD
+     · 上下篇链接（爬虫顺着就能走遍全站）
+     · 主题跟着阅读器走（token 从 docs.html 抠出来，见 lib/theme.mjs）
+
+   路径写法照搬 /p/ 下的结构：idea/3.枣香童年.md → /p/post/idea/3.枣香童年.html
+   ═══════════════════════════════════════════════════ */
+
+/** 清单里出现过的所有路径写法（正文里的链接按这个判「是不是站内文章」） */
+function docPathSet(items) {
+  const set = new Set();
+  for (const it of items) {
+    const p = String(it.path);
+    const noLead = p.replace(/^\.?\//, '');
+    set.add(p);
+    set.add(noLead);
+    set.add(noLead.replace(/^p\//, ''));
+    if (!p.startsWith('p/')) set.add('p/' + p);
+  }
+  return set;
+}
+
+/** 上下篇：可见的那两个按钮 */
+function postNavInner(post, newer, older) {
+  const cell = (target, cls, label) => {
+    if (!target) return `<span class="pn-empty">${label}</span>`;
+    return `<a class="${cls}" href="${esc(relativeBetween(post.href, target.href))}">` +
+      `<span class="pn-k">${label}</span>` +
+      `<span class="pn-t">${esc(target.title)}</span></a>`;
+  };
+  return '    ' +
+    cell(newer, 'pn-prev', '← 更新的一篇') + '\n    ' +
+    cell(older, 'pn-next', '更早的一篇 →');
+}
+
+/**
+ * 生成全部静态文章页。
+ * @returns {{written:string[], removed:string[], skipped:string[]}}
+ */
+function buildPostPages({ posts, docs, cssHref, allItems }) {
+  const tplPath = path.join(templateDir, 'post.html');
+  const tpl = fs.readFileSync(tplPath, 'utf8');
+  /* 主题 token 从阅读器模板里取，避免 12 套配色抄第二遍 */
+  const themeCss = extractThemeCss(fs.readFileSync(path.join(templateDir, 'docs.html'), 'utf8'));
+
+  const postByDoc = new Map(posts.map((p) => [p.path, p]));
+  const allPaths = docPathSet(allItems);
+  const written = [];
+  const skipped = [];
+
+  posts.forEach((post, i) => {
+    const doc = docs.get(post.path);
+    if (!doc || !doc.html) { skipped.push(post.path); return; }
+
+    const { toRoot, toP } = prefixesOf(post.href);
+    const newer = posts[i - 1] || null;
+    const older = posts[i + 1] || null;
+
+    /* 正文里的站内链接：指向别的文章就跳那篇的静态页（爬虫走的是真链接），
+       否则回阅读器的 deep-link（保持「在一个页面里连着读」的体验） */
+    const resolveDoc = (plain) => {
+      const hit = postByDoc.get(plain);
+      if (hit && plain !== post.path) return relativeBetween(post.href, hit.href);
+      if (allPaths.has(plain)) return `${toP}docs.html#${encodeURIComponent(plain)}`;
+      return null;
+    };
+
+    const body = rewriteContentUrls(doc.html, { href: post.href, rootPrefix: toRoot, resolveDoc });
+
+    /* 侧栏目录：从**正文**（不是元数据卡片）里取二三级标题。
+       doc.bodyHtml 是不带元数据卡片那一份，正好是文章本体。
+       层级先归一成相对级别（最浅的一级 = lv-1），「从 h2 起」的文章才不会平白缩进一整格。
+       目录整块（不足两条返回空串）由 build/lib/chrome.mjs 出，归档稿用的是同一份。 */
+    const tocItems = normalizeTocLevels(tocEntries(doc.bodyHtml || doc.html).filter((e) => e.level <= 3));
+    /* 没有小节的短文（随笔那种）也给它一条「文章标题 → #post」，别整块消失 */
+    const tocAside = tocAsideHtml(tocItems, { fallbackTitle: post.title });
+
+    /* 整页骨架（顶栏 / 正文区 / 侧栏目录 / 上下篇 / 页脚）也是 chrome.mjs 出的：
+       和控制台烘的归档稿共用同一份标记，CSS 与脚本才真的通用。 */
+    const chrome = chromeBody({
+      brandHref: toP,
+      brandTitle: BLOG.title,
+      brandSubHtml: '<span class="brand-sub" id="brandSub"></span>',
+      logoHtml: inlineLogo({ className: 'logo-mark' }) || '',
+      navHtml: nav('home'),
+      tocHtml: tocAside,
+      articleHtml: body,
+      afterHtml: postNavInner(post, newer, older),
+      footerHtml: footRowHtml([
+        '© JinSuper · 想到什么写什么',
+        `<a href="${toP}docs.html">在阅读器里看这一篇</a>`,
+        `<a href="${toP}feed.xml">订阅 RSS</a>`,
+        `<a href="${toRoot}">回百宝箱</a>`,
+      ]),
+    });
+
+    const html = tpl
+      .replace(`<!-- ${FAVICON_PLACEHOLDER} -->`, faviconTags(toRoot))
+      .replace('<!-- __SEO__ -->', postSeoHead(post, {
+        index: i + 1, total: posts.length, prev: newer, next: older,
+      }))
+      .replace('<!-- __THEME_CSS__ -->', themeCss)
+      .replace('/* __THEME_CSS__ */', themeCss)
+      .replace('/* __CHROME_CSS__ */', chromeCss())
+      .replace('/* __CHROME_JS__ */', chromeScript())
+      .replace('<!-- __CHROME_BODY__ -->', chrome)
+      .split('__TOP__').join(toP)
+      .split('__VER__').join(String(ASSET_VERSION));
+
+    if (/__TOP__|__VER__|__SEO__|__THEME_CSS__|__CHROME_CSS__|__CHROME_JS__|__CHROME_BODY__/.test(html)) {
+      throw new Error(`文章页模板里有没替换掉的占位符：${post.href}`);
+    }
+
+    const disk = postDiskPath(post.href);
+    fs.mkdirSync(path.dirname(disk), { recursive: true });
+    fs.writeFileSync(disk, html, 'utf8');
+    written.push({ href: post.href, bytes: Buffer.byteLength(html, 'utf8') });
+  });
+
+  const keep = written.map((w) => w.href);
+  const removed = prunePosts(keep);
+  return { written, removed, skipped };
+}
+
+
+/* ═══════════════════════════════════════════════════
+   4.5 博客首页 /p/index.html
+   ---------------------------------------------------
+   列表、时间线、标签云全部在**构建期渲染成静态 HTML** ——
+   爬虫看得到每一条链接；脚本只负责标签筛选（显示 / 隐藏）与 #tag-xxx 的还原。
+   这一页就是原来「para 写作台」的位置，写作台已经舍弃。
+   ═══════════════════════════════════════════════════ */
+
+/**
+ * 站点绝对地址 → 「从某个页面出发」的相对地址。
+ * 博客首页是 /p/（目录形式），先补成 index.html 再算 dirname，
+ * 否则 path.posix.relative 会拿 '.' 当目录、算出离谱的路径。
+ */
+function relFrom(fromPage, toPage) {
+  const norm = (p) => decodeSitePath(String(p).replace(/^\/+/, '') || 'index.html');
+  let from = norm(fromPage);
+  if (from.endsWith('/')) from += 'index.html';
+  const to = norm(toPage);
+  return encodeSitePath(path.posix.relative(path.posix.dirname(from), to));
+}
+
+/** 标签数组 → data-tags 属性值（JSON + 实体转义，属性里是安全的） */
+function dataTags(tags) {
+  return esc(JSON.stringify(tags || []));
+}
+
+/* 归档稿（/p/archive/**.html）在标签里额外挂一枚「归档」：
+   点一下就能只看归档的那些，不用另外做一套筛选逻辑。 */
+const ARCHIVE_TAG = '归档';
+function filterTagsOf(post) {
+  return post.archived ? post.tags.concat(ARCHIVE_TAG) : post.tags;
+}
+
+/** 列表里那一串标签链接（点进首页的标签筛选） */
+function tagLine(tags) {
+  return (tags || [])
+    .map((t) => '<a href="' + esc(tagAnchor(t)) + '">' + esc(t) + '</a>')
+    .join('<span>·</span>');
+}
+
+function blogPostCard(post, fromHref) {
+  const href = relFrom(fromHref, post.href);
+  /* 卡片刻意用 div + 标题内链：
+     <a> 里再放标签链接是非法的，浏览器会把外层 <a> 提前闭合，
+     标签就被挤到卡片外面去了（实测踩过）。整卡可点靠 .pc-link::after 铺满。 */
+  return '      <div class="post-card" data-tags="' + dataTags(post.tags) + '">\n' +
+    `        <span class="pc-date">${esc(post.date || '未标日期')}</span>\n` +
+    `        <h3><a class="pc-link" href="${esc(href)}">${esc(post.title)}</a></h3>\n` +
+    (post.summary ? `        <p>${esc(post.summary)}</p>\n` : '') +
+    '        <span class="pc-foot">' +
+    `<span>${esc(post.author)}</span>` +
+    (post.tags.length ? `<span>·</span>${tagLine(post.tags)}` : '') +
+    '</span>\n      </div>';
+}
+
+/** 时间线：按年分组，一条一行 */
+function blogTimeline(posts, fromHref) {
+  const groups = groupByYear(posts);
+  if (!groups.length) return '      <p class="empty-note">还没有文章。</p>';
+  return groups.map((g) => {
+    const rows = g.posts.map((p) => {
+      const href = relFrom(fromHref, p.href);
+      const md = /^(\d{4})-(\d{2})-(\d{2})$/.exec(p.date || '');
+      const label = md ? `${md[2]}-${md[3]}` : (p.date || '—');
+      const meta = [p.author, ...p.tags].filter(Boolean).join(' · ');
+      return `          <li data-tags="${dataTags(filterTagsOf(p))}"${p.archived ? ' data-archived="1"' : ''}>` +
+        `<a href="${esc(href)}">` +
+        `<time class="tl-date"${p.date ? ` datetime="${esc(p.date)}"` : ''}>${esc(label)}</time>` +
+        `<span class="tl-title">${esc(p.title)}</span>` +
+        (p.archived ? `<span class="tl-badge"${p.twin ? ' title="同一篇还有活着的版本"' : ''}>归档</span>` : '') +
+        (meta ? `<span class="tl-meta">${esc(meta)}</span>` : '') +
+        '</a></li>';
+    }).join('\n');
+    return `        <div data-tl-year="${esc(g.year)}">\n` +
+      `          <p class="tl-year">${esc(g.year)}</p>\n` +
+      `          <ul class="tl">\n${rows}\n          </ul>\n        </div>`;
+  }).join('\n');
+}
+
+/** 博客首页的 head（与阅读器同一套规则，只是它是个列表页） */
+function blogHomeSeoHead(posts) {
+  const url = BLOG.origin + BLOG_HOME;
+  const ld = {
+    '@context': 'https://schema.org',
+    '@type': 'Blog',
+    name: BLOG.title,
+    description: BLOG.desc,
+    url,
+    inLanguage: 'zh-CN',
+    author: { '@type': 'Person', name: BLOG.author },
+    blogPost: posts.map((p) => ({
+      '@type': 'BlogPosting',
+      headline: p.title,
+      url: BLOG.origin + p.href,
+      datePublished: p.date || undefined,
+      dateModified: p.updated || undefined,
+      author: ldAuthors(p),
+      keywords: p.tags.length ? p.tags.join(',') : undefined,
+    })),
+  };
+  return [
+    `<title>${esc(BLOG.title)}</title>`,
+    metaTag('name', 'description', BLOG.desc),
+    metaTag('name', 'author', BLOG.author),
+    '<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1">',
+    `<link rel="canonical" href="${esc(url)}">`,
+    `<link rel="alternate" type="application/rss+xml" title="${esc(BLOG.title)} · RSS" href="./feed.xml">`,
+    metaTag('property', 'og:type', 'website'),
+    metaTag('property', 'og:site_name', BLOG.title),
+    metaTag('property', 'og:title', BLOG.title),
+    metaTag('property', 'og:description', BLOG.desc),
+    metaTag('property', 'og:url', url),
+    metaTag('property', 'og:locale', 'zh_CN'),
+    metaTag('name', 'twitter:card', 'summary'),
+    metaTag('name', 'twitter:title', BLOG.title),
+    metaTag('name', 'twitter:description', BLOG.desc),
+    jsonLdTag(ld),
+  ].filter(Boolean).join('\n');
+}
+
+/**
+ * 生成 /p/index.html（博客首页：最新 + 标签筛选 + 时间线）。
+ *
+ * 「最新」只放活着的 .md（归档版是同一篇的旧版本，摆在最新里等于自己跟自己重样）；
+ * 时间线与标签则**活稿 + 归档稿一起**列 —— 归档的在阅读器侧栏里点得到，
+ * 就别在这个目录里凭空消失。
+ *
+ * @param {{posts:Array, archived?:Array, latestCount?:number}} opts
+ * @returns {{bytes:number, tags:number, latest:number}}
+ */
+function buildBlogHome({ posts, archived = [], latestCount = 6 }) {
+  const tplPath = path.join(templateDir, 'blog.html');
+  let tpl = fs.readFileSync(tplPath, 'utf8');
+  const themeCss = extractThemeCss(fs.readFileSync(path.join(templateDir, 'docs.html'), 'utf8'));
+  const all = posts.concat(archived);
+  const tags = tallyTags(all.map((p) => ({ tags: filterTagsOf(p) })));
+  /* 「归档」这枚标签排在最后（它不是内容标签，是一类稿子） */
+  const ai = tags.findIndex((t) => t.tag === ARCHIVE_TAG);
+  if (ai >= 0) tags.push(tags.splice(ai, 1)[0]);
+  const latest = posts.slice(0, latestCount);
+  const dated = posts.filter((p) => p.date);
+
+  let html = tpl
+    .replace(`<!-- ${FAVICON_PLACEHOLDER} -->`, faviconTags('./'))
+    .replace('<!-- __SEO__ -->', blogHomeSeoHead(posts))
+    .replace('/* __THEME_CSS__ */', themeCss)
+    .replace('<!-- __NAV__ -->', nav('home'))
+    /* 标题在品牌和 h1 里各出现一次，用 split/join 全换（String.replace 只换第一个） */
+    .split('__BLOG_TITLE__').join(esc(BLOG.title))
+    .split('__BLOG_DESC__').join(esc(BLOG.desc))
+    .split('__STATS__').join([
+      `<span><b>${posts.length}</b> 篇文章</span>`,
+      archived.length ? `<span><b>${archived.length}</b> 篇归档</span>` : '',
+      `<span><b>${tags.length}</b> 个标签</span>`,
+      dated[0] ? `<span>最近更新 <b>${esc(dated[0].date)}</b></span>` : '',
+    ].filter(Boolean).join(''))
+    .replace('<!-- __LATEST__ -->', latest.map((p) => blogPostCard(p, BLOG_HOME)).join('\n'))
+    .replace('<!-- __TAGS__ -->',
+      '<button type="button" class="tag-chip on" data-all aria-pressed="true">全部</button>\n' +
+      tags.map((t) => `<button type="button" class="tag-chip" data-tag="${esc(t.tag)}" aria-pressed="false">` +
+        `${esc(t.tag)}<span class="n">${t.count}</span></button>`).join('\n'))
+    .replace('<!-- __TIMELINE__ -->', blogTimeline(all, BLOG_HOME))
+    .split('__VER__').join(String(ASSET_VERSION));
+
+  /* logo：拿不到就留空，和别的页面一个规矩 */
+  html = html.replace(/<!--\s*__LOGO__[^>]*-->/, inlineLogo({ className: 'logo-mark' }) || '');
+
+  if (/__BLOG_TITLE__|__BLOG_DESC__|__STATS__|__VER__|__SEO__|__NAV__|__THEME_CSS__/.test(html)) {
+    throw new Error('博客首页模板里有没替换掉的占位符');
+  }
+
+  fs.writeFileSync(path.join(srcDir, 'index.html'), html, 'utf8');
+  return { bytes: Buffer.byteLength(html, 'utf8'), tags: tags.length, latest: latest.length };
 }
 
 /* ═══════════════════════════════════════════════════
@@ -2289,14 +2953,23 @@ async function main() {
   let renderFailed = 0;
   for (const it of allItems) {
     try {
-      const d = renderOne(it.path);
+      const d = renderOne(it.path, it.name);
       docs.set(it.path, d);
-      log(`  ✓ ${it.name.padEnd(18)} ${d.kind.padEnd(6)} ${kb(d.bytes).padStart(9)}  →  ${d.html ? kb(d.html.length) : '—'}`);
+      const fmNote = d.fm ? `  fm(${Object.keys(d.fm).join(',')})` : '';
+      log(`  ✓ ${it.name.padEnd(18)} ${d.kind.padEnd(6)} ${kb(d.bytes).padStart(9)}  →  ${d.html ? kb(d.html.length) : '—'}${fmNote}`);
     } catch (e) {
       renderFailed++;
       log(`  ✗ ${it.name}  ${e.message}`);
     }
   }
+
+  /* 博客文章清单：静态文章页、feed、sitemap 都从这一份出发 */
+  const posts = listPosts();
+  log(`文章：${posts.length} 篇可生成独立页面`);
+
+  /* 归档稿（控制台烘的 /p/archive/**.html）：不进「最新」，但时间线 / 标签里要有 */
+  const archived = listArchivedPosts(posts);
+  if (archived.length) log(`归档稿：${archived.length} 篇（时间线与标签里也列出来）`);
 
   /* 浏览器端 bundle（本地化，不再引 CDN） */
   const bundle = await buildBrowserBundle({ root: here, siteRoot });
@@ -2309,9 +2982,33 @@ async function main() {
   log(`样式：docs-md.css  ${kb(css.bytes)}   字体：${css.fontCount} 个 ${kb(css.fontBytes)}`);
 
   /* 输出 docs.html */
-  const html = buildHtml({ groups, docs, cssHref: `./docs-md.css?v=${ASSET_VERSION}` });
+  const html = buildHtml({ groups, docs, cssHref: `./docs-md.css?v=${ASSET_VERSION}`, posts });
   const htmlPath = path.join(srcDir, 'docs.html');
   fs.writeFileSync(htmlPath, html, 'utf8');
+
+  /* ── 静态文章页 /p/post/*.html + 订阅源 ──
+     爬虫只认独立网址，所以每篇 .md 都要有一份自己的页面。
+     和 docs.html 用的是同一个渲染核心，语法能力完全一致。 */
+  const postPages = buildPostPages({ posts, docs, cssHref: `./docs-md.css?v=${ASSET_VERSION}`, allItems });
+  const postBytes = postPages.written.reduce((n, w) => n + w.bytes, 0);
+  log(`文章页：${postPages.written.length} 篇 ${kb(postBytes)}  →  /p/post/`);
+  if (postPages.removed.length) log(`  └ 清掉上一轮的旧页面：${postPages.removed.join(', ')}`);
+  if (postPages.skipped.length) log(`  └ ⚠ 跳过（找不到正文）：${postPages.skipped.join(', ')}`);
+
+  /* 博客首页 /p/index.html（原来那个写作台已经舍弃） */
+  const home = buildBlogHome({ posts, archived });
+  log(`博客首页：p/index.html  ${kb(home.bytes)}  ${posts.length} 篇（+${archived.length} 归档）/ ` +
+    `${home.tags} 个标签`);
+
+  const feed = buildFeed(posts, {
+    origin: BLOG.origin,
+    title: BLOG.title,
+    desc: BLOG.desc,
+    href: '/p/docs.html',
+    self: FEED_URL,
+  });
+  fs.writeFileSync(FEED_FILE, feed, 'utf8');
+  log(`订阅源：p/feed.xml  ${kb(Buffer.byteLength(feed, 'utf8'))}  ${Math.min(posts.length, 30)} 条`);
 
   /* ── 给站点里手写的页面补 favicon ──
      docs.html 上面已经处理过；其余页面（Skills/、p/viewer.html、404.html 等）
@@ -2348,6 +3045,9 @@ async function main() {
   log(`p/docs-md.js     ${kb(bundle.bytes)}`);
   log(`p/docs-md.css    ${kb(css.bytes)}`);
   log(`p/fonts/         ${css.fontCount} 个文件`);
+  log(`p/post/          ${postPages.written.length} 篇文章页 ${kb(postBytes)}`);
+  log(`p/index.html    ${kb(home.bytes)}（博客首页）`);
+  log(`p/feed.xml       ${kb(Buffer.byteLength(feed, 'utf8'))}`);
   log(`构建耗时         ${ms}ms`);
   if (renderFailed) log(`渲染失败         ${renderFailed} 篇`);
   console.log('');

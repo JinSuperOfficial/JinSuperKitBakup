@@ -55,6 +55,11 @@ html[data-theme="dark"]{
   --danger:#D9605A;
   --shadow:0 18px 44px -26px rgba(0,0,0,.75),0 2px 8px -5px rgba(0,0,0,.5);
   color-scheme:dark;
+
+  /* highlight.js 配色 —— 站点那份 docs-md.css 是按 html[data-theme="obsidian"]
+     这类主题名给的，控制台只有 dark / light，所以把 dark 对齐到站点「曜石」。 */
+  --c-key:#C792EA; --c-str:#C3E88D; --c-num:#F78C6C; --c-fun:#82AAFF;
+  --c-com:#7E8A90; --c-typ:#FFCB6B; --c-tag:#F07178;
 }
 
 /* ── 浅色 ── */
@@ -77,6 +82,10 @@ html[data-theme="light"]{
   --danger:#B3392F;
   --shadow:0 18px 44px -30px rgba(60,50,40,.34),0 2px 8px -5px rgba(60,50,40,.18);
   color-scheme:light;
+
+  /* 浅色对齐站点「云舞者」 */
+  --c-key:#A626A4; --c-str:#50A14F; --c-num:#986801; --c-fun:#4078F2;
+  --c-com:#9AA0A6; --c-typ:#C18401; --c-tag:#E45649;
 }
 
 html,body{margin:0;height:100%}
@@ -366,21 +375,94 @@ html[data-theme="light"] .hl .t-tag{color:#E45649}
   line-height:1.78;
   color:var(--md-ink,var(--ink));
 }
-#preview h1,#preview h2,#preview h3,#preview h4{color:var(--ink);font-weight:640;line-height:1.3;letter-spacing:-.012em;margin:1.6em 0 .6em}
-#preview h1{font-size:1.8em;margin-top:0;padding-bottom:.32em;border-bottom:1px solid var(--line)}
-#preview h2{font-size:1.38em;padding-bottom:.28em;border-bottom:1px solid var(--line-soft)}
-#preview h3{font-size:1.14em}
-#preview p{margin:1em 0}
-#preview a{color:var(--accent);text-decoration:none;border-bottom:1px solid var(--accent-line)}
-#preview code{font-family:var(--mono);font-size:.86em;background:var(--md-code-inline,#1C2429);color:var(--accent);padding:.15em .4em;border-radius:var(--radius-badge)}
-#preview pre{background:var(--md-code-bg,#0A0D0F);border:1px solid var(--line);border-radius:var(--radius-card);padding:13px 16px;overflow-x:auto;font-size:13px;line-height:1.65}
-#preview pre code{background:transparent;color:var(--md-ink,var(--ink));padding:0}
-#preview blockquote{margin:1.2em 0;padding:.2em 0 .2em 1.1em;border-left:3px solid var(--accent-line);color:var(--dim)}
-#preview table{border-collapse:collapse;width:100%;display:block;overflow-x:auto;font-size:13.5px}
-#preview th,#preview td{padding:8px 12px;border:1px solid var(--line);text-align:left}
-#preview img{max-width:100%;border-radius:var(--radius-control);border:1px solid var(--line)}
-#preview ul,#preview ol{padding-left:1.5em}
-#preview hr{border:0;height:1px;background:var(--line)}
+/* 基础排版只给**元素**，一律用 .md 这一档权重（不用 #preview 前缀）。
+   原因是 p/docs-md.css 里那些扩展样式（.md .katex-error / .md a.card /
+   .md .md-ext-note …）是「类 + 元素」两级；基础排版要是挂上 #preview 就等于
+   多了个 id，会把扩展样式全部压掉 —— 卡片会变成链接色、提示块间距会跑。
+   控制台样式表在后加载，同权重下仍然赢，所以元素级的兜底照常生效。 */
+.md h1,.md h2,.md h3,.md h4{color:var(--ink);font-weight:640;line-height:1.3;letter-spacing:-.012em;margin:1.6em 0 .6em}
+.md h1{font-size:1.8em;margin-top:0;padding-bottom:.32em;border-bottom:1px solid var(--line)}
+.md h2{font-size:1.38em;padding-bottom:.28em;border-bottom:1px solid var(--line-soft)}
+.md h3{font-size:1.14em}
+.md p{margin:1em 0}
+.md a{color:var(--accent);text-decoration:none;border-bottom:1px solid var(--accent-line)}
+.md code{font-family:var(--mono);font-size:.86em;background:var(--md-code-inline,#1C2429);color:var(--accent);padding:.15em .4em;border-radius:var(--radius-badge)}
+.md pre{background:var(--md-code-bg,#0A0D0F);border:1px solid var(--line);border-radius:var(--radius-card);padding:13px 16px;overflow-x:auto;font-size:13px;line-height:1.65}
+.md pre code{background:transparent;color:var(--md-ink,var(--ink));padding:0}
+.md blockquote{margin:1.2em 0;padding:.2em 0 .2em 1.1em;border-left:3px solid var(--accent-line);color:var(--dim)}
+.md table{border-collapse:collapse;width:100%;display:block;overflow-x:auto;font-size:13.5px}
+.md th,.md td{padding:8px 12px;border:1px solid var(--line);text-align:left}
+.md img{max-width:100%;border-radius:var(--radius-control);border:1px solid var(--line)}
+.md ul,.md ol{padding-left:1.5em}
+.md hr{border:0;height:1px;background:var(--line)}
+
+/* ── 预览增强：图表 / 提示 / mermaid ──
+   扩展样式（告示、提示框、选项卡、代码组、剧透、目录、公式、卡片）都在站点那份
+   p/docs-md.css 里，这里只补三样东西：
+     1. 文档站没有的图表容器（ECharts 服务端 SVG、mermaid 占位）；
+     2. 「这段画不出来」的提示块；
+     3. 预览头部的增强状态条。 */
+
+/* 图表容器：ECharts 出的 SVG 是定宽的，这里让它随栏宽缩放 */
+#preview .md-chart{
+  margin:1.4em 0;
+  padding:10px 12px;
+  border:1px solid var(--line);
+  border-radius:var(--radius-card);
+  background:var(--panel);
+  overflow-x:auto;
+  scrollbar-width:thin;scrollbar-color:var(--line) transparent;
+}
+#preview .md-chart svg{display:block;margin:0 auto;max-width:100%;height:auto}
+#preview .md-chart-bad{border-color:var(--danger)}
+
+/* mermaid：浏览器端画之前先按源码显示，画完就是一块居中的 SVG */
+#preview .md-mermaid{
+  margin:1.4em 0;padding:8px;
+  border:1px solid var(--line-soft);border-radius:var(--radius-card);
+  background:var(--panel);
+  text-align:center;overflow-x:auto;
+  scrollbar-width:thin;scrollbar-color:var(--line) transparent;
+}
+#preview .md-mermaid svg{max-width:100%;height:auto}
+#preview .md-mermaid:not([data-processed]){
+  font-family:var(--mono);font-size:12px;color:var(--faint);text-align:left;white-space:pre-wrap;
+}
+#preview .md-mermaid-bad{color:var(--danger);border-color:var(--danger);text-align:left}
+
+/* 「这段没渲染」提示：跟正文区分开，但不抢眼 */
+#preview .md-ext-note{
+  margin:.9em 0 0;padding:8px 12px;
+  border-left:3px solid var(--warn);
+  border-radius:0 var(--radius-control) var(--radius-control) 0;
+  background:color-mix(in srgb,var(--warn) 10%,transparent);
+  font-size:12px;line-height:1.6;color:var(--dim);
+}
+#preview .md-ext-note strong{color:var(--warn)}
+#preview .md-ext-note code{background:transparent;color:inherit;font-size:.95em;padding:0}
+#preview .md-chart + .md-ext-note,
+#preview pre + .md-ext-note{margin-top:.5em}
+
+/* 预览头部的增强状态条：一行小字，悬停看全部细节 */
+.pv-extras{
+  flex:1;min-width:0;
+  margin:0 10px;
+  font-family:var(--mono);font-size:10.5px;
+  color:var(--faint);
+  text-align:right;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.pv-extras.is-partial{color:var(--warn)}
+
+/* 「这篇有画不出来的语法」提示条 */
+.pv-hint{
+  flex:none;
+  padding:8px 16px;
+  border-bottom:1px solid var(--line-soft);
+  background:color-mix(in srgb,var(--warn) 9%,transparent);
+}
+.pv-hint-line{margin:0;font-size:11.5px;line-height:1.6;color:var(--dim)}
+.pv-hint-line + .pv-hint-line{margin-top:3px}
 
 /* ═══════════ 统计 ═══════════ */
 .stats{
@@ -635,6 +717,38 @@ html[data-theme="light"] .hl .t-tag{color:#E45649}
 .hist-row{display:flex;align-items:center;gap:10px;font-size:11.5px;color:var(--dim)}
 .hist-row .mono{color:var(--faint);font-size:11px}
 
+/* ── 部署面板：让面板自己滚，日志在卡片里滚 ──
+   面板是「满屏高度的 flex 列」，而 body 是 overflow:hidden。
+   之前 job 卡片和下面两块都默认可收缩（flex-shrink:1）：
+   作业列表一长，它们就被压扁、内容溢出画到邻居身上 ——
+   看起来就是「最近的作业」糊在日志上，而整页又滚不动。
+   现在：面板自己滚、子块一律不收缩，日志卡片给个下限高度。 */
+#panel-deploy{overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+#panel-deploy > *{flex:none}
+/* 卡片给个确定高度：日志在框里自己滚，不会把卡片撑成几万像素的长条，
+   也不会把下面的「最近的作业」顶到看不见的地方。
+   高度够时 flex-grow 还是会把它拉满，所以大屏不浪费。 */
+#panel-deploy .job{flex:1 0 auto;height:clamp(300px,52vh,560px)}
+
+/* 可折叠块（部署面板的「最近的作业」）：原生 details，键盘和读屏都白拿 */
+.fold{border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--panel);overflow:hidden}
+.fold > summary{
+  display:flex;align-items:center;gap:8px;cursor:pointer;list-style:none;
+  padding:9px 12px;font-size:12.5px;font-weight:600;color:var(--dim);
+}
+.fold > summary::-webkit-details-marker{display:none}
+.fold > summary::before{
+  content:'';width:0;height:0;flex:none;opacity:.6;
+  border-left:5px solid currentColor;
+  border-top:4px solid transparent;border-bottom:4px solid transparent;
+  transition:transform .18s ease;
+}
+.fold[open] > summary::before{transform:rotate(90deg)}
+.fold > summary:hover{color:var(--ink);background:var(--raised)}
+.fold > summary .mono{margin-left:auto;font-weight:400;font-size:11px;color:var(--faint)}
+.fold > .hist{padding:2px 12px 10px}
+@media (prefers-reduced-motion: reduce){ .fold > summary::before{transition:none} }
+
 /* 源码编辑器（清单原文） */
 .src-wrap{display:none;flex:1;min-height:0;padding:0 18px 12px;flex-direction:column;gap:6px}
 .src-wrap.on{display:flex}
@@ -768,6 +882,7 @@ html[data-theme="light"] .hl .t-tag{color:#E45649}
 }
 .toast.bad{border-left-color:var(--danger)}
 .toast.ok{border-left-color:var(--ok)}
+.toast.warn{border-left-color:var(--warn)}
 @keyframes toast-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 
 /* ═══════════ 拖拽遮罩 ═══════════ */
@@ -836,3 +951,88 @@ html[data-theme="light"] .hl .t-tag{color:#E45649}
     corner-shape:squircle;
   }
 }
+
+/* ═══════════════════════════════════════════════════
+   预览面板（页面树）
+   ---------------------------------------------------
+   命名说明：编辑器那个 Markdown 预览是 .pv / .pv-head / .pv-scroll；
+   这里一律 .prev-*（容器）和 .pv-*（树里的行/按钮），前缀不同不打架。
+
+   树是「本地工具里的清单」，不是导航菜单：
+   信息密度优先 —— 行高紧凑、路径用等宽、只靠缩进和一条竖线表达从属关系。
+   ═══════════════════════════════════════════════════ */
+
+.prev-wrap{flex:1;min-height:0;display:flex;gap:12px;padding:0 18px 18px}
+.prev-tree{
+  flex:1;min-width:0;overflow:auto;scrollbar-width:thin;scrollbar-color:var(--line) transparent;
+  padding:8px;border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--panel);
+}
+.prev-side{flex:none;width:264px;display:flex;flex-direction:column;gap:12px;overflow:auto;
+  scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+.prev-card{padding:12px 14px;border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--panel)}
+.prev-card h2{margin:0 0 9px;font-size:12px;font-weight:600;color:var(--dim);letter-spacing:.02em}
+.prev-actions{display:flex;gap:6px;margin-top:11px;flex-wrap:wrap}
+.prev-card .hint{margin:10px 0 0;font-size:11px;line-height:1.6;color:var(--faint)}
+
+.pv-state{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;font-size:11px;color:var(--dim);
+  border:1px solid var(--line);border-radius:var(--radius-badge);background:var(--raised);max-width:340px}
+.pv-state #pvStateText{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.pv-group{display:block}
+.pv-row{
+  display:flex;align-items:center;gap:4px;
+  padding:1px 6px 1px calc(4px + var(--depth,0) * 15px);
+  border-radius:var(--radius-sm);
+}
+.pv-row:hover{background:color-mix(in srgb,var(--ink) 5%,transparent)}
+.pv-row.is-missing .pv-name{color:var(--danger)}
+.pv-row.is-ignored .pv-name{color:var(--faint)}
+
+.pv-toggle{
+  flex:none;width:18px;height:18px;display:grid;place-items:center;padding:0;
+  border:0;border-radius:var(--radius-sm);background:transparent;color:var(--faint);cursor:pointer;
+  transition:transform .16s var(--ease),color .16s var(--ease);
+}
+.pv-toggle svg{width:12px;height:12px}
+.pv-toggle.open{transform:rotate(90deg)}
+.pv-toggle:hover{color:var(--ink);background:color-mix(in srgb,var(--ink) 8%,transparent)}
+
+.pv-bullet{flex:none;width:18px;height:18px;position:relative}
+.pv-bullet::before{
+  content:'';position:absolute;left:50%;top:50%;width:4px;height:4px;margin:-2px 0 0 -2px;
+  border-radius:var(--radius-pill);background:var(--line);
+}
+.pv-row:hover .pv-bullet::before{background:var(--accent)}
+
+.pv-title{
+  flex:1;min-width:0;display:flex;align-items:baseline;gap:8px;
+  padding:4px 6px;border:0;border-radius:var(--radius-sm);background:transparent;color:inherit;
+  font:inherit;text-align:left;text-decoration:none;cursor:pointer;
+}
+.pv-title:hover{color:var(--accent)}
+.pv-title.is-group{font-weight:620;color:var(--ink)}
+.pv-title.is-group:hover{color:var(--accent)}
+.pv-name{flex:none;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 别用 direction:rtl 去截前面 —— 开头的 `/` 会被排到结尾去（试过，很难看）。
+   从尾巴截就好，完整路径挂在 title 上。 */
+.pv-path{flex:1;min-width:0;font-family:var(--mono);font-size:10.5px;font-style:normal;color:var(--faint);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+.pv-note{flex:none;font-size:10.5px;font-style:normal;color:var(--faint)}
+.pv-note.bad{color:var(--danger)}
+
+.pv-acts{flex:none;display:flex;gap:4px;opacity:0;transition:opacity .14s var(--ease)}
+.pv-row:hover .pv-acts,.pv-row:focus-within .pv-acts{opacity:1}
+.pv-act{
+  padding:2px 7px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--raised);
+  color:var(--faint);font-size:10.5px;cursor:pointer;
+}
+.pv-act:hover{color:var(--ink);border-color:var(--dim)}
+
+@media (max-width:1100px){
+  .prev-wrap{flex-direction:column}
+  .prev-side{width:auto;flex-direction:row;flex-wrap:wrap}
+  .prev-card{flex:1;min-width:240px}
+}
+
+/* 树的列表容器：空提示是它的兄弟节点，不是它的孩子（见 app.js 的 pvRender） */
+.pv-list{display:block}

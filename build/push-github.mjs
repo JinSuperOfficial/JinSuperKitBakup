@@ -102,9 +102,22 @@ if (ensureCommitIdentity()) log('设置了仓库级提交身份（不影响全�
 
 /* ── 2. 暂存 ── */
 console.log('\n[2/4] 暂存改动');
-const add = git(['add', '-A']);
+
+/* git add 要挨个哈希 dist 里七百多个文件，偶尔会踩到文件系统层的抖动：
+   Windows 通过 UNC（\\wsl.localhost\...）访问 WSL 里的项目时，会冒出一句
+   `error: open("asset/homework/xxx.jpg"): No such file or directory` ——
+   文件其实好好在着，重跑一次就过去了。所以这里重试，别让一次抖动打断整条发布。
+   （重试时把输出压住，只有真失败了才把最后一份原样打出来。） */
+const ADD_TRIES = 3;
+let add = git(['add', '-A']);
+for (let n = 2; n <= ADD_TRIES && add.status !== 0; n++) {
+  log(`git add 失败了，第 ${n}/${ADD_TRIES} 次重试…`);
+  add = git(['add', '-A']);
+}
 if (add.status !== 0) {
-  console.error('git add 失败：' + (add.stderr || add.stdout));
+  console.error('git add 失败（试了 ' + ADD_TRIES + ' 次）：' + (add.stderr || add.stdout));
+  console.error('  上面如果是 open(...): No such file or directory，多半只是文件系统抖动；');
+  console.error('  文件真不在就重跑一次组装：npm run deploy:prep');
   process.exit(1);
 }
 

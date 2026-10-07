@@ -1,6 +1,698 @@
 {
   "jobs": [
     {
+      "id": "2026-10-06T1441-6fuh",
+      "label": "一键部署（构建 → 自检 → 组装 → 热铁盒 → GitHub）",
+      "pipeline": "full",
+      "flags": {
+        "noBuild": false,
+        "noCheck": true,
+        "noGh": false
+      },
+      "state": "done",
+      "startedAt": 1791297682072,
+      "endedAt": 1791297938554,
+      "ms": 256061,
+      "exitCode": 0,
+      "ok": true,
+      "steps": [
+        {
+          "id": "build",
+          "label": "构建（docs.html / docs-md.js / docs-md.css / 字体）",
+          "soft": false,
+          "state": "ok",
+          "ms": 10195,
+          "code": 0
+        },
+        {
+          "id": "prep",
+          "label": "组装 dist/",
+          "soft": false,
+          "state": "ok",
+          "ms": 16787,
+          "code": 0
+        },
+        {
+          "id": "rth",
+          "label": "传热铁盒（rth-sites.json 里的每个站点）",
+          "soft": false,
+          "state": "ok",
+          "ms": 202947,
+          "code": 0
+        },
+        {
+          "id": "gh",
+          "label": "推 GitHub Pages",
+          "soft": false,
+          "state": "ok",
+          "ms": 26111,
+          "code": 0
+        }
+      ],
+      "error": null,
+      "mode": "pipe",
+      "pid": 6604,
+      "logFile": "\\\\wsl.localhost\\Ubuntu-26.04\\home\\jinsuper\\project\\node\\console\\logs\\2026-10-06T1441-6fuh.log",
+      "logBytes": 76614,
+      "domains": [
+        "jinsuper.rth1.xyz",
+        "jinsuper.cn",
+        "www.jinsuper.cn"
+      ],
+      "changed": [
+        "p/docs.html",
+        "p/archive/idea/枣香童年.html",
+        "docs/info/site-index.js",
+        "sk.json"
+      ]
+    },
+    {
+      "id": "2026-10-06T1434-9j3m",
+      "label": "推 GitHub Pages",
+      "pipeline": "gh",
+      "flags": {
+        "noBuild": false,
+        "noCheck": false,
+        "noGh": false
+      },
+      "state": "failed",
+      "startedAt": 1791297259147,
+      "endedAt": 1791297268999,
+      "ms": 9471,
+      "exitCode": 1,
+      "ok": false,
+      "steps": [
+        {
+          "id": "gh",
+          "label": "推 GitHub Pages",
+          "soft": false,
+          "state": "fail",
+          "ms": 9454,
+          "code": 1
+        }
+      ],
+      "error": null,
+      "mode": "pipe",
+      "pid": 16444,
+      "logFile": "\\\\wsl.localhost\\Ubuntu-26.04\\home\\jinsuper\\project\\node\\console\\logs\\2026-10-06T1434-9j3m.log",
+      "logBytes": 2387,
+      "domains": [
+        "jinsuper.rth1.xyz",
+        "jinsuper.cn",
+        "www.jinsuper.cn"
+      ],
+      "changed": [
+        "p/docs-md.js",
+        "p/docs.html",
+        "p/idea/枣香童年.md",
+        "p/archive/idea/1.归途且慢.html",
+        "p/para/1SetUp.md",
+        "docs/info/site-index.js",
+        "sk.json"
+      ]
+    },
+    {
+      "id": "2026-10-06T1407-4mzv",
+      "label": "一键部署（构建 → 自检 → 组装 → 热铁盒 → GitHub）",
+      "pipeline": "full",
+      "flags": {
+        "noBuild": false,
+        "noCheck": false,
+        "noGh": false
+      },
+      "state": "failed",
+      "startedAt": 1791295651322,
+      "endedAt": 1791296059489,
+      "ms": 407647,
+      "exitCode": 1,
+      "ok": false,
+      "steps": [
+        {
+          "id": "build",
+          "label": "构建（docs.html / docs-md.js / docs-md.css / 字体）",
+          "soft": false,
+          "state": "ok",
+          "ms": 11743,
+          "code": 0
+        },
+        {
+          "id": "check-manifests",
+          "label": "自检 · 清单与生成物",
+          "soft": false,
+          "state": "ok",
+          "ms": 1574,
+          "code": 0
+        },
+        {
+          "id": "check-manifest-render",
+          "label": "自检 · 卡片渲染",
+          "soft": false,
+          "state": "ok",
+          "ms": 66623,
+          "code": 0
+        },
+        {
+          "id": "check-function",
+          "label": "自检 · Plot 图像计算器",
+          "soft": false,
+          "state": "ok",
+          "ms": 71714,
+          "code": 0
+        },
+        {
+          "id": "check-render",
+          "label": "自检 · 渲染语法",
+          "soft": false,
+          "state": "ok",
+          "ms": 4889,
+          "code": 0
+        },
+        {
+          "id": "check-artifacts",
+          "label": "自检 · 产物结构",
+          "soft": false,
+          "state": "ok",
+          "ms": 738,
+          "code": 0
+        },
+        {
+          "id": "prep",
+          "label": "组装 dist/",
+          "soft": false,
+          "state": "ok",
+          "ms": 19639,
+          "code": 0
+        },
+        {
+          "id": "rth",
+          "label": "传热铁盒（rth-sites.json 里的每个站点）",
+          "soft": false,
+          "state": "ok",
+          "ms": 229042,
+          "code": 0
+        },
+        {
+          "id": "gh",
+          "label": "推 GitHub Pages",
+          "soft": false,
+          "state": "fail",
+          "ms": 1664,
+          "code": 1
+        }
+      ],
+      "error": null,
+      "mode": "pipe",
+      "pid": 8348,
+      "logFile": "\\\\wsl.localhost\\Ubuntu-26.04\\home\\jinsuper\\project\\node\\console\\logs\\2026-10-06T1407-4mzv.log",
+      "logBytes": 95468,
+      "domains": [
+        "jinsuper.rth1.xyz",
+        "jinsuper.cn",
+        "www.jinsuper.cn"
+      ],
+      "changed": [
+        "p/docs-md.js",
+        "p/docs.html",
+        "p/idea/枣香童年.md",
+        "p/archive/idea/1.归途且慢.html",
+        "p/para/1SetUp.md",
+        "docs/info/site-index.js",
+        "sk.json"
+      ]
+    },
+    {
+      "id": "2026-10-06T1350-b4ob",
+      "label": "一键部署（构建 → 自检 → 组装 → 热铁盒 → GitHub）",
+      "pipeline": "full",
+      "flags": {
+        "noBuild": false,
+        "noCheck": true,
+        "noGh": false
+      },
+      "state": "failed",
+      "startedAt": 1791294603388,
+      "endedAt": 1791294652148,
+      "ms": 48042,
+      "exitCode": 1,
+      "ok": false,
+      "steps": [
+        {
+          "id": "build",
+          "label": "构建（docs.html / docs-md.js / docs-md.css / 字体）",
+          "soft": false,
+          "state": "ok",
+          "ms": 11670,
+          "code": 0
+        },
+        {
+          "id": "prep",
+          "label": "组装 dist/",
+          "soft": false,
+          "state": "ok",
+          "ms": 17579,
+          "code": 0
+        },
+        {
+          "id": "rth",
+          "label": "传热铁盒（rth-sites.json 里的每个站点）",
+          "soft": false,
+          "state": "fail",
+          "ms": 18775,
+          "code": 1
+        },
+        {
+          "id": "gh",
+          "label": "推 GitHub Pages",
+          "soft": false,
+          "state": "skipped",
+          "ms": 0
+        }
+      ],
+      "error": null,
+      "mode": "pipe",
+      "pid": 3188,
+      "logFile": "\\\\wsl.localhost\\Ubuntu-26.04\\home\\jinsuper\\project\\node\\console\\logs\\2026-10-06T1350-b4ob.log",
+      "logBytes": 4627,
+      "domains": [
+        "jinsuper.rth1.xyz",
+        "jinsuper.cn",
+        "www.jinsuper.cn"
+      ],
+      "changed": [
+        "p/docs-md.js",
+        "p/docs.html",
+        "p/idea/枣香童年.md",
+        "p/archive/idea/1.归途且慢.html",
+        "p/para/1SetUp.md",
+        "docs/info/site-index.js",
+        "sk.json"
+      ]
+    },
+    {
+      "id": "2026-10-06T0254-zbqh",
+      "label": "推 GitHub Pages",
+      "pipeline": "gh",
+      "flags": {
+        "noBuild": false,
+        "noCheck": true,
+        "noGh": false
+      },
+      "state": "done",
+      "startedAt": 1791255298070,
+      "endedAt": 1791255307593,
+      "ms": 8720,
+      "exitCode": 0,
+      "ok": true,
+      "steps": [
+        {
+          "id": "gh",
+          "label": "推 GitHub Pages",
+          "soft": false,
+          "state": "ok",
+          "ms": 8709,
+          "code": 0
+        }
+      ],
+      "error": null,
+      "mode": "pipe",
+      "pid": 53886,
+      "logFile": "/home/jinsuper/project/node/console/logs/2026-10-06T0254-zbqh.log",
+      "logBytes": 604,
+      "domains": [
+        "jinsuper.rth1.xyz",
+        "jinsuper.cn",
+        "www.jinsuper.cn"
+      ],
+      "changed": [
+        "811/homework.html",
+        "asset/homework/bg_botanical.jpg",
+        "asset/homework/bg_grid.jpg",
+        "asset/homework/bg_ink.jpg",
+        "asset/homework/bg_map.jpg",
+        "asset/homework/chinese.jpg",
+        "asset/homework/egg_background.jpg",
+        "asset/homework/english.jpg",
+        "asset/homework/math.jpg",
+        "asset/homework/science.jpg",
+        "asset/homework/social.jpg",
+        "docs/info/site-index.js"
+      ]
+    },
+    {
+      "id": "2026-10-06T0225-10ao",
+      "label": "一键部署（构建 → 自检 → 组装 → 热铁盒 → GitHub）",
+      "pipeline": "full",
+      "flags": {
+        "noBuild": false,
+        "noCheck": true,
+        "noGh": false
+      },
+      "state": "failed",
+      "startedAt": 1791253529027,
+      "endedAt": 1791254988185,
+      "ms": 1458780,
+      "exitCode": 1,
+      "ok": false,
+      "steps": [
+        {
+          "id": "build",
+          "label": "构建（docs.html / docs-md.js / docs-md.css / 字体）",
+          "soft": false,
+          "state": "ok",
+          "ms": 1258,
+          "code": 0
+        },
+        {
+          "id": "prep",
+          "label": "组装 dist/",
+          "soft": false,
+          "state": "ok",
+          "ms": 2389,
+          "code": 0
+        },
+        {
+          "id": "rth",
+          "label": "传热铁盒（rth-sites.json 里的每个站点）",
+          "soft": false,
+          "state": "ok",
+          "ms": 38204,
+          "code": 0
+        },
+        {
+          "id": "gh",
+          "label": "推 GitHub Pages",
+          "soft": false,
+          "state": "fail",
+          "ms": 1416917,
+          "code": 1
+        }
+      ],
+      "error": null,
+      "mode": "pipe",
+      "pid": 53490,
+      "logFile": "/home/jinsuper/project/node/console/logs/2026-10-06T0225-10ao.log",
+      "logBytes": 76733,
+      "domains": [
+        "jinsuper.rth1.xyz",
+        "jinsuper.cn",
+        "www.jinsuper.cn"
+      ],
+      "changed": [
+        "811/homework.html",
+        "asset/homework/bg_botanical.jpg",
+        "asset/homework/bg_grid.jpg",
+        "asset/homework/bg_ink.jpg",
+        "asset/homework/bg_map.jpg",
+        "asset/homework/chinese.jpg",
+        "asset/homework/egg_background.jpg",
+        "asset/homework/english.jpg",
+        "asset/homework/math.jpg",
+        "asset/homework/science.jpg",
+        "asset/homework/social.jpg",
+        "docs/info/site-index.js"
+      ]
+    },
+    {
+      "id": "2026-10-06T0214-ppij",
+      "label": "一键部署（构建 → 自检 → 组装 → 热铁盒 → GitHub）",
+      "pipeline": "full",
+      "flags": {
+        "noBuild": false,
+        "noCheck": true,
+        "noGh": false
+      },
+      "state": "failed",
+      "startedAt": 1791252889068,
+      "endedAt": 1791252936996,
+      "ms": 46567,
+      "exitCode": 1,
+      "ok": false,
+      "steps": [
+        {
+          "id": "build",
+          "label": "构建（docs.html / docs-md.js / docs-md.css / 字体）",
+          "soft": false,
+          "state": "ok",
+          "ms": 5390,
+          "code": 0
+        },
+        {
+          "id": "prep",
+          "label": "组装 dist/",
+          "soft": false,
+          "state": "ok",
+          "ms": 7059,
+          "code": 0
+        },
+        {
+          "id": "rth",
+          "label": "传热铁盒（rth-sites.json 里的每个站点）",
+          "soft": false,
+          "state": "fail",
+          "ms": 34070,
+          "code": 1
+        },
+        {
+          "id": "gh",
+          "label": "推 GitHub Pages",
+          "soft": false,
+          "state": "skipped",
+          "ms": 0
+        }
+      ],
+      "error": null,
+      "mode": "pipe",
+      "pid": 52588,
+      "logFile": "/home/jinsuper/project/node/console/logs/2026-10-06T0214-ppij.log",
+      "logBytes": 8108,
+      "domains": [
+        "jinsuper.rth1.xyz",
+        "jinsuper.cn",
+        "www.jinsuper.cn"
+      ],
+      "changed": [
+        "811/homework.html",
+        "asset/homework/bg_botanical.jpg",
+        "asset/homework/bg_grid.jpg",
+        "asset/homework/bg_ink.jpg",
+        "asset/homework/bg_map.jpg",
+        "asset/homework/chinese.jpg",
+        "asset/homework/egg_background.jpg",
+        "asset/homework/english.jpg",
+        "asset/homework/math.jpg",
+        "asset/homework/science.jpg",
+        "asset/homework/social.jpg",
+        "docs/info/site-index.js"
+      ]
+    },
+    {
+      "id": "2026-10-06T0214-fu3o",
+      "label": "一键部署（构建 → 自检 → 组装 → 热铁盒 → GitHub）",
+      "pipeline": "full",
+      "flags": {
+        "noBuild": false,
+        "noCheck": false,
+        "noGh": false
+      },
+      "state": "failed",
+      "startedAt": 1791252855207,
+      "endedAt": 1791252879967,
+      "ms": 23329,
+      "exitCode": 1,
+      "ok": false,
+      "steps": [
+        {
+          "id": "build",
+          "label": "构建（docs.html / docs-md.js / docs-md.css / 字体）",
+          "soft": false,
+          "state": "ok",
+          "ms": 5587,
+          "code": 0
+        },
+        {
+          "id": "check-manifests",
+          "label": "自检 · 清单与生成物",
+          "soft": false,
+          "state": "ok",
+          "ms": 1603,
+          "code": 0
+        },
+        {
+          "id": "check-manifest-render",
+          "label": "自检 · 卡片渲染",
+          "soft": false,
+          "state": "fail",
+          "ms": 16103,
+          "code": 1
+        },
+        {
+          "id": "check-function",
+          "label": "自检 · Plot 图像计算器",
+          "soft": false,
+          "state": "skipped",
+          "ms": 0
+        },
+        {
+          "id": "check-render",
+          "label": "自检 · 渲染语法",
+          "soft": false,
+          "state": "skipped",
+          "ms": 0
+        },
+        {
+          "id": "check-artifacts",
+          "label": "自检 · 产物结构",
+          "soft": false,
+          "state": "skipped",
+          "ms": 0
+        },
+        {
+          "id": "prep",
+          "label": "组装 dist/",
+          "soft": false,
+          "state": "skipped",
+          "ms": 0
+        },
+        {
+          "id": "rth",
+          "label": "传热铁盒（rth-sites.json 里的每个站点）",
+          "soft": false,
+          "state": "skipped",
+          "ms": 0
+        },
+        {
+          "id": "gh",
+          "label": "推 GitHub Pages",
+          "soft": false,
+          "state": "skipped",
+          "ms": 0
+        }
+      ],
+      "error": null,
+      "mode": "pipe",
+      "pid": 52547,
+      "logFile": "/home/jinsuper/project/node/console/logs/2026-10-06T0214-fu3o.log",
+      "logBytes": 4089,
+      "domains": [
+        "jinsuper.rth1.xyz",
+        "jinsuper.cn",
+        "www.jinsuper.cn"
+      ],
+      "changed": [
+        "Skills/skills.json",
+        "Skills/tools/tiermaker.html",
+        "811/function.html",
+        "docs/info/site-index.js",
+        "sitemap.xml"
+      ]
+    },
+    {
+      "id": "2026-10-05T1307-zylf",
+      "label": "一键部署（构建 → 自检 → 组装 → 热铁盒 → GitHub）",
+      "pipeline": "full",
+      "flags": {
+        "noBuild": false,
+        "noCheck": false,
+        "noGh": false
+      },
+      "state": "failed",
+      "startedAt": 1791205624462,
+      "endedAt": 1791205807377,
+      "ms": 182515,
+      "exitCode": 1,
+      "ok": false,
+      "steps": [
+        {
+          "id": "build",
+          "label": "构建（docs.html / docs-md.js / docs-md.css / 字体）",
+          "soft": false,
+          "state": "ok",
+          "ms": 10191,
+          "code": 0
+        },
+        {
+          "id": "check-manifests",
+          "label": "自检 · 清单与生成物",
+          "soft": false,
+          "state": "ok",
+          "ms": 1125,
+          "code": 0
+        },
+        {
+          "id": "check-manifest-render",
+          "label": "自检 · 卡片渲染",
+          "soft": false,
+          "state": "ok",
+          "ms": 67170,
+          "code": 0
+        },
+        {
+          "id": "check-function",
+          "label": "自检 · Plot 图像计算器",
+          "soft": false,
+          "state": "ok",
+          "ms": 63499,
+          "code": 0
+        },
+        {
+          "id": "check-render",
+          "label": "自检 · 渲染语法",
+          "soft": false,
+          "state": "ok",
+          "ms": 3700,
+          "code": 0
+        },
+        {
+          "id": "check-artifacts",
+          "label": "自检 · 产物结构",
+          "soft": false,
+          "state": "ok",
+          "ms": 664,
+          "code": 0
+        },
+        {
+          "id": "prep",
+          "label": "组装 dist/",
+          "soft": false,
+          "state": "ok",
+          "ms": 17792,
+          "code": 0
+        },
+        {
+          "id": "rth",
+          "label": "传热铁盒（rth-sites.json 里的每个站点）",
+          "soft": false,
+          "state": "fail",
+          "ms": 18357,
+          "code": 1
+        },
+        {
+          "id": "gh",
+          "label": "推 GitHub Pages",
+          "soft": false,
+          "state": "skipped",
+          "ms": 0
+        }
+      ],
+      "error": null,
+      "mode": "pipe",
+      "pid": 18240,
+      "logFile": "\\\\wsl.localhost\\Ubuntu-26.04\\home\\jinsuper\\project\\node\\console\\logs\\2026-10-05T1307-zylf.log",
+      "logBytes": 22914,
+      "domains": [
+        "jinsuper.rth1.xyz",
+        "jinsuper.cn",
+        "www.jinsuper.cn"
+      ],
+      "changed": [
+        "Skills/skills.json",
+        "Skills/tools/tiermaker.html",
+        "811/function.html",
+        "docs/info/site-index.js",
+        "sitemap.xml"
+      ]
+    },
+    {
       "id": "2026-10-03T0555-iucz",
       "label": "一键部署（构建 → 自检 → 组装 → 热铁盒 → GitHub）",
       "pipeline": "full",

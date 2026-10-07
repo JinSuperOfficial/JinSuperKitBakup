@@ -12,15 +12,21 @@
  *   · 不用任何外部依赖，也不 spawn 子进程（这个环境里管道受限）。
  *
  * 跑法：node console/server.mjs [--port 8791] [--no-open]
- *   或者直接双击项目根的 控制台.cmd
+ *   或者直接双击项目根的 控制台.cmd / 跑 ./控制台.sh
+ *
+ * headless 预览服务（只供站点根，不要界面）：
+ *   node console/server.mjs server [--port 8790] [--no-open]
+ *   即 ./控制台.sh server
  */
 import http from 'node:http';
-import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { consoleDir, isDir, isFile, siteRoot, webDir, workspaceRoot } from './lib/paths.mjs';
+import { consoleDir, isFile, siteRoot, webDir, workspaceRoot } from './lib/paths.mjs';
+import { resolveStatic as resolveStaticIn, sendFile, sendJson } from './lib/http-static.mjs';
+import { mermaidClientFile } from './lib/md-extras.mjs';
 import * as api from './lib/api.mjs';
+import * as preview from './lib/preview.mjs';
 
 /* ── 参数 ── */
 const argv = process.argv.slice(2);
@@ -31,6 +37,8 @@ const argOf = (name, dflt) => {
 const PORT = Number(argOf('--port', process.env.CONSOLE_PORT || 8791));
 const HOST = '127.0.0.1';
 const OPEN = !argv.includes('--no-open');
+/* 不带子命令就是控制台本体；`server` 是 headless 的预览服务 */
+const COMMAND = argv[0] && !argv[0].startsWith('-') ? argv[0] : '';
 
 /* ── 路由表 ── */
 const ROUTES = {
@@ -64,50 +72,22 @@ const ROUTES = {
   'POST /api/article/delete': (q, b) => api.postArticleDelete(b),
   'POST /api/archive': (q, b) => api.postArchive(b),
   'POST /api/archive/rebuild': (q, b) => api.postArchiveRebuild(b),
+  'POST /api/archive/reshell': (q, b) => api.postArchiveReshell(b),
   'POST /api/archive/rollback': (q, b) => api.postArchiveRollback(b),
   'POST /api/unarchive': (q, b) => api.postUnarchive(b),
   'POST /api/queue': (q, b) => api.postQueuePreview(b),
   'POST /api/publish-drop': (q, b) => api.postPublishDrop(b),
   'POST /api/preview': (q, b) => api.postPreview(b),
+  /* 预览面板：页面树 + 预览服务（起/停/看状态） */
+  'GET /api/pages': (q) => api.getPages(q),
+  'GET /api/preview/status': () => api.getPreviewStatus(),
+  'POST /api/preview/start': (q, b) => api.postPreviewStart(b),
+  'POST /api/preview/stop': () => api.postPreviewStop(),
 };
 
-/* ── 静态资源类型 ── */
-const TYPES = {
-  '.html': 'text/html; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.mjs': 'text/javascript; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
-  '.svg': 'image/svg+xml',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.gif': 'image/gif',
-  '.webp': 'image/webp',
-  '.avif': 'image/avif',
-  '.ico': 'image/x-icon',
-  '.pdf': 'application/pdf',
-  '.woff2': 'font/woff2',
-  '.woff': 'font/woff',
-  '.mp3': 'audio/mpeg',
-  '.m4a': 'audio/mp4',
-  '.wav': 'audio/wav',
-  '.ogg': 'audio/ogg',
-  '.mp4': 'video/mp4',
-  '.webm': 'video/webm',
-  '.md': 'text/markdown; charset=utf-8',
-  '.txt': 'text/plain; charset=utf-8',
-};
-
-function sendJson(res, status, payload) {
-  const body = JSON.stringify(payload);
-  res.writeHead(status, {
-    'Content-Type': 'application/json; charset=utf-8',
-    'Cache-Control': 'no-store',
-    'Content-Length': Buffer.byteLength(body),
-  });
-  res.end(body);
-}
+/* ── 静态资源类型 ──
+   MIME 表 / 越界判断 / Range 流都在 lib/http-static.mjs：
+   预览服务（另一个端口）用的是同一套，不重复实现。 */
 
 function readBody(req, limit = 64 * 1024 * 1024) {
   return new Promise((resolve, reject) => {
@@ -134,60 +114,10 @@ const STATIC_ROOTS = [webDir, siteRoot];
 
 /**
  * 解析静态路径：先 console/web/，再站点根。
- * 越界判断用「解析后的文本路径是否以根目录为前缀」，
- * 而不是把 `..` 归一后再说 —— `/%2e%2e/sk.json` 解码后是 `/../sk.json`，
- * path.resolve 会老实爬到上级目录，必须在这里挡住。
+ * 越界判断和 Range 流在 lib/http-static.mjs（预览服务共用同一份）。
  */
 function resolveStatic(urlPath) {
-  const rel = String(urlPath).replace(/^[/\\]+/, '');
-  for (const root of STATIC_ROOTS) {
-    const cand = path.resolve(root, rel);
-    const r = path.resolve(root);
-    if (cand !== r && !cand.startsWith(r + path.sep)) continue;   /* 爬到根外面了 */
-    if (isFile(cand)) return { file: cand, root };
-  }
-  return null;
-}
-
-/**
- * 带 Range 的文件流（音频/视频拖动进度要用）。
- * 浏览器原生 <audio> 就是靠这个 seek 的 —— 所以控制台不需要任何音频 API。
- */
-function sendFile(req, res, file) {
-  const stat = fs.statSync(file);
-  const ext = path.extname(file).toLowerCase();
-  const type = TYPES[ext] || 'application/octet-stream';
-  const range = req.headers.range;
-
-  if (range) {
-    const m = /bytes=(\d*)-(\d*)/.exec(range);
-    if (m) {
-      const start = m[1] ? parseInt(m[1], 10) : 0;
-      const end = m[2] ? parseInt(m[2], 10) : stat.size - 1;
-      if (start >= stat.size || end >= stat.size || start > end) {
-        res.writeHead(416, { 'Content-Range': `bytes */${stat.size}` });
-        res.end();
-        return;
-      }
-      res.writeHead(206, {
-        'Content-Type': type,
-        'Content-Range': `bytes ${start}-${end}/${stat.size}`,
-        'Accept-Ranges': 'bytes',
-        'Content-Length': end - start + 1,
-        'Cache-Control': 'no-store',
-      });
-      fs.createReadStream(file, { start, end }).pipe(res);
-      return;
-    }
-  }
-
-  res.writeHead(200, {
-    'Content-Type': type,
-    'Content-Length': stat.size,
-    'Accept-Ranges': 'bytes',
-    'Cache-Control': 'no-store',
-  });
-  fs.createReadStream(file).pipe(res);
+  return resolveStaticIn(urlPath, STATIC_ROOTS);
 }
 
 /* ── 请求分发 ── */
@@ -223,6 +153,17 @@ const server = http.createServer(async (req, res) => {
         backup: e && e.backup ? path.basename(e.backup) : undefined,
       });
     }
+    return;
+  }
+
+  /* 预览里的第三方运行时：mermaid 的浏览器包。
+     它是 build/node_modules 里的本地文件（不走任何 CDN），装了就有；
+     没装就 404 加一句人话 —— 前端据此在预览里给提示，不静默少东西。 */
+  if (urlPath === '/vendor/mermaid.min.js') {
+    const f = mermaidClientFile();
+    if (f) { sendFile(req, res, f); return; }
+    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('没装 mermaid（预览里 mermaid 围栏不会渲染）。\n在 build/ 里跑：npm i mermaid\n');
     return;
   }
 
@@ -280,6 +221,8 @@ export function listen(port = PORT, host = HOST, { open = OPEN, quiet = false } 
       console.log('  工作空间  ' + workspaceRoot);
       console.log('  站点      ' + siteRoot);
       console.log('  控制台    ' + consoleDir + '   （不会进 dist，也不会被上传）');
+      const pv = preview.previewStatus();
+      if (pv.running) console.log('  预览服务  ' + pv.url + '   （只服务站点根）');
       console.log('');
       console.log('  按 Ctrl+C 停掉。');
       console.log('');
@@ -357,7 +300,65 @@ async function main() {
   }
 }
 
-if (isMain) main();
+/**
+ * `node console/server.mjs server` —— headless 预览服务
+ * ---------------------------------------------------
+ * 只要一个「把站点根按线上路径供出来」的静态服务，不要控制台界面。
+ * 给脚本、别的机器、或者单纯想省一个窗口的时候用：
+ *   ./控制台.sh server              默认端口（设置里的 previewPort，8790）
+ *   ./控制台.sh server --port 8793  换端口
+ *   ./控制台.sh server --no-open    不开浏览器
+ *
+ * 端口上已经有一个预览服务（可能是控制台窗口里点的那个）就不重复起，
+ * 直接把地址指过去 —— 和 main() 处理控制台端口占用是同一个思路。
+ */
+async function serverMain() {
+  const port = Number(argOf('--port', process.env.PREVIEW_PORT || preview.DEFAULT_PORT));
+
+  const already = await preview.probePreview(port);
+  if (already) {
+    console.log('');
+    console.log(`  预览服务已经开着了：${already.url}`);
+    console.log('  （可能是控制台窗口里点开的。要另起一个：./控制台.sh server --port ' + (port + 1) + '）');
+    console.log('');
+    if (OPEN) openBrowser(already.url);
+    return;
+  }
+
+  let st;
+  try {
+    st = await preview.startPreview({ port });
+  } catch (e) {
+    console.error('\n  预览服务起不来：' + (e && e.message ? e.message : e));
+    console.error('  换个端口：./控制台.sh server --port ' + (port + 1) + '\n');
+    process.exit(2);
+  }
+
+  console.log('');
+  console.log('  预览服务已启动（headless，只服务站点根）');
+  console.log('  ' + st.url);
+  console.log('');
+  console.log('  站点根    ' + st.root);
+  console.log('  页面清单  ' + st.url + 'index.html   （控制台「预览」面板里那份树）');
+  console.log('');
+  console.log('  按 Ctrl+C 停掉。');
+  console.log('');
+
+  if (OPEN) openBrowser(st.url);
+
+  for (const sig of ['SIGINT', 'SIGTERM']) {
+    process.on(sig, () => {
+      console.log('\n  预览服务已停止。\n');
+      preview.stopPreview().then(() => process.exit(0));
+      setTimeout(() => process.exit(0), 600);
+    });
+  }
+}
+
+if (isMain) {
+  if (COMMAND === 'server') serverMain();
+  else main();
+}
 
 
 

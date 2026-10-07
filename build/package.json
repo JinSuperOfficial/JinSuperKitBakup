@@ -11,7 +11,9 @@
     "serve": "node .serve.mjs 8788"
   },
   "dependencies": {
+    "@mdit/plugin-figure": "^1.2.2",
     "@mdit/plugin-tab": "^2.0.2",
+    "echarts": "^5.5.1",
     "highlight.js": "^11.12.0",
     "katex": "^0.18.9",
     "markdown-it": "^15.0.2",
@@ -29,6 +31,9 @@
     "markdown-it-task-lists": "^2.1.1",
     "markdown-it-texmath": "^1.0.0",
     "tlds": "^1.261.0"
+  },
+  "optionalDependencies": {
+    "mermaid": "^11.12.0"
   },
   "devDependencies": {
     "htm": "^3.1.1",

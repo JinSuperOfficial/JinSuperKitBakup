@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="obsidian" data-glass="mica">
+<head>
+<meta charset="UTF-8">
+<!-- __FAVICON__ -->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- 有没有脚本，样式要区别对待（标签筛选、时间线折叠都靠它） -->
+<script>document.documentElement.classList.add('has-js');</script>
+<!-- __SEO__ -->
+<link rel="stylesheet" href="./docs-md.css?v=__VER__">
+<style>
+/* ═══════════ 主题 token：构建时从 build/template/docs.html 抠出来 ═══════════ */
+/* __THEME_CSS__ */
+
+/* 这两页的顶栏本身就是站点的栏（--bar-h），没有额外的 --nav-h */
+:root{ --nav-h:0px }
+
+*,*::before,*::after{box-sizing:border-box}
+body{
+  margin:0;
+  min-height:100dvh;
+  background:var(--bg);
+  color:var(--md-ink);
+  font-family:var(--sans);
+  font-size:var(--fs-md);
+  line-height:1.7;
+  -webkit-font-smoothing:antialiased;
+}
+a{ color:var(--accent) }
+:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; border-radius:var(--radius-xs) }
+
+/* ── 顶栏（与阅读器、文章页同一套） ── */
+.topnav{
+  position:sticky; top:0; z-index:20;
+  display:flex; align-items:center; gap:14px;
+  min-height:var(--bar-h); padding:0 20px;
+  border-bottom:1px solid var(--line);
+  background:var(--bar-bg);
+  backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat)) brightness(var(--glass-bright));
+}
+.topnav .brand{
+  display:flex; align-items:center; gap:9px;
+  color:var(--ink); text-decoration:none; font-weight:640;
+  letter-spacing:-.01em; white-space:nowrap; min-width:0;
+}
+.topnav .brand svg{ width:20px; height:20px; flex:none; color:var(--accent) }
+.topnav .nav{ margin-left:auto; display:flex; align-items:center; gap:2px; font-size:13px }
+.topnav .nav a{
+  padding:6px 10px; border-radius:var(--radius-control);
+  color:var(--dim); text-decoration:none;
+  transition:color .14s var(--ease), background .14s var(--ease);
+}
+.topnav .nav a:hover{ color:var(--ink); background:color-mix(in srgb,var(--ink) 6%,transparent) }
+.topnav .nav a.on{ color:var(--accent); background:var(--accent-soft) }
+
+.wrap{ max-width:1000px; margin:0 auto; padding:0 20px 90px }
+
+/* ── 头部 ── */
+.hero{ padding:44px 0 26px }
+.hero h1{
+  margin:0; font-size:2.1em; line-height:1.25; letter-spacing:-.02em; color:var(--ink);
+}
+.hero p{ margin:.7em 0 0; max-width:64ch; color:var(--md-dim) }
+.hero .stats{
+  margin-top:14px; display:flex; flex-wrap:wrap; gap:6px 16px;
+  font-family:var(--mono); font-size:12px; color:var(--faint);
+}
+.hero .stats b{ color:var(--accent); font-weight:640 }
+
+/* ── 区块标题 ── */
+.sec{ margin-top:38px; scroll-margin-top:calc(var(--bar-h) + 14px) }
+.sec-head{
+  display:flex; align-items:baseline; gap:10px;
+  margin:0 0 14px; padding-bottom:8px;
+  border-bottom:1px solid var(--line-soft);
+}
+.sec-head h2{ margin:0; font-size:1.05em; color:var(--ink); font-weight:640 }
+.sec-head .hint{ font-family:var(--mono); font-size:11.5px; color:var(--faint) }
+
+/* ── 最新几篇 ── */
+.cards{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px }
+.post-card{
+  position:relative;
+  display:block; padding:14px 16px;
+  border:1px solid var(--line); border-radius:var(--radius-card);
+  background:var(--panel); color:var(--ink);
+  transition:border-color .14s var(--ease), transform .14s var(--ease);
+}
+.post-card:hover{ border-color:var(--accent-line); transform:translateY(-2px) }
+/* 标题链接铺满整张卡片：整卡可点，但标签链接仍然点得动（z-index 抬高即可） */
+.post-card .pc-link{ color:inherit; text-decoration:none }
+.post-card .pc-link::after{ content:''; position:absolute; inset:0; border-radius:var(--radius-card) }
+.post-card .pc-foot a{ position:relative; z-index:1; color:var(--accent); text-decoration:none }
+.post-card .pc-foot a:hover{ text-decoration:underline }
+.post-card .pc-date{ font-family:var(--mono); font-size:11.5px; color:var(--faint) }
+.post-card h3{ margin:.35em 0 0; font-size:1.02em; line-height:1.45 }
+.post-card p{ margin:.5em 0 0; font-size:13px; color:var(--md-dim); line-height:1.65 }
+.post-card .pc-foot{
+  margin-top:.7em; display:flex; flex-wrap:wrap; gap:4px 8px; align-items:center;
+  font-family:var(--mono); font-size:11px; color:var(--faint);
+}
+
+/* ── 标签筛选 ── */
+.tagbar{ display:flex; flex-wrap:wrap; gap:7px }
+.tag-chip{
+  display:inline-flex; align-items:center; gap:5px;
+  padding:4px 10px;
+  border:1px solid var(--line); border-radius:var(--radius-badge);
+  background:color-mix(in srgb,var(--ink) 3%,transparent);
+  color:var(--md-dim); font-size:12.5px; font-family:inherit;
+  cursor:pointer;
+  transition:color .14s var(--ease), border-color .14s var(--ease), background .14s var(--ease);
+}
+.tag-chip:hover{ color:var(--ink); border-color:var(--accent-line) }
+.tag-chip.on{ color:var(--accent); border-color:var(--accent-line); background:var(--accent-soft) }
+.tag-chip .n{ font-family:var(--mono); font-size:10.5px; color:var(--faint) }
+.tag-chip.on .n{ color:inherit }
+.filter-note{ margin:10px 0 0; font-family:var(--mono); font-size:11.5px; color:var(--faint) }
+
+/* ── 时间线 ── */
+.tl-year{
+  margin:22px 0 6px; font-family:var(--mono); font-size:12px;
+  color:var(--accent); letter-spacing:.06em;
+}
+.tl{ list-style:none; margin:0; padding:0 }
+.tl li{ position:relative; padding-left:22px }
+.tl li::before{
+  content:''; position:absolute; left:4px; top:0; bottom:0;
+  width:1px; background:var(--line);
+}
+.tl li:last-child::before{ bottom:auto; height:1.1em }
+.tl li::after{
+  content:''; position:absolute; left:1px; top:.85em;
+  width:7px; height:7px; border-radius:var(--radius-pill);
+  background:var(--bg); border:1px solid var(--line);
+}
+.tl a{
+  display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 12px;
+  padding:6px 0; text-decoration:none; color:var(--ink);
+}
+.tl a:hover .tl-title{ color:var(--accent) }
+.tl-date{ font-family:var(--mono); font-size:11.5px; color:var(--faint); flex:none; width:4.2em }
+.tl-title{ font-size:14.5px; transition:color .14s var(--ease) }
+.tl-meta{ font-family:var(--mono); font-size:11px; color:var(--faint) }
+/* 归档稿的小标记：它是独立页面（/p/archive/**），和活稿并列在时间线里 */
+.tl-badge{
+  flex:none;
+  padding:0 5px;
+  border:1px solid var(--line); border-radius:var(--radius-badge);
+  font-family:var(--mono); font-size:10.5px; color:var(--faint);
+}
+
+/* 标签筛选时藏起来的条目 */
+.has-js .filtered-out{ display:none }
+#latest[hidden]{ display:none }
+.empty-note{ color:var(--faint); font-family:var(--mono); font-size:12px }
+
+/* ── 页脚 ── */
+.foot{
+  margin-top:46px; padding-top:20px; border-top:1px solid var(--line-soft);
+  display:flex; flex-wrap:wrap; gap:8px 18px; align-items:center;
+  font-size:12.5px; color:var(--faint);
+}
+.foot a{ color:var(--dim); text-decoration:none; border-bottom:1px solid var(--line) }
+.foot a:hover{ color:var(--ink); border-bottom-color:var(--accent) }
+
+@media (max-width:720px){
+  .topnav .nav a.wide{ display:none }
+  .cards{ grid-template-columns:1fr }
+  .hero h1{ font-size:1.7em }
+  .topnav{ padding:0 14px; gap:8px }
+  .topnav .nav a{ padding:6px 8px }
+  .wrap{ padding:0 16px 70px }
+}
+@media (prefers-reduced-motion:reduce){
+  *{ animation-duration:.01ms !important; transition-duration:.01ms !important }
+  .post-card:hover{ transform:none }
+}
+</style>
+</head>
+<body>
+
+<header class="topnav">
+  <a class="brand" href="./">
+    <!-- __LOGO__ -->
+    <span>__BLOG_TITLE__</span>
+  </a>
+  <nav class="nav" aria-label="站点导航"><!-- __NAV__ --></nav>
+</header>
+
+<main class="wrap">
+
+  <section class="hero">
+    <h1>__BLOG_TITLE__</h1>
+    <p>__BLOG_DESC__</p>
+    <div class="stats">__STATS__</div>
+  </section>
+
+  <section class="sec" id="latest">
+    <div class="sec-head"><h2>最新</h2><span class="hint">最近发布的几篇</span></div>
+    <div class="cards" id="latestCards">
+<!-- __LATEST__ -->
+    </div>
+  </section>
+
+  <section class="sec" id="tags">
+    <div class="sec-head"><h2>标签</h2><span class="hint">点一个筛选下面的列表</span></div>
+    <div class="tagbar" id="tagbar">
+<!-- __TAGS__ -->
+    </div>
+    <p class="filter-note" id="filterNote"></p>
+  </section>
+
+  <section class="sec" id="timeline">
+    <div class="sec-head"><h2>时间线</h2><span class="hint">全部文章，按时间倒序</span></div>
+    <div id="timelineBody">
+<!-- __TIMELINE__ -->
+    </div>
+  </section>
+
+  <footer class="foot">
+    <span>© JinSuper · 想到什么写什么</span>
+    <a href="./docs.html">阅读器</a>
+    <a href="./feed.xml">RSS 订阅</a>
+    <a href="/">百宝箱</a>
+  </footer>
+
+</main>
+
+<script>
+/* ═══════════════════════════════════════════════════
+   博客首页：标签筛选 + 时间线
+   ---------------------------------------------------
+   列表本身是**构建期渲染好的静态 HTML**（爬虫读得到），
+   这里只做两件事：按标签显示 / 隐藏、把 URL 上的 #tag-xxx 还原成筛选状态。
+   ═══════════════════════════════════════════════════ */
+(function(){
+  'use strict';
+  var bar = document.getElementById('tagbar');
+  if (!bar) return;
+  var chips = Array.prototype.slice.call(bar.querySelectorAll('.tag-chip'));
+  var items = Array.prototype.slice.call(document.querySelectorAll('[data-tags]'));
+  var note = document.getElementById('filterNote');
+  var current = '';
+
+  /* 标签写在 data-tags 上（构建期序列化成 JSON；实体转义后属性里是安全的） */
+  function tagsOf(el){
+    try { return JSON.parse(el.getAttribute('data-tags') || '[]') || []; }
+    catch (e) { return []; }
+  }
+
+  function apply(tag, opts){
+    current = tag || '';
+    var shown = 0;
+    items.forEach(function(el){
+      var hit = !current || tagsOf(el).indexOf(current) >= 0;
+      el.classList.toggle('filtered-out', !hit);
+      /* 计数只算时间线的行：同一篇在「最新」里还有一张卡片，
+         两边都数的话篇数会翻倍 */
+      if (hit && el.closest('#timelineBody')) shown++;
+    });
+    chips.forEach(function(c){
+      var on = c.getAttribute('data-tag') === current;
+      c.classList.toggle('on', on);
+      c.setAttribute('aria-pressed', on ? 'true' : 'false');
+      if (!current && c.hasAttribute('data-all')) c.classList.add('on');
+    });
+    if (note){
+      note.textContent = current
+        ? '筛选中：' + current + ' · ' + shown + ' 篇（再点一次取消）'
+        : '共 ' + shown + ' 篇';
+    }
+    /* 年份下面一篇都不剩时，隐藏那一年的小标题 */
+    Array.prototype.forEach.call(document.querySelectorAll('[data-tl-year]'), function(box){
+      var any = box.querySelector('[data-tags]:not(.filtered-out)');
+      box.hidden = !any;
+    });
+    /* 「最新」里只放活稿：筛到「归档」这种只属于归档稿的标签时这里会空，
+       空着不如整块收起来（条目都在下面的时间线里） */
+    var latest = document.getElementById('latest');
+    if (latest) latest.hidden = !latest.querySelector('.post-card:not(.filtered-out)');
+    if (!opts || opts.hash !== false){
+      var h = current ? '#tag-' + encodeURIComponent(current) : '#tags';
+      try { history.replaceState(null, '', h); } catch (e) { /* 本地打开时忽略 */ }
+    }
+  }
+
+  function fromHash(){
+    var h = String(location.hash || '');
+    if (h.indexOf('#tag-') === 0){
+      var t = h.slice(5);
+      try { t = decodeURIComponent(t); } catch (e) { /* 原样试 */ }
+      return t;
+    }
+    return '';
+  }
+
+  bar.addEventListener('click', function(e){
+    var chip = e.target.closest ? e.target.closest('.tag-chip') : null;
+    if (!chip) return;
+    var tag = chip.getAttribute('data-tag') || '';
+    apply(tag === current ? '' : tag);
+  });
+
+  window.addEventListener('hashchange', function(){ apply(fromHash(), { hash: false }); });
+  /* 首次进来只还原筛选状态，**别动地址栏** ——
+     否则点「时间线」跳到 #timeline 后会被改写成 #tags，页面又被拽回去 */
+  apply(fromHash(), { hash: false });
+})();
+</script>
+
+</body>
+</html>

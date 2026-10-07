@@ -4,6 +4,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import * as markdownCore from './lib/markdown.cjs';
 import { renderMarkdown } from './lib/markdown.cjs';
 import { buildDir, siteRoot } from './paths.mjs';
 
@@ -304,6 +305,144 @@ if (bareCards !== 1) failed++;
 const noMermaid = !/md-mermaid/.test(testHtml);
 console.log(`${noMermaid ? '✓' : '✗'} Mermaid 已砍掉（无 md-mermaid 容器）`);
 if (!noMermaid) failed++;
+
+/* ── Frontmatter（文章头信息）──
+   两块都要验：拆出来的数据对不对，渲染成 HTML 之后
+   该有的元数据卡片在、不该出现的 YAML 原文不在。 */
+console.log('\n── Frontmatter ──');
+{
+  const samples = [
+    {
+      label: '标量 / 行内数组',
+      src: '---\ntitle: 枣香童年\ndate: 2026-10-06\nauthor: JinSuper\ntags: [随笔, 童年]\n---\n正文\n',
+      want: (d) => d.title === '枣香童年' && d.date === '2026-10-06' && d.author === 'JinSuper' &&
+        Array.isArray(d.tags) && d.tags.join(',') === '随笔,童年',
+    },
+    {
+      label: '块数组 / 一层嵌套映射',
+      src: '---\ntags:\n  - 随笔\n  - 童年\ncover:\n  src: /p/a.png\n  alt: 图\n---\n正文\n',
+      want: (d) => d.tags.join(',') === '随笔,童年' && d.cover && d.cover.src === '/p/a.png' && d.cover.alt === '图',
+    },
+    {
+      label: '块标量 > 折叠',
+      src: '---\ndescription: >\n  第一行\n  第二行\n---\n正文\n',
+      want: (d) => d.description === '第一行 第二行',
+    },
+    {
+      label: '引号里的冒号与井号不当分隔符',
+      src: '---\ntitle: "带: 冒号, 和逗号"\nnote: \'井号 # 不是注释\'\n---\n',
+      want: (d) => d.title === '带: 冒号, 和逗号' && d.note === '井号 # 不是注释',
+    },
+    {
+      label: '开头是水平线（不是 frontmatter）时不吃正文',
+      src: '---\n只是一条水平线\n\n正文\n',
+      want: (d, r) => r.ok === false,
+    },
+  ];
+
+  for (const s of samples) {
+    const r = markdownCore.parseFrontmatter(s.src);
+    const pass = s.want(r.data || {}, r);
+    console.log(`${pass ? '✓' : '✗'} 解析：${s.label}`);
+    if (!pass) { failed++; console.log('   实际：' + JSON.stringify(r.data)); }
+  }
+
+  const fmSrc = '---\ntitle: 枣香童年\ndate: 2026-10-06\ntags: [随笔]\n---\n# 枣香童年\n\n正文。\n';
+  const fmHtml = renderMarkdown(fmSrc);
+  const checks = [
+    [/<header class="md-fm">/, '元数据卡片（.md-fm）已渲染'],
+    [/<h1 class="md-fm-title">枣香童年<\/h1>/, 'frontmatter 的 title 成为标题'],
+    [/data-fm="date"[^>]*>[\s\S]*?2026-10-06/, '日期进日期栏'],
+    [/<a class="md-fm-tag" href="\/p\/#tag-%E9%9A%8F%E7%AC%94">随笔<\/a>/, '标签进标签栏并指向筛选锚点'],
+    [/^\s*<header class="md-fm">/, '卡片排在正文前面'],
+  ];
+  for (const [re, label] of checks) {
+    const pass = re.test(fmHtml);
+    console.log(`${pass ? '✓' : '✗'} ${label}`);
+    if (!pass) failed++;
+  }
+
+  const h1Count = (fmHtml.match(/<h1[\s>]/g) || []).length;
+  console.log(`${h1Count === 1 ? '✓' : '✗'} 正文里重复的那行标题被去掉，整篇只有 1 个 h1（实际 ${h1Count}）`);
+  if (h1Count !== 1) failed++;
+
+  const noYaml = !/title: 枣香童年/.test(fmHtml) && !/<hr>/.test(fmHtml.slice(0, 200));
+  console.log(`${noYaml ? '✓' : '✗'} frontmatter 原文没有漏进正文`);
+  if (!noYaml) failed++;
+
+  /* ── 正文目录：默认不插（阅读器/文章页另有侧栏目录），toc: true 才插 ── */
+  const tocCases = [
+    ['默认不生成',
+      '---\ntitle: T\n---\n\n## 一\n\na\n\n## 二\n\nb\n', 0],
+    ['toc: true 时生成',
+      '---\ntitle: T\ntoc: true\n---\n\n## 一\n\na\n\n## 二\n\nb\n', 1],
+    ['只有一个标题时也不生成（toc: true）',
+      '---\ntitle: T\ntoc: true\n---\n\n## 只有一个\n\na\n', 0],
+    ['正文写了 [[toc]] 就照作者的画一次',
+      '---\ntitle: T\n---\n\n[[toc]]\n\n## 一\n\na\n\n## 二\n\nb\n', 1],
+  ];
+  for (const [label, src, want] of tocCases) {
+    const h = renderMarkdown(src);
+    const got = (h.match(/<nav class="md-toc"/g) || []).length;
+    const pass = got === want;
+    console.log(`${pass ? '✓' : '✗'} 正文目录：${label}（${got} 个，期望 ${want}）`);
+    if (!pass) failed++;
+  }
+
+  /* 文章页的侧栏目录用的是同一份取标题逻辑 */
+  {
+    const h = renderMarkdown('---\ntitle: T\n---\n\n## 一\n\na\n\n### 一·一\n\nb\n\n## 二\n\nc\n');
+    const list = markdownCore.tocEntries(h);
+    const ok = list.length === 3 && list[0].id === '一' && list[1].level === 3 && list[2].text === '二';
+    console.log(`${ok ? '✓' : '✗'} 侧栏目录取标题：层级 / id / 文字都对（${JSON.stringify(list.map((e) => [e.level, e.id]))}）`);
+    if (!ok) failed++;
+  }
+
+  /* ── 目录层级归一：最浅的一级算 lv-1 ──
+     「从 h2 起」的文章（标题写在 frontmatter 里就是这样）按绝对级别缩进，
+     整份目录会平白缩进一格，看着就是「没有层次」。 */
+  {
+    const cases = [
+      ['h1 起', [{ level: 1, id: 'a', text: 'a' }, { level: 2, id: 'b', text: 'b' }, { level: 3, id: 'c', text: 'c' }], [1, 2, 3]],
+      ['h2 起', [{ level: 2, id: 'a', text: 'a' }, { level: 3, id: 'b', text: 'b' }], [1, 2]],
+      ['只有 h3', [{ level: 3, id: 'a', text: 'a' }], [1]],
+      ['空目录', [], []],
+    ];
+    for (const [label, input, want] of cases) {
+      const got = markdownCore.normalizeTocLevels(input).map((e) => e.level);
+      const pass = JSON.stringify(got) === JSON.stringify(want);
+      console.log(`${pass ? '✓' : '✗'} 目录层级归一：${label} → ${JSON.stringify(got)}（期望 ${JSON.stringify(want)}）`);
+      if (!pass) failed++;
+    }
+    /* 正文里 `toc: true` 生成的目录也走归一：从 h2 起的文档，第一个标题不该缩进 */
+    const tocHtml = markdownCore.buildTocFromHtml(
+      renderMarkdown('---\ntitle: T\n---\n\n## 一\n\na\n\n### 一·一\n\nb\n'));
+    const pass = /md-toc-lv1[^>]*>一</.test(tocHtml) && /md-toc-lv2[^>]*>一·一</.test(tocHtml);
+    console.log(`${pass ? '✓' : '✗'} 正文目录也按相对层级画（h2 起 → lv1 / lv2）`);
+    if (!pass) failed++;
+  }
+
+  /* ── 作者：默认 JinSuper，`author:` 单个或数组都收 ── */
+  const authorCases = [
+    ['一个作者', '---\ntitle: T\nauthor: JinSuper\n---\n正文\n', ['JinSuper']],
+    ['两个作者', '---\ntitle: T\nauthor: [JinSuper, ABC]\n---\n正文\n', ['JinSuper', 'ABC']],
+    ['authors 写法', '---\ntitle: T\nauthors: [A, B]\n---\n正文\n', ['A', 'B']],
+    ['没写就用默认', '---\ntitle: T\n---\n正文\n', ['JinSuper']],
+  ];
+  for (const [label, src, want] of authorCases) {
+    const h = renderMarkdown(src);
+    const got = [...h.matchAll(/data-fm="author"[^>]*>[\s\S]*?<span class="md-fm-chip-t">([^<]*)<\/span>/g)].map((m) => m[1]);
+    const pass = got.length === want.length && want.every((w) => got.includes(w));
+    console.log(`${pass ? '✓' : '✗'} 作者：${label}（${want.join('、')}）`);
+    if (!pass) { failed++; console.log('   实际：' + JSON.stringify(got)); }
+  }
+
+  /* 没有 frontmatter 时：标题回落用清单里的名字，但正文自带 h1 就不再生造一个 */
+  const plain = renderMarkdown('# 只有正文\n\n内容\n', { title: '清单里的名字' });
+  const plainOk = (plain.match(/<h1[\s>]/g) || []).length === 1 && !/清单里的名字/.test(plain);
+  console.log(`${plainOk ? '✓' : '✗'} 没有 frontmatter 时：正文自带 h1 就不再生造标题`);
+  if (!plainOk) failed++;
+}
 
 if (/preconnect|jsdelivr|unpkg/.test(testHtml)) {
   console.log('✗ 产物里出现了 CDN 痕迹');

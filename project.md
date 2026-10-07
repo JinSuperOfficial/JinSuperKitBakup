@@ -7,7 +7,7 @@
 
 ## 1. 这是什么
 
-个人站点「百宝箱」+ 一个自建的 Markdown 文档站。纯静态，没有后端、没有数据库、
+个人站点「百宝箱」+ 一份自建的博客／文档站（**JinSuper 奇思妙想**，阅读器在 `/p/docs.html`）。纯静态，没有后端、没有数据库、
 没有构建服务，所有内容都是文件。前端不引用任何 CDN、不加载外部字体、不用 base64
 （这三条是托管平台的硬规则，见 §8）。
 
@@ -53,7 +53,7 @@ F:\@Project\node\
 │   ├── lib\render.mjs        ← 预渲染器：复用 build\lib\markdown.cjs，一个字节都不碰 docs-md.js
 │   ├── lib\api.mjs           ← 接口实现（扫描/读写/发布/归档/重建/回滚/队列/预览）
 │   ├── web\                  ← 前端：index.html + console.css + app.js，零依赖
-│   ├── test\console.test.mjs ← node:test 20 条，全在临时 fixture 上跑（不碰真站点）
+│   ├── test\console.test.mjs ← node:test 23 条，全在临时 fixture 上跑（不碰真站点）
 │   └── state.json            ← 控制台设置 + 归档元数据（不进 dist）
 │
 ├── para\                     ← ★ 归档原文留底（站点之外；只有归档过才会出现）
@@ -70,7 +70,11 @@ F:\@Project\node\
 │   ├── 811\                  ← ★ 八年(11)班专区：index.html 工具箱 + homework.html
 │   │                             + classtable.html + english.html（英语听力音频）
 │   │                             + tools.json（本区清单）+ data\homework.json + data\english\
-│   ├── p\                    ← 文档站（详见 §5.3）
+│   ├── p\                    ← ★ 博客／文档站（详见 §5.1）
+│   │   ├── index.html        ← ★ 博客首页（构建产出：最新 + 标签筛选 + 时间线；旧的写作台已舍弃）
+│   │   ├── post\             ← ★ 文章页（构建产出：每篇一个独立网址，给搜索引擎）
+│   │   ├── feed.xml           ← ★ 订阅源（构建产出，RSS 2.0）
+│   │   ├── blog.md            ← 写作指南：frontmatter 字段与产物说明
 │   │   └── archive\          ← ★ 归档预渲染稿（控制台产出，会被一起上传）
 │   ├── Skills\               ← 小工具集合（函数显示器、测速、HTML 在线运行…）
 │   ├── docs\  web\  old\  public\
@@ -109,10 +113,11 @@ F:\@Project\node\
 
 ## 4. 三件日常事
 
-### 4.1 加一篇文档
+### 4.1 加一篇文章
 
 1. 把 `.md` 放进 `jinsuper.rth1.xyz\p\`（可以带子目录）
-2. 在 `jinsuper.rth1.xyz\sk.json` 里加一行：
+2. 正文顶上写一段 frontmatter（标题 / 日期 / 标签 / 摘要），字段表见 `MANIFEST.md` §7.1
+3. 在 `jinsuper.rth1.xyz\sk.json` 里加一行：
 
 ```json
 {
@@ -122,8 +127,9 @@ F:\@Project\node\
 }
 ```
 
-3. 刷新文档站就能看到（清单是运行时读的，**不需要重新构建**）
-4. 发到线上：双击 `部署.cmd` → 选 1
+4. 刷新阅读器就能看到（清单是运行时读的，**不需要重新构建**）
+5. 要让搜索引擎也看到这篇的独立网址（`/p/post/…`），跑一次构建：`部署.cmd build`
+6. 发到线上：双击 `部署.cmd` → 选 1
 
 ### 4.2 改站点页面 / 样式
 
@@ -196,19 +202,74 @@ F:\@Project\node\
 | 写作 | 左编辑右预览（预览走服务端渲染核心，和阅读器同一套语法）；`Cmd/Ctrl+S` 保存、`+B/+I/+K/+E` 加粗/斜体/链接/公式，`Tab` 缩进；草稿自动存 localStorage |
 | 管理文章 | 扫 `/p` 下**全部**文件（含没登记的临时稿），状态分「草稿 / 已发布 / 已归档 / 未发布」；搜索、排序、分组折叠、多选批量（归档选中 / 取消归档 / 删除 / 移动分组 / 重命名） |
 | 文档清单 | 直接编辑 `sk.json`：**表格**（改标题/路径、换组、排序、加分组）+ **源码**（原始 JSON，实时校验再保存，坏文件先备份）双模式；「扫描清单」列出问题（文件不存在、重复登记、空分组、写法混用、归档标题缺后缀…）并**一键修复**，还能把 `/p` 下没登记的文件勾选登记 |
-| 归档与预渲染 | 左右两列，只处理勾选的：归档把 Markdown 编译成静态 HTML 放进 `/p/archive/` 并在 sk.json 登记；支持重新构建选中、回滚上一版、取消归档 |
+| 归档与预渲染 | 左右两列，只处理勾选的：归档把 Markdown 编译成静态 HTML 放进 `/p/archive/` 并在 sk.json 登记；支持重新构建选中、**重刷外壳**（正文不动，按当前模板重写 head / 顶栏 / 目录 / 页脚，原文没留底也能刷）、回滚上一版、取消归档 |
 | 素材库 | `/p` 下的图片 / PDF / 音视频，灯箱、试听（直接读静态文件，没有专门接口）、复制路径、删除 |
 
-除了这五个，控制台还多了四个面板（`控制台.cmd` 里点左侧导航）：
+### 写作面板的预览：和文档站长一样，还多画几张图
+
+预览的 HTML 一直是**服务端渲染核心**（`build/lib/markdown.cjs`）出的，和阅读器同一套语法；
+以前缺的是**样式**和**图表**，现在补齐了（**只影响控制台，站点产物一个字节都不变**）：
+
+- **样式**：`console/web/index.html` 直接把站点那两份引进来 —— `/p/docs-md.css`
+  （公式 / 高亮 / 告示 / 提示框 / 选项卡 / 代码组 / 剧透 / 目录 / 脚注 / 任务列表…）
+  和 `/p/docs-card.js`（卡片 `<card>` + `DocsCard.enhance()` 兜底）。
+  控制台服务的静态根本来就兜到站点根（`server.mjs` 的 `STATIC_ROOTS`），所以直接能取到。
+  预览里的基础排版（标题 / 段落 / 表格）在 `console.css` 里，**一律用 `.md` 这一档权重**——
+  写成 `#preview p` 会多一个 id，把 `p/docs-md.css` 里 `.md a.card`、`.md .md-ext-note`
+  这类扩展样式全压掉（卡片会变链接色、提示块间距会跑），这一点别改回去。
+- **图表**（站点里是「已下线」，预览里真画）：
+  - ```echarts —— Node 端 **ECharts SSR**，直接出**内联 SVG**（离线、无需前端脚本，
+    所以归档产物也能烘进去，自包含）；
+  - ```mermaid —— 服务端只留 `.mermaid.md-mermaid` 占位，浏览器加载控制台本地提供的
+    `build/node_modules/mermaid/dist/mermaid.min.js`（路由 `/vendor/mermaid.min.js`）现画；
+  - ```plantuml / flow / dot 之类要外部渲染服务，离线不接，预览里**明说画不出来**。
+- **能力状态**：预览右上角一条小字（`✓ ECharts 图表 · ✓ Mermaid 图表 …`，悬停看细节）；
+  这篇用了画不出来的语法，就在预览上方出一条提示条 —— 不安静退化。
+- **归档自包含**：`renderArticleHtml` 走 **bake 实例**，只烘「能变成静态标记」的（ECharts）；
+  mermaid 这类要浏览器运行时的退回代码块，并随 `/api/archive`、`/api/archive/rebuild`
+  的 `warnings` 回给界面提示。**归档 HTML 不引用任何外部插件脚本。**
+
+实现分三层，改之前先看这三处：
+
+| 文件 | 管什么 |
+|:--|:--|
+| `build/lib/markdown.cjs` | `createRenderer({ setup })`：可选外挂装配钩子（站点构建不传，行为不变）；`renderWith(md, src)` 渲染前重置标题计数 |
+| `console/lib/md-extras.mjs` | 外挂本体：能力探测（装了/没装、能不能烘）、ECharts SSR、mermaid 占位、围栏接管、`scanUnsupported()` |
+| `console/lib/render.mjs` | 两个懒建实例：`preview`（增强全开）与 `bake`（只烘静态内容）；`renderFragment(md, { mode })` |
+| `console/md-plugins.json` | **外部 markdown-it 插件清单**：`package` / `export` / `umd` / `options`。装在 `build/` 里，改完刷新页面即可；装不上会在状态里标 ✗ 并给原因（`@mdit/*` 是 ESM 包，这里会用它的 UMD 兜底加载，见 `md-extras.mjs` 的 `loadUmd`） |
+
+验收：`node --test console/test/md-extras.test.mjs`（图表 / 提示 / 归档自包含 / 坏配置不炸）。
+
+除了这五个，控制台还多了五个面板（`控制台.cmd` / `控制台.sh` 里点左侧导航）：
 
 | 面板 | 干什么 |
 |:--|:--|
+| 预览 | **一键列出站点所有页面**：按「清单优先、目录兜底」建一棵可折叠的树（site.json 的 collections → 工具站 / 811 专区，sk.json → 文档站，其余 `.html` 归到「目录扫描」），搜索 / 按类型筛选 / 隐藏忽略项；点页面就在浏览器新标签里打开。顶部 **Server On** 起一个只服务站点根的预览服务（默认 `127.0.0.1:8790`），关掉点 Server Off |
 | 发布与部署 | 一键「部署并推送」（构建 → 自检 → 组装 → 热铁盒 → GitHub），**步骤 + 实时日志 + 中止**；也可以只跑其中一步；「发布队列 + 部署」把队列入队、查清单、部署串成一条链 |
 | 同步与合并 | 三方比对：**本地源树 / `dist`（上次部署）/ 线上**，来源可选 **GitHub**（完整清单）或**热铁盒**（逐个探测）；逐项「取回云端」（覆盖前自动备份到 `console/backups/`）、批量取回；「部署前预检」列出会覆盖什么、可能删掉云端什么、清单问题与域名/证书状态 |
 | 检查 | 死链与资源检查：用真渲染器解析 `/p` 下的 Markdown（链接/图片/`<card>` 目标）、归档产物里的 href/src，报出文件与行号 |
 | 本地 / 线上 | 同一篇左边本机预览、右边线上实况，一眼看出「改了还没部署」 |
 
-这四件事的分工与边界：
+预览面板的三条约定：
+
+- **页面树只读**（`console/lib/pages.mjs`）：不写清单、不改文件；缺 site.json 或缺某个 collection
+  只是少一块，其余照常列。登记过的 `.md` 走阅读器 deep-link（`/p/docs.html#<清单里的 path>`），
+  路径一律站点绝对路径（`/p/docs.html`）。
+- **别拿控制台自己的 8791 当预览**：那个端口上 `/index.html` 是控制台自己的页面，会把站点首页顶掉。
+  预览是**另一个端口、只服务 `jinsuper.rth1.xyz/`**，路径和线上一致；`/p/raw.php?f=…` 照
+  `build/.serve.mjs` 的语义模拟（线上是云函数），文档站在预览里也能拿到 Markdown 原文。
+- **默认行为在「设置 → 预览」**：端口、进面板自动开服务、开服务后打开首页、
+  点页面的默认行为（没开就先开再打开 / 只打开 / 只复制路径）、页面清单来源（自动 / 清单 / 目录）。
+
+预览服务也可以不开界面单独起（headless，只服务站点根）：
+
+```
+./控制台.sh server             # 默认端口（设置里的 previewPort，8790）
+./控制台.sh server --port 8793 # 换端口
+./控制台.sh server --no-open   # 不开浏览器
+```
+
+这四件事（发布与部署 / 同步与合并 / 检查 / 本地↔线上）的分工与边界：
 
 - 部署作业是**子进程** `node build/run-pipeline.mjs --steps=… --json`，用 JSON Lines 报进度；
   控制台只做「解析 + 落日志文件（`console/logs/<id>.log`）+ 按字节偏移增量读」。同时只允许一个作业。
@@ -223,19 +284,24 @@ F:\@Project\node\
 **拖拽入队**：任意面板把文件拖进窗口 → 进「待发布队列」，可改目标路径 / 标题 / 分组 / 是否同时归档。
 默认**不归档**，直接写进 `/p`（临时文件就能马上用）；勾了「同时归档」才会预渲染。重名可选覆盖 / 自动改名 / 跳过。
 
-关于归档的三条约定：
+关于归档的四条约定：
 
 1. **归档是可选的，不是发布前提**。没归档的 `.md` 留在 `/p`，由阅读器运行时渲染。
 2. **原文会离开 `/p`**：移到项目根 `para\<原相对路径>` 留底（站点之外，不会被上传）。
    产物写 `/p/archive\<同结构>.html`，sk.json 里登记成 `p/archive/...`（名字自动加「（归档）」后缀）。
 3. **产物是成品**：阅读器读到 `/p/archive/*.html` 会直接把它里面的正文注入页面，顶栏角标显示「已归档」，
    不再走浏览器端渲染器。旧版本留在 `/p/archive/.versions/`（保留最近 2 版），可回滚。
+4. **外壳和静态文章页共用一份**（`build\lib\chrome.mjs`）：站点顶栏、侧栏目录、`.wrap` 单列 / 两列、
+   样式（`template\post-chrome.css`）、脚本（`template\post-script.js`）、主题 token 都从那儿来，
+   所以归档稿看起来、用起来和 `/p/post/*.html` 一样。
+   **改了外壳，老产物要「重刷外壳」**（面板上那颗按钮 / `POST /api/archive/reshell`）：正文不动，
+   只重写 head / 顶栏 / 目录 / 页脚，覆盖前留一版 —— 原文没留底的老归档也能补上顶栏和目录。
 
 预渲染器**复用** `build\lib\markdown.cjs`（构建期那份服务端渲染核心），所以能力与 `docs-md.js` 一对一：
 KaTeX、代码高亮 / 行号 / 高亮行、表格、任务列表、告示、提示框、选项卡、代码组、剧透、脚注、卡片、目录都在。
 `docs-md.js` 一个字节都没改。
 
-控制台自己的测试（20 条，含归档→重建→回滚→取消归档整条链）在**临时 fixture 站点**上跑，不碰真实站点：
+控制台自己的测试（24 条，含归档→重建→重刷外壳→回滚→取消归档整条链、页面树与预览服务）在**临时 fixture 站点**上跑，不碰真实站点：
 
 ```
 node console\test\console.test.mjs     （或 npm run console:test）
@@ -274,14 +340,22 @@ node console\test\console.test.mjs     （或 npm run console:test）
 - **GitHub 推失败不影响热铁盒**（那边已经成功了），只提示。
 - 站点清单在 `rth-sites.json`。加站点就往里加一项，`domains` 是上传后要检查的域名。
 
-### 5.1 文档站（p\）是怎么工作的
+### 5.1 博客／文档站（p\）是怎么工作的
 
-`p\docs.html` 是**静态页面 + 浏览器端渲染器**：Markdown 在浏览器里现场排版。
+对外它是博客 **JinSuper 奇思妙想**（名字 / 简介 / 主域名在 `site.json` 的 `blog` 段），
+内部还是那套东西：`p\docs.html` 是**静态页面 + 浏览器端渲染器**，Markdown 在浏览器里现场排版。
 
-- `p\docs-md.js`（1.4 MB）= 打包好的渲染器（markdown-it + KaTeX + highlight.js + 插件）
+- `p\docs-md.js`（1.45 MB）= 打包好的渲染器（markdown-it + KaTeX + highlight.js + 插件）
 - `p\docs-md.css` + `p\fonts\`（20 个 woff2）= 样式与公式字体
+  （正文排版现在住在这份 CSS 里，阅读器和文章页共用，见 `build\template\docs-content.css`）
 - `p\raw.php` = **云函数，别删**。热铁盒会把 `.md` 直接渲染成 HTML 再返回，
   公式源码在这一层就丢了；`raw.php` 能取到真原文，公式才完整
+- 布局是「整页滚动」：左边栏与目录**嵌在页面里、不跟随滚动**（无边框、不铺底色），站点顶栏常驻在最上面；顶栏、博客首页、文章页共用同一份导航（`build/build.mjs` 的 `siteNavHtml()`），当前项：博客 / 时间线 / 标签 / 阅读器 / RSS / 百宝箱（工具站不再单列，总入口只留「百宝箱」）
+- `p\index.html` = **博客首页**（构建产出）：最新几篇 + 标签筛选 + 时间线，模板在 `build\template\blog.html`；以前这里是个浏览器端写作台，已经舍弃。
+  「最新」只放活稿，**时间线与标签里活稿 + `/p/archive/` 归档稿一起列**（归档条目带一枚「归档」徽标，标签栏里也有一枚「归档」可单独筛）；百宝箱首页的博客卡片指向这一页（不是阅读器）
+- `p\post\` 与 `p\feed.xml` = **构建产出**：每篇文章一个独立网址（服务端渲染 + frontmatter 元数据 +
+  canonical / OG / JSON-LD + 上下篇），加上 RSS。搜索引擎收录的是这一份，
+  `/p/docs.html#某篇.md` 那种 hash 地址在爬虫眼里还是同一页（字段表见 `MANIFEST.md` §7.1）
 - §10.1 讲了为什么改 `p\docs.html` 是错的
 
 ### 5.2 备份源码（另外一条线，和发布互不影响）
@@ -319,9 +393,11 @@ node console\test\console.test.mjs     （或 npm run console:test）
 
 ## 6. 构建系统
 
-`build\build.mjs` 做四件事：同步插件副本 → 预渲染 `PRE_RENDER` 里列的文档
-（目前只有 `TEST.md`）→ 打 `docs-md.js` → 合并 `docs-md.css` 并拷字体。
-末尾还会跑 `add-favicon.mjs` 给全站 HTML 注入图标。
+`build\build.mjs` 做六件事：同步插件副本 → 预渲染 `PRE_RENDER` 里列的文档
+（目前只有 `TEST.md`）→ 打 `docs-md.js` → 合并 `docs-md.css` 并拷字体 →
+输出 `p\docs.html` → **生成 `p\post\` 文章页与 `p\feed.xml`**。
+末尾还会跑 `add-favicon.mjs` 给全站 HTML 注入图标，并重新生成 `sitemap.xml` /
+`docs\info\site-index.js`（文章条目就在这里进 sitemap）。
 
 **为什么自己写打包器**：这个沙箱环境不允许程序创建命名管道，esbuild / rollup /
 webpack 的任何 API 都要 spawn 子进程，直接 EPERM。所以 `lib\bundler.mjs` 是个
@@ -344,7 +420,8 @@ node build\make-favicon.mjs          # logo.svg → favicon.svg + apple-touch-ic
 
 渲染器支持的能力分两类：插件直接给的，和自己写的适配器补的。
 
-**已支持**：CommonMark、GFM 表格/任务列表/删除线/自动链接/脚注、Emoji、上下标、
+**已支持**：**frontmatter**（正文顶上的头信息，渲染成元数据卡片，见 §7.1）、
+CommonMark、GFM 表格/任务列表/删除线/自动链接/脚注、Emoji、上下标、
 `==高亮==`、缩写、定义列表、插入删除、Ruby 注音、数学公式（`$…$` / `$$…$$` /
 `\(…\)` / `\[…\]`）、代码高亮、行号（`:line-numbers`）、高亮指定行（`{1,3-5}`）、
 代码组 `::: code-group`、选项卡 `::: tabs`、GitHub 告示 `> [!NOTE]`、提示框 `::: tip`、
@@ -353,9 +430,26 @@ node build\make-favicon.mjs          # logo.svg → favicon.svg + apple-touch-ic
 **未支持**（写了会原样显示，不会报错）：Mermaid、PlantUML、ECharts、Flowchart、
 `::: layout`、`@include`、`@snippet`、`@embed`、`->对齐<-`。
 
-**完整的逐条对照表在 `jinsuper.rth1.xyz\p\TEST.md`**（打开文档站就能看渲染效果），
+**完整的逐条对照表在 `jinsuper.rth1.xyz\p\TEST.md`**（打开阅读器就能看渲染效果），
 最后一节 §9 是「支持 / 不支持」速查。加新语法时请同步更新那个文件和
 `build\test-render.mjs` 的断言。
+
+### 7.1 Frontmatter（文章头信息）
+
+文章顶上写一段 `---` 包起来的 `键: 值`，渲染器把它变成正文开头的**元数据卡片**
+（标题 / 摘要 / 日期 / 作者 / 分类 / 阅读时间 / 标签，其余键原样列在下半部分）。
+
+- 解析规则只有一份：`build\lib\markdown.cjs` 的 `parseFrontmatter()`，
+  **构建期（预渲染）与浏览器端（现场渲染）走同一份**，两边排版不会走样
+- 支持的 YAML 子集：标量、行内数组 `[a, b]`、块数组（`- ` 项）、一层嵌套映射、
+  `>` 与 `|` 块标量、行尾 `#` 注释；文件开头是水平线（`---` 但中间没有 `键: 值`）时不会被吃掉
+- `title` 写了之后，正文开头**一模一样**的 `# 标题` 会自动去掉（不然一页两个 h1）；
+  没写 title 时，正文自带 h1 就不另造标题，没有 h1 才回落到清单里的名字
+- `date` / `updated` / `tags` / `summary` 会进 sitemap、RSS 与 JSON-LD，字段表见 `MANIFEST.md` §7.1
+- 作者默认 `JinSuper`（`site.json` 的 `blog.author`）：`author: JinSuper` 与 `author: [JinSuper, ABC]` 都收，多作者画成多枚，并分别进 RSS 的 `<dc:creator>` 与 JSON-LD
+- 目录：阅读器是左边栏那份（嵌在页面里跟着滚），**文章页左侧也有一列目录**（sticky 跟随、高亮当前小节，少于两节就整块不生成、正文单列铺满）；
+  三处共用 `tocEntries()` + `normalizeTocLevels()`（把层级归一成相对级别，最浅的一级 = lv-1，缩进才有层次）；想在正文开头再摆一份就写 `toc: true`
+- 断言在 `build\test-render.mjs` 的「Frontmatter」一节（解析 + 渲染 + 不重复标题 + 不误吃正文）
 
 ---
 
@@ -393,7 +487,7 @@ node build\make-favicon.mjs          # logo.svg → favicon.svg + apple-touch-ic
 | `build\test-dom.mjs` | jsdom 真跑页面：切换、复制按钮、搜索、主题、加文档流程 | ~1–2min |
 | `build\test-pipeline.mjs` | 部署管线：步骤顺序与 id、开关映射、遇错停 / soft 步骤、上传文件规则（EXCLUDE、asset 覆盖）、`部署.cmd` 必须纯 ASCII、源码备份不混进管线 | ~4s |
 | `build\test-tui.mjs` | ink TUI：用假终端渲染，验菜单 / 计划开关 / 状态页 / 执行→结果 / Ctrl+C 中止 | ~8s |
-| `console\test\` | 控制台：原有 20 条（文章 / 归档 / 队列 / 预览 / 深链接）+ 部署作业 9 条 | ~3s |
+| `console\test\` | 控制台：原有 20 条（文章 / 归档 / 队列 / 片段预览 / 深链接）+ 预览面板 3 条（页面树 / 预览服务 / 预览设置）+ 部署作业 9 条 | ~3s |
 
 ```bash
 部署.cmd check        # 上面全部
@@ -488,6 +582,32 @@ cmd.exe 按「当前代码页」逐字节解码批处理文件，而且会按字
 `/favicon.svg` 之类会跳去 `cdn.rthe.cn/cached-<hash>/jinsuper/…`。
 写检查脚本时要 `redirect: 'follow'`，否则只能看到一个空的 302。
 
+### 10.13 项目在 WSL 里，而控制台可能跑在 Windows（UNC 路径）
+
+项目根在 WSL（`/home/<用户>/project/node`），Windows 侧的控制台是通过
+`\\wsl.localhost\Ubuntu-26.04\home\...` 这个 UNC 路径访问它的。两件事会撞车：
+
+1. **cmd.exe 不支持把 UNC 当当前目录**：它会打印
+   `UNC paths are not supported. Defaulting to Windows directory.`，退到
+   `C:\Windows`，于是 `--env-file=.env`、`dist/` 这些相对路径全都找不到
+   （报 `node: .env: not found`）。所以 `deploy.mjs` 只在 Deno 是 `.cmd/.bat`
+   包装时才经 `cmd /c` 起，真 `deno.exe` 直接起 —— 原生 exe 允许 UNC 当前目录。
+2. **deno 这个 npm 包是按平台分发二进制的**（`@deno/win32-x64`、
+   `@deno/linux-x64-glibc`…）。项目里同时留着两份，谁在跑就用谁：
+   `build/lib/deno.mjs` 的 `findLocalDeno()` 按当前平台找，顺序是
+   `@deno/<本平台>/deno(.exe)` → `node_modules/deno/deno(.exe)` → `.bin/deno(.cmd)`。
+3. **git 也会拒绝干活**：UNC 路径里的仓库在 Windows 看来「不属于当前用户」，
+   于是 `git add` 报 `fatal: detected dubious ownership in repository`。
+   `build/lib/git-safe.mjs` 的 `safeArgs()` 给每次 git 调用加上
+   `-c safe.directory=<本仓库>` 放行 —— **不用去改全局配置**
+   （改全局那步每台机器都要再做一遍，还会一直留在用户配置里）。
+   `git-dist.mjs` / `git-backup.mjs` / `deploy-cli.mjs` 三个入口都走这个包装。
+
+⚠️ `deno` **没有写进 `package.json`**，所以它和 `@deno/*` 都算"外挂包"：
+在根目录跑一次 `npm install` 会把它们清掉。清掉也不要紧 —— `deploy.mjs`
+找不到会自动 `npm install deno` 补上，再按平台重新找。想彻底省心，就在
+Windows 上装个系统 Deno（`winget install DenoLand.Deno`），脚本优先用系统的。
+
 ---
 
 ## 11. 密钥
@@ -517,6 +637,15 @@ cmd.exe 按「当前代码页」逐字节解码批处理文件，而且会按字
 | 改了文档却没生效 | 确认是发到**两个**热铁盒站点（§5）；或浏览器缓存，强刷 |
 | 公式不显示 / 退化成平台渲染的样子 | `p\raw.php` 没生效，检查云函数是否还在 |
 | 构建后 `p\docs.html` 里改动没了 | 你改的是产物不是模板，见 §10.1 |
+| 文章页（`/p/post/…`）没生成 | 看 `sk.json` 里那一条：路径要存在；frontmatter 里 `draft / nopage / hidden` 为真会**故意**不生成。`p\post\` 下不是这一轮生成的文件会被构建清掉（改了 slug 留下的旧页面也在这里清） |
+| frontmatter 的元数据卡片没出现 | 必须以文件**第一行**的 `---` 开头、单独一行的 `---` 收尾，中间至少有一个 `键: 值`；开头是水平线的正文不会被吃 |
+| 文章标题/日期在阅读器和文章页不一致 | 两边都读同一个 `parseFrontmatter`；若不一致多半是浏览器缓存了旧的 `docs-md.js`（改了渲染器要重新构建，`?v` 会跟着 `ASSET_VERSION` 抬） |
+| 阅读器里侧栏/目录跟着滚动 | 那是**故意的**：侧栏与目录现在是嵌入式的，随页面一起滚；常驻导航在顶栏 |
+| 博客首页还是旧的写作台 | `p/index.html` 也是构建产物（模板 `build/template/blog.html`），跑一次 `node build/build.mjs` |
+| 文章页正文被挤成窄窄一条 | 那一篇没有目录（少于两节），`.wrap` 要是还摆着两列网格就会把文章挤进 212px 的第一列。生成时用 `has-toc` 类决定单列 / 两列，别手改产物 |
+| 时间线 / 标签里看不到归档稿 | 归档稿（`/p/archive/**.html`）由 `listArchivedPosts()` 从 `sk.json` + 成品页 head 里读出来，不进「最新」卡片；只改了归档产物而没重新构建，时间线也不会变（跑 `node build/build.mjs`） |
+| 站点地图里没有文章 | `sitemap.xml` 是生成物：跑 `node build/gen-site-index.mjs`（或 `部署.cmd build`）。文章条目由 `build\lib\site-index.mjs` 调 `listPosts()` 算出来 |
+| 搜索引擎收录的还是 `/p/docs.html` | 正常：先让 sitemap 上线、在 Google Search Console / Bing 站长工具里提交 `sitemap.xml`。canonical 指 `site.json` 的 `blog.origin`，换主域名要同步改这一处 |
 | 作业页显示「示例清单」 | 没读到数据。作业数据在 `811\data\homework.json`（老路径 `Skills\tools\data\` 已废弃） |
 | GitHub Pages 404 | 去仓库 Settings → Pages 确认已启用（Source: main / root） |
 | 控制台打不开 / 端口占用 | `控制台.cmd --port 8792` 换端口；同一时间只跑一个实例 |
@@ -524,6 +653,12 @@ cmd.exe 按「当前代码页」逐字节解码批处理文件，而且会按字
 | 归档失败 | 流程里有自检：产物没写成功就把原文搬回 `/p`，不会留下「登记了但文件不在」的状态。看界面提示的原文/产物路径 |
 | 阅读器里归档篇显示成源码 | 只有 **sk.json 里指向 `archive/*.html`** 的才当预渲染稿注入；手写放在别处的 `.html` 仍按源码显示 |
 | 英语页（`/811/english.html`）没声音 | 音频是直接读 `/811/data/english/<单元>/<文件>.mp3`；用 `file://` 打开读不到清单，`部署.cmd serve` 或线上访问 |
+| 传热铁盒报 `UNC paths are not supported` / `node: .env: not found` | 控制台在 Windows、项目在 WSL（UNC 路径），而 Deno 落在 `.cmd` 包装上。见 §10.13。最快的办法：Windows 上 `winget install DenoLand.Deno`，或改用 WSL/Linux 侧的 `./部署.sh` |
+| `./部署.sh` 到最后一步「推 GitHub Pages」失败：`Invalid username or token` | `dist/.git` 的 remote 里没 token（§11 说过换机器要重配）：`git -C dist remote set-url origin https://<TOKEN>@github.com/JinSuperOfficial/JinSuper.github.io.git` |
+| 推 GitHub Pages 报 `fatal: detected dubious ownership in repository at '//wsl.localhost/...'` | Windows 工具链 + WSL 里的项目（UNC）：git 认为仓库不属于当前用户。已经由 `build/lib/git-safe.mjs` 给每次调用加 `-c safe.directory=<本仓库>` 放行（见 §10.13），重跑即可 |
+| 推 GitHub Pages 报 `error: open("xxx"): No such file or directory` / `unable to index file` | Windows 通过 UNC 访问 WSL 里的 dist 时，`git add` 要哈希七百多个文件，偶发一次 open 失败（**文件其实好好在着**，重跑就过）。`push-github.mjs` 现在自己重试 3 次；真失败再 `npm run deploy:prep` 重新组装 |
+| 推 GitHub Pages 时满屏 `warning: in the working copy of '...', LF will be replaced by CRLF` | Windows 侧 git 默认 `core.autocrlf=true`，那只是**警告**，暂存内容不变。**不要去改 autocrlf**：dist 里 HTML 本来就是 CRLF、其它是 LF，关掉它会让所有 CRLF 文件都变成「有改动」并改写发布出去的字节，白白搞出一个巨大的 diff |
+| 控制台部署面板：日志盖在作业列表上 / 整页滚不动 | 面板是满屏高度的 flex 列，子块被压扁后内容会溢出画到邻居身上。规则在 `console/web/console.css` 的「部署面板」一节：面板自己滚、子块不收缩、日志卡片固定高度 |
 
 ---
 
@@ -534,8 +669,11 @@ cmd.exe 按「当前代码页」逐字节解码批处理文件，而且会按字
 | `AGENTS.md` | **项目级约定**：硬规则 + UI 圆角规范（按 `theme-plus` 全局技能的 `references/circle_angle.md`） |
 | `MANIFEST.md` | **清单规范**：加工具只改 json、字段表、三条硬规则、校验命令 |
 | `build\README.md` | **构建系统详解**：打包器、预渲染、样式合并、对比度脚本、图标生成、部署细节 |
-| `console\lib\store.mjs` / `api.mjs` | **发布控制台**的实现（sk.json 保形读写、归档流程、接口）；用法见 §4.5 |
+| `console\lib\store.mjs` / `api.mjs` / `render.mjs` | **发布控制台**的实现（sk.json 保形读写、归档流程、预渲染器与「重刷外壳」、接口）；用法见 §4.5 |
 | `jinsuper.rth1.xyz\p\TEST.md` | **Markdown 语法逐条对照稿** + 支持/不支持速查表 |
+| `jinsuper.rth1.xyz\p\blog.md` | **写作指南**：怎么加一篇文章、frontmatter 字段、构建产出什么（站点上也能读） |
+| `build\template\blog.html` | **博客首页模板**（`p/index.html` 是产物）：最新卡片 / 标签筛选 / 时间线 |
+| `jinsuper.rth1.xyz\site.json` | 站点目录 + **博客身份**（`blog` 段：标题 / 简介 / 主域名） |
 | `rth-sites.json` | 要发布的站点清单 |
 | `部署.cmd --help` / `控制台.cmd` | 部署命令与选项 / 启动本地控制台 |
 | `.Skills\retiehe-web\SKILL.md` | 热铁盒平台参考资料 |
@@ -548,7 +686,7 @@ cmd.exe 按「当前代码页」逐字节解码批处理文件，而且会按字
 - [ ] 拿到 `.env`（RTH_API_KEY），放到项目根
 - [ ] 确认 `部署.cmd status` 各项都是 ✓
 - [ ] 确认能打开三个域名
-- [ ] 跑一次 `部署.cmd check`，确认**五套**测试通过（外加 `npm run console:test` 的 20 条）
+- [ ] 跑一次 `部署.cmd check`，确认**五套**测试通过（外加 `npm run console:test` 的 23 条）
 - [ ] 双击 `控制台.cmd`，确认能起在 127.0.0.1:8791，且 `dist\` 里没有 `console\`
 - [ ] 在 `sk.json` 加一篇测试文档，跑一次 `部署.cmd full -y`，确认两个热铁盒站点都更新
 - [ ] 处理 §10.2 的裸域证书问题

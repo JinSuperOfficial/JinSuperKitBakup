@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-store">
+<title>侧栏滚动诊断 · function.html</title>
+<style>
+  :root{
+    --paper:#0E1214; --surface:#12181B; --surface-2:#161D21;
+    --ink:#E7EAEC; --ink-2:#AEB8BE; --ink-3:#7E8A90; --ink-4:#5C666B;
+    --line:#242C31; --accent:#D97757; --r-sm:6px; --r-md:8px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--paper);color:var(--ink);font-family:-apple-system,"PingFang SC",sans-serif;overflow:hidden}
+  .app{display:flex;flex-direction:column;height:100dvh}
+
+  .probe{
+    flex:none;max-height:44vh;overflow:auto;padding:10px 12px;
+    background:#000;color:#7CFF9B;border-bottom:2px solid var(--accent);
+    font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:1.6;white-space:pre-wrap;word-break:break-all;
+  }
+  .probe .verdict{font-size:15px;font-weight:700;color:#FFD479;display:block;margin-bottom:6px}
+  .probe .big{font-size:14px;color:#fff}
+  .probe .k{color:#8AB4FF}
+  .probe .warn{color:#FF8A73}
+
+  .topbar{
+    flex:none;display:flex;align-items:center;gap:8px;padding:9px 12px;
+    background:var(--surface);border-bottom:1px solid var(--line);font-size:13px;color:var(--ink-2);
+  }
+  .topbar .pill{
+    margin-left:auto;padding:4px 9px;border:1px solid var(--accent);border-radius:var(--r-sm);
+    color:var(--accent);font-size:12px;
+  }
+
+  /* ═══ 被测侧栏：和 function.html 完全同构 ═══ */
+  .workspace{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden}
+
+  .panel{
+    width:372px;flex:none;display:flex;flex-direction:column;gap:20px;
+    padding:22px 18px 18px;
+    background:linear-gradient(180deg,var(--surface) 0%,var(--surface) 100%);
+    border-right:1px solid var(--line);
+    overflow-y:auto;overscroll-behavior:contain;
+    min-height:0;
+  }
+  .label{
+    font-size:10.5px;font-weight:650;letter-spacing:.11em;text-transform:uppercase;
+    color:var(--ink-3);margin-bottom:10px;display:flex;align-items:center;gap:8px;
+  }
+  .label::after{content:'';flex:1;height:1px;background:var(--line)}
+  .row{
+    display:flex;align-items:center;gap:8px;padding:11px 12px;margin-bottom:8px;
+    background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-sm);
+    font-size:13px;color:var(--ink-2);
+  }
+  .row:last-child{margin-bottom:0}
+  .footnote{
+    margin-top:auto;padding-top:10px;font-size:11px;line-height:1.75;
+    color:var(--ink-4);border-top:1px solid var(--line);
+  }
+  .input-bar{
+    position:sticky;bottom:0;z-index:6;display:flex;align-items:center;gap:6px;
+    margin-top:12px;padding:5px 6px;background:var(--surface-2);
+    border:1px solid var(--line);border-radius:var(--r-md);
+  }
+  .input-bar input{
+    flex:1;min-width:0;padding:8px 2px;background:transparent;border:none;outline:none;
+    color:var(--ink);font-family:inherit;font-size:13px;
+  }
+  .input-bar button{
+    flex:none;padding:8px 13px;background:var(--accent);border:1px solid var(--accent);
+    border-radius:var(--r-sm);color:#0E1214;font:inherit;font-size:12.5px;font-weight:600;
+  }
+
+  .stage{position:relative;flex:1;min-width:0;min-height:0;overflow:hidden;background:#0B0F11}
+  .stage .hint{position:absolute;inset:0;display:grid;place-items:center;color:var(--ink-4);font-size:12px}
+
+  @media (max-width:880px){
+    .panel{width:100%;border-right:none;border-bottom:1px solid var(--line);max-height:56dvh}
+    .workspace .panel{width:100%;overflow-y:auto;flex:0 0 auto;min-height:0;height:40vh;height:40dvh;
+                      overscroll-behavior:contain;
+                      border-right:none;border-bottom:1px solid var(--line)}    .stage{min-height:0}
+  }
+  @media (max-width:560px){
+    .panel{padding:16px 12px 14px;height:36vh;height:36dvh}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="probe" id="probe">读取中…</div>
+
+  <header class="topbar">侧栏滚动诊断 <span class="pill" id="pill">还没滑</span></header>
+
+  <div class="workspace">
+    <aside class="panel" id="panel">
+      <section>
+        <div class="label">表达式</div>
+        <div class="row">f(x) = sin(x)</div>
+        <div class="row">+ 再加一条</div>
+      </section>
+      <section>
+        <div class="label">常用公式</div>
+        <div class="row">打开公式计算器</div>
+      </section>
+      <section>
+        <div class="label">随手试试</div>
+        <div class="row">sin(x)/x</div>
+        <div class="row">e^(-x^2)</div>
+        <div class="row">x=0</div>
+        <div class="row">y=0</div>
+      </section>
+      <section>
+        <div class="label">画笔 · 两点定直线</div>
+        <div class="row">开启画笔</div>
+        <div class="row">色　点大小</div>
+      </section>
+      <section>
+        <div class="label">配色方案</div>
+        <div class="row">暖调　陶土　苔原</div>
+        <div class="row">海盐　暮色　素墨</div>
+      </section>
+      <section>
+        <div class="label">数据</div>
+        <div class="row">导出 JSON　导入 JSON</div>
+      </section>
+      <div class="footnote">这一段专门把侧栏撑高。请用手指在下面这块区域里上滑——如果「最大滑动」数字一直停在 0，说明侧栏在这台机器上确实滚不动。</div>
+      <form class="input-bar" onsubmit="return false">
+        <input type="text" placeholder="输入… f(x)=x^2">
+        <button type="submit">加入</button>
+      </form>
+    </aside>
+
+    <main class="stage"><div class="hint">画布区域（这里不需要滚）</div></main>
+  </div>
+</div>
+
+<script>
+(function(){
+  var p = document.getElementById('panel');
+  var probe = document.getElementById('probe');
+  var pill = document.getElementById('pill');
+  var maxTop = 0, scrollEvents = 0, touchEvents = 0;
+
+  p.addEventListener('scroll', function(){
+    scrollEvents++;
+    if (p.scrollTop > maxTop) maxTop = Math.round(p.scrollTop);
+    pill.textContent = '滑动中 ' + maxTop;
+    render();
+  }, { passive: true });
+  p.addEventListener('touchmove', function(){ touchEvents++; }, { passive: true });
+
+  function render(){
+    var cs = getComputedStyle(p);
+    var ws = document.querySelector('.workspace');
+    var st = document.querySelector('.stage');
+    var canScroll = p.scrollHeight > p.clientHeight + 1;
+    var L = [];
+    L.push('<span class="big">最大滑动 = ' + maxTop + ' px</span>   （触摸移动 ' + touchEvents + ' 次 / scroll 事件 ' + scrollEvents + ' 次）');
+    L.push('<span class="verdict">' + (maxTop > 0
+      ? '✅ 侧栏能滚动（' + maxTop + 'px）——功能是好的'
+      : (canScroll ? '⚠️ 侧栏有可滚内容但一次都没动过 → 手势被别的东西吃掉了'
+                   : '❌ 侧栏不是滚动容器 → 高度/overflow 没生效')) + '</span>');
+    L.push('');
+    L.push('<span class="k">视口</span> 内高=' + innerHeight + ' 内宽=' + innerWidth
+         + ' 可视高=' + (window.visualViewport ? Math.round(visualViewport.height) : '?')
+         + ' dpr=' + (window.devicePixelRatio || '?'));
+    L.push('<span class="k">UA</span> ' + navigator.userAgent);
+    L.push('<span class="k">媒体查询</span> ≤880px=' + matchMedia('(max-width:880px)').matches
+         + ' ≤560px=' + matchMedia('(max-width:560px)').matches);
+    L.push('<span class="k">app/ws/stage</span> ' + document.querySelector('.app').offsetHeight
+         + ' / ' + ws.offsetHeight + ' / ' + st.offsetHeight);
+    L.push('<span class="k">ws 裁剪</span> overflow=' + getComputedStyle(ws).overflow
+         + '　workspace 是否把内容裁住 = ' + (st.offsetHeight > 0 ? '是（画布还有高度 ' + st.offsetHeight + 'px）' : '否（画布被压成 0）'));
+    L.push('<span class="k">panel</span> offH=' + p.offsetHeight + ' clientH=' + p.clientHeight
+         + ' scrollH=' + p.scrollHeight + ' scrollTop=' + Math.round(p.scrollTop));
+    L.push('<span class="k">panel 样式</span> height=' + cs.height + ' maxH=' + cs.maxHeight
+         + ' ovY=' + cs.overflowY + ' flex=' + cs.flex + ' minH=' + cs.minHeight);
+    L.push('<span class="k">可滚内容</span> ' + (canScroll ? '有（' + (p.scrollHeight - p.clientHeight) + 'px）' : '没有'));
+    probe.innerHTML = L.join('\n');
+  }
+
+  render();
+  addEventListener('resize', render);
+  addEventListener('orientationchange', function(){ setTimeout(render, 300); });
+  setInterval(render, 1000);
+})();
+</script>
+</body>
+</html>

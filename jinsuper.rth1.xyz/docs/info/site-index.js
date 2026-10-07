@@ -145,6 +145,42 @@ window.SITE_INDEX = {
       "dir": true,
       "children": [
         {
+          "name": "homework/",
+          "dir": true,
+          "children": [
+            {
+              "name": "bg_botanical.jpg"
+            },
+            {
+              "name": "bg_grid.jpg"
+            },
+            {
+              "name": "bg_ink.jpg"
+            },
+            {
+              "name": "bg_map.jpg"
+            },
+            {
+              "name": "chinese.jpg"
+            },
+            {
+              "name": "egg_background.jpg"
+            },
+            {
+              "name": "english.jpg"
+            },
+            {
+              "name": "math.jpg"
+            },
+            {
+              "name": "science.jpg"
+            },
+            {
+              "name": "social.jpg"
+            }
+          ]
+        },
+        {
           "name": "icon/",
           "dir": true,
           "children": [],
@@ -231,7 +267,46 @@ window.SITE_INDEX = {
               "dir": true,
               "children": [
                 {
-                  "name": "TEST.html.2026-10-03T05-32-24-020Z.bak"
+                  "name": "idea/",
+                  "dir": true,
+                  "children": [
+                    {
+                      "name": "1.归途且慢.html.2026-10-07T06-59-26-781Z.bak"
+                    },
+                    {
+                      "name": "1.归途且慢.html.2026-10-07T07-11-24-056Z.bak"
+                    },
+                    {
+                      "name": "3.枣香童年.html.2026-10-07T06-59-26-785Z.bak"
+                    },
+                    {
+                      "name": "3.枣香童年.html.2026-10-07T07-11-24-060Z.bak"
+                    }
+                  ]
+                },
+                {
+                  "name": "2.ScreenOff.html.2026-10-07T06-59-42-323Z.bak"
+                },
+                {
+                  "name": "2.ScreenOff.html.2026-10-07T07-11-24-052Z.bak"
+                },
+                {
+                  "name": "TEST.html.2026-10-07T06-59-42-315Z.bak"
+                },
+                {
+                  "name": "TEST.html.2026-10-07T07-11-24-041Z.bak"
+                }
+              ]
+            },
+            {
+              "name": "idea/",
+              "dir": true,
+              "children": [
+                {
+                  "name": "1.归途且慢.html"
+                },
+                {
+                  "name": "3.枣香童年.html"
                 }
               ]
             },
@@ -326,7 +401,7 @@ window.SITE_INDEX = {
           "dir": true,
           "children": [
             {
-              "name": "1.归途且慢.md"
+              "name": "3.枣香童年.md"
             },
             {
               "name": "index.md"
@@ -346,6 +421,42 @@ window.SITE_INDEX = {
           ]
         },
         {
+          "name": "post/",
+          "dir": true,
+          "children": [
+            {
+              "name": "idea/",
+              "dir": true,
+              "children": [
+                {
+                  "name": "3.枣香童年.html"
+                },
+                {
+                  "name": "index.html"
+                }
+              ]
+            },
+            {
+              "name": "para/",
+              "dir": true,
+              "children": [
+                {
+                  "name": "1SetUp.html"
+                },
+                {
+                  "name": "homework.html"
+                }
+              ]
+            },
+            {
+              "name": "blog.html"
+            },
+            {
+              "name": "science.html"
+            }
+          ]
+        },
+        {
           "name": "test/",
           "dir": true,
           "children": [
@@ -359,6 +470,9 @@ window.SITE_INDEX = {
         },
         {
           "name": "black.html"
+        },
+        {
+          "name": "blog.md"
         },
         {
           "name": "color-theme.md"
@@ -376,6 +490,9 @@ window.SITE_INDEX = {
           "name": "docs.html"
         },
         {
+          "name": "feed.xml"
+        },
+        {
           "name": "index.html"
         },
         {
@@ -386,9 +503,6 @@ window.SITE_INDEX = {
         },
         {
           "name": "SKILL.md"
-        },
-        {
-          "name": "temp-homework.md"
         },
         {
           "name": "viewer.html"
@@ -468,6 +582,9 @@ window.SITE_INDEX = {
             },
             {
               "name": "test_html_20260919_d04d4f.html"
+            },
+            {
+              "name": "tiermaker.html"
             }
           ]
         },
