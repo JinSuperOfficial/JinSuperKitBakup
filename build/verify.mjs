@@ -283,7 +283,7 @@ console.log('\n── 10. 博客首页与文章页 ──');
       [/id="timelineBody"/, '时间线容器'],
       [/class="tl-year"/, '时间线年份分组'],
       [/href="\.\/feed\.xml"/, 'RSS 链接'],
-      [/rel="canonical" href="https:\/\/jinsuper\.rth1\.xyz\/p\/"/, 'canonical'],
+      [/rel="canonical" href="https:\/\/www\.jinsuper\.cn\/p\/"/, 'canonical'],
       [/application\/ld\+json/, '结构化数据'],
       [/data-tags="/, '标签筛选用的 data-tags'],
     ];

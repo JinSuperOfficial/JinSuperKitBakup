@@ -420,7 +420,10 @@ function valueOf(name) {
 async function askTag() {
   const direct = process.argv.find((a) => a === '--tag' || a.startsWith('--tag='));
   if (direct) {
-    const val = direct.startsWith('--tag=') ? direct.slice(6) : null;
+    /* 名字两种写法都要收：`--tag=v1.1.0` 与 `--tag v1.1.0`。
+       只认等号那种的话，空格写法会被当成「不给名字」→ 静默换成时间戳名
+       （帮助里写的正是空格那种，实测踩过）。 */
+    const val = direct.startsWith('--tag=') ? direct.slice(6) : valueOf('--tag');
     const extra = ['--tag'];
     if (val) extra.push(val);
     const tm = valueOf('--tag-message');

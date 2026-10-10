@@ -70,6 +70,7 @@ F:\@Project\node\
 │   ├── 811\                  ← ★ 八年(11)班专区：index.html 工具箱 + homework.html
 │   │                             + classtable.html + english.html（英语听力音频）
 │   │                             + tools.json（本区清单）+ data\homework.json + data\english\
+│   │                             + data\hwk-log\（作业页更新日志，详见 §4.7）
 │   ├── p\                    ← ★ 博客／文档站（详见 §5.1）
 │   │   ├── index.html        ← ★ 博客首页（构建产出：最新 + 标签筛选 + 时间线；旧的写作台已舍弃）
 │   │   ├── post\             ← ★ 文章页（构建产出：每篇一个独立网址，给搜索引擎）
@@ -81,6 +82,7 @@ F:\@Project\node\
 │   └── asset\                ← 站点自己的静态资源（604 个，含 logo.svg）
 │
 ├── asset\                    ← 图标库（603 个，会被合并进 dist\asset\，见 §10.3）
+│   └── background\           ← 作业页的游戏壁纸（mc\<宽x高>\wallpaper.png + ut.png，见 §4.7）
 ├── .Skills\                  ← 参考资料（retiehe-web），不发布
 │   （theme-plus 已移出仓库，变成 DSH 全局技能：F:\@AI\skills\theme-plus\）
 │
@@ -318,6 +320,86 @@ node console\test\console.test.mjs     （或 npm run console:test）
 - 卡片出现在首页与 `/811/`：它只是 `811\tools.json` 里的一条普通条目（`id: english`），
   图标名 `audio` 在 `lib\manifest.js` 的 `ICONS` 里。
 
+### 4.7 作业页的背景与更新日志（`/811/homework.html`）
+
+#### 背景：三处来源，优先级从低到高
+
+1. **`811\data\homework.json` 的 `bg` 字段** —— 站点作者说了算
+2. **右上角「切换背景」按钮** —— 只覆盖本机，记在 `localStorage`（键 `homework.bg`）
+3. 都没有 → **默认**：四张底纹随机拼一条（老行为，一点没变）
+
+`bg` 的取值（大小写、前后空格都不敏感；**不认识的值按默认处理**，控制台会提醒一句）：
+
+| `bg` 写什么 | 效果 | 图在哪 |
+|:--|:--|:--|
+| 不写 / `""` / `"default"` / `"auto"` / `"随机"` | **默认**：`bg_grid/bg_ink/bg_map/bg_botanical` 四张 1:1 底纹随机拼一条，向下平铺 | `jinsuper.rth1.xyz\asset\homework\bg_*.jpg` |
+| `"game-mc"` | **游戏-MC**：MC 风格壁纸，**按视口自动挑最接近的一档尺寸**，整张 `cover` 铺满 | `asset\background\mc\<宽x高>\wallpaper.png` |
+| `"game-ut"` | **游戏-UT**：单张壁纸，`cover` 自适应（宽屏窄屏都不变形） | `asset\background\ut.png` |
+| `"egg"` | **彩蛋**：书堆底图 + 两侧竖排字。**只有显式写出来才会亮** | `jinsuper.rth1.xyz\asset\homework\egg_background.jpg` |
+| `"bg_grid"` / `"bg_ink"` / `"bg_map"` / `"bg_botanical"` | 旧的单张底纹（保留可用，写进 JSON 也行） | 同上 |
+
+`bg` 是**保留字**（`RESERVED_KEYS` 里加了它），不会在作业表里多出一行「科目」。
+
+「切换背景」按钮的轮换表（JS 里的 `BG_STOPS`）：
+**默认 → 网格 → 水墨 → 地图 → 植物 → 游戏-MC → 游戏-UT**，第 0 档「默认」= 跟随 JSON。
+**彩蛋不在这一圈里**，也不再随机触发 —— 原来的「10% 概率」和「作业 ≥ 2 条就自动亮」
+两条规则都删了，只剩 JSON 点名这一条路（`.easter` 那层、竖排字、1.5 秒淡入都还在）。
+
+#### 游戏壁纸的两个约定
+
+- **都在项目根 `asset\background\`**（不是 `jinsuper.rth1.xyz\asset\`）：MC 五档 + `ut.png`，共约 2.8 MB。
+  `prep-deploy.mjs` 会把项目根 `asset\` 整个镜像进 `dist\asset\`（§10.3），所以**不用**再往站点目录放一份。
+  页面里写的是相对路径 `../asset/background/…`（从 `/811/homework.html` 出发）。
+- **MC 的目录约定**：一个尺寸一个文件夹，文件夹名就是「宽x高」，里面固定叫 `wallpaper.png`：
+
+  ```
+  asset\background\mc\1920x1080\wallpaper.png
+  asset\background\mc\2560x1440\wallpaper.png
+  asset\background\mc\2058x1440\wallpaper.png
+  asset\background\mc\2048x2048\wallpaper.png
+  asset\background\mc\1080x1920\wallpaper.png
+  ```
+
+  **加一档** = 丢一个「宽x高」文件夹进去（里面放 `wallpaper.png`），再在 `homework.html` 的
+  `MC_SIZES` 数组里加一行 `{ w:宽, h:高 }` —— 只有这个数组是「登记表」，
+  HTTP 没法列目录，所以必须登记（和科目配图 `HW_ART` 一个道理）。
+  挑选算法在 `pickMcSize()`：**形状（宽高比）差优先，像素量差当次要项**，
+  高分屏最多按 2× 算。当前五档覆盖手机竖屏 / 笔记本 / 2K / 方形 / 宽屏。
+- 壁纸落盘时统一压成 **256 色 PNG**（21 MB → 2.8 MB）。页面上那层纸纱 `.bg.is-cover::after`
+  是 70%（深色 92%），隔着纱看不出差别；要换回原图就直接覆盖同名文件。
+  `is-cover` 档的纱更厚，是因为壁纸比底纹花得多，`meta` / `foot` 那些直接压在页面底色上的小字
+  要保持 ≥ 4.5:1。
+
+#### 更新日志：右上角「更新日志」→ 悬浮窗
+
+- **数据目录**：`jinsuper.rth1.xyz\811\data\hwk-log\`（和 `homework.json` **同级**）
+- **目录文件**：`index.json` —— 一个数组，也可以写成 `{ "entries": [...] }`。
+  **新条目写在最前面**；每条要么直接在索引里写全，要么只写个 `file` 指向同目录下的日志文件。
+  页面按需取后者（只在内存里合并，不写回文件）。
+- **每条日志一个文件**，字段（都能省，省了就不画那一块）：
+
+  ```json
+  {
+    "id": "2026-10-10-bg-and-log",
+    "date": "2026-10-10",
+    "version": "1.2.0",
+    "title": "一句话标题",
+    "tags": ["背景", "日志"],
+    "summary": "开头那段摘要，支持 `代码` 和 **粗体**。",
+    "sections": [
+      { "heading": "小节标题", "items": ["一件事一条，行内支持 **粗体** / *斜体* / `代码`"] }
+    ],
+    "note": "结尾一句话（可选，画成一条提示块）"
+  }
+  ```
+
+  `sections` 可以整块换成 `body`（一段文字，空行分段）。
+- **规矩：日志只增不改** —— 页面**只读**这个目录，从不写、也不动已经写好的条目；
+  新日志 = 新建一个文件 + 在 `index.json` 的 `entries` 最前面加一条（两步，别去改老文件）。
+- 页面行为：左边按日期列（新的在上）、右边是正文；`Esc` 关窗，列表里 `↑` `↓` 换条目，
+  点遮罩也关。读不到索引 / 条目时窗口里明说是哪个路径读不到
+  （`file://` 直接打开读不到，要 `部署.cmd serve` 或线上）。
+
 ---
 
 ## 5. 发布链路
@@ -509,15 +591,34 @@ npm run test:dom      # 只跑慢的那套（改了阅读器 / 模板时跑）
 真正要改的是 `build\template\docs.html` 和 `build\template\docs-md.css`。
 下次 `node build.mjs` 会把直接改在 `p\` 里的内容冲掉。
 
-### 10.2 裸域 `jinsuper.cn` 的证书不含它自己
+### 10.2 证书与 DNS：`jinsuper.cn` 现在走 Cloudflare 代理
 
-- 服务器为 `jinsuper.cn` 出示的证书 **Subject 是 `CN=www.jinsuper.cn`**
-  （Let's Encrypt，有效期 2026-09-30 → 2026-12-29）
-- 浏览器打开 https://jinsuper.cn 会报证书名称不匹配
-- `https://www.jinsuper.cn` 和 `https://jinsuper.rth1.xyz` 都正常
+**2026-10-07 起改的，之前是「仅 DNS」，因为裸域证书的事故由这里解决。**
 
-**待办**：去热铁盒控制台给裸域单独申请证书。CLI 没有域名/证书相关的子命令
-（只有 `site create` / `site list`），只能从控制台操作。
+- 事故：热铁盒为 `jinsuper.cn` 这个站只签了 **`CN=www.jinsuper.cn`** 一张证书，
+  裸域没有 SAN。而热铁盒自己的 http→https 跳转偏偏跳到裸域
+  （`http://www.jinsuper.cn/x` → 301 → `https://jinsuper.cn/x`），
+  于是任何 http 入口都落到一张名称不匹配的证书上：浏览器报
+  `ERR_CERT_COMMON_NAME_INVALID`，爬虫记 SSL 错误。控制台那边
+  「配置 HTTPS」只有「手动上传 / 删除」，没有重新签发；把域名重填一遍会被拒
+  （提示「此域名已被您注册」）。
+- 现在的做法：Cloudflare 里 `jinsuper.cn` 和 `www.jinsuper.cn` 两条 CNAME
+  都改成**已代理**，于是边缘用 Cloudflare 的通用证书（SAN = `jinsuper.cn`
+  + `*.jinsuper.cn`，自动续期）覆盖两个主机名。
+- 配套设置（都在 Cloudflare 控制台，别再手动关掉）：
+  - **SSL/TLS 加密模式 = 完全（Full）**。⚠️ 不能改成「完全（严格）」：
+    回源时裸域依旧只有那张 www 证书，严格模式会直接 526。也不能用
+    「灵活（Flexible）」——源站自己会 http→https，两条一撞就是
+    ERR_TOO_MANY_REDIRECTS。
+  - **始终使用 HTTPS = 开**（SSL/TLS → 边缘证书）。
+  - 裸域 → www 的 301 规则本来就在（`规则` 里），现在链路是
+    `http://jinsuper.cn` → 301 `https://jinsuper.cn` → 301 `https://www.jinsuper.cn`。
+  - **Bot Fight 模式保持关闭**（安全性 → 设置）：开了会去挑战爬虫。
+  - AI Crawl Control 没有拦 `robots.txt` 里放行的那些 Bot（实测 GPTBot /
+    ClaudeBot / PerplexityBot / Google-Extended 都是 200）。
+- 源站那边 `网站设置 → 首页路径` 也要看一眼：`jinsuper.cn` 这个站曾经是
+  `web/index.html`，于是自定义域名首页一直是 10-01 的旧页面；已改回 `index.html`。
+  （热铁盒里 `jinsuper` 和 `jinsuper.cn` 是**两个站**，两份配置互不相干。）
 
 ### 10.3 `asset\` 有两份
 
@@ -530,6 +631,10 @@ npm run test:dom      # 只跑慢的那套（改了阅读器 / 模板时跑）
 - **`logo.svg` 的权威位置是 `jinsuper.rth1.xyz\asset\icon\logo.svg`** ——
   `make-favicon.mjs` 和 `lib\logo.mjs` 都从这个路径读
 - 两份内容一旦分叉会很难查，改图标时**两边都要改**，或者干脆合并成一份
+- **例外**：作业页的游戏壁纸（`asset\background\`，§4.7）**只放项目根那一份**，
+  站点那份没有 —— 镜像进 `dist\asset\` 后线上路径一样是 `/asset/background/…`，
+  没必要再复制一份（两份加起来就是 5.6 MB 白占地方）。
+  所以现在两边的文件数不再相等，**这是故意的**，不是漏拷。
 
 ### 10.4 `部署.cmd` 必须保持纯 ASCII
 
@@ -561,11 +666,22 @@ cmd.exe 按「当前代码页」逐字节解码批处理文件，而且会按字
 `p\raw.php` 和 `Skills\tools\hw-api.php` 在 GitHub Pages 上会被当**源文件**返回
 （`text/plain`），页面得靠降级逻辑兜底。热铁盒那边才真的执行。
 
-### 10.9 `robots.txt` / `sitemap.xml` 里有平台变量
+### 10.9 `robots.txt` / `sitemap.xml` 不再用平台变量（曾经的坑）
 
-两处写了 `jinsuper{$rthSuffix}`，这是**热铁盒的服务端变量**，会在响应时替换成
-`.rth1.xyz`。所以自定义域名上访问时，sitemap 链接指向的仍是 `jinsuper.rth1.xyz`。
-不影响使用，但知道一下。
+`robots.txt` 的 `Sitemap:` 和 `sitemap.xml` 里的 `<loc>` 现在都写**绝对地址**，
+前缀取 `site.json` 的 `blog.origin`（即 `https://www.jinsuper.cn`）。
+
+以前这两处写的是热铁盒的服务端变量 `jinsuper{$rthSuffix}`，它在自定义域名上
+也照样展开成 `.rth1.xyz`。当时以为「不影响使用」，其实代价很大：**
+免费域名 `*.rth1.xyz` 对搜索引擎 UA 一律回 404「您的请求可疑，已被阻止」**
+（2026-10 实测 Googlebot / Bingbot / Baiduspider / 任意 `*Bot` 全是 404，
+只有浏览器 UA 才 200）。于是站点地图里 35 条 URL 全指向一个抓不到的域名，
+Google Search Console 的状态是「无法抓取 / 已发现的网页 0」，
+`site:jinsuper.cn` 一条结果都没有。canonical 也一起指向那里，等于让搜索引擎
+别收录真正能访问的 www。
+
+换域名之后如果还有老产物（`/p/archive/**.html`），控制台点「重刷外壳」即可；
+`console/lib/render.mjs` 会丢掉不属于当前 `blog.origin` 的 canonical，落回产物自己的地址。
 
 ### 10.10 中文文件名要 percent-encode
 
@@ -576,6 +692,12 @@ cmd.exe 按「当前代码页」逐字节解码批处理文件，而且会按字
 
 `fetch` / `Invoke-WebRequest` 默认 UA 可能拿到 403 拦截页。
 要验证线上内容就带浏览器 UA（`deploy.mjs` 的域名检查已经这么做了）。
+
+更要注意的是：**免费域名 `*.rth1.xyz` 对爬虫 UA 一律回 404**
+（`<h1>错误 404</h1><p>您的请求可疑，已被阻止。</p>`），Googlebot / Bingbot /
+Baiduspider / 随便什么 `*Bot` 都一样，只有浏览器 UA 才 200。所以自有域名是唯一
+能被搜索引擎抓到的入口，也正因为如此 `robots.txt` / `sitemap.xml` / canonical
+都写死 `https://www.jinsuper.cn`（见 §10.9）。
 
 ### 10.12 静态资源会 302 到 CDN
 
@@ -674,6 +796,8 @@ Windows 上装个系统 Deno（`winget install DenoLand.Deno`），脚本优先�
 | `jinsuper.rth1.xyz\p\blog.md` | **写作指南**：怎么加一篇文章、frontmatter 字段、构建产出什么（站点上也能读） |
 | `build\template\blog.html` | **博客首页模板**（`p/index.html` 是产物）：最新卡片 / 标签筛选 / 时间线 |
 | `jinsuper.rth1.xyz\site.json` | 站点目录 + **博客身份**（`blog` 段：标题 / 简介 / 主域名） |
+| `jinsuper.rth1.xyz\811\data\hwk-log\index.json` | **作业页更新日志目录**（每条日志同目录下一个 json；只增不改，见 §4.7） |
+| `asset\background\` | **作业页游戏壁纸**（`mc\<宽x高>\wallpaper.png` + `ut.png`，见 §4.7） |
 | `rth-sites.json` | 要发布的站点清单 |
 | `部署.cmd --help` / `控制台.cmd` | 部署命令与选项 / 启动本地控制台 |
 | `.Skills\retiehe-web\SKILL.md` | 热铁盒平台参考资料 |

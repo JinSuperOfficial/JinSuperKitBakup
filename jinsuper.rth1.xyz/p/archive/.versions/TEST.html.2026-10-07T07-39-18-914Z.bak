@@ -2,22 +2,25 @@
 <html lang="zh-CN" data-theme="obsidian" data-glass="mica">
 <head>
 <meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="../../favicon.svg">
+<link rel="apple-touch-icon" href="../../apple-touch-icon.svg">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script>document.documentElement.classList.add('has-js');</script>
 <meta name="description" content="TEST · 归档预渲染稿">
 <title>TEST · JinSuper 奇思妙想</title>
 <meta name="robots" content="index,follow,max-image-preview:large">
-<link rel="canonical" href="">
+<link rel="canonical" href="https://jinsuper.rth1.xyz/p/archive/TEST.html">
 <link rel="alternate" type="application/rss+xml" title="JinSuper 奇思妙想 · RSS" href="../feed.xml">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="JinSuper 奇思妙想">
 <meta property="og:title" content="TEST">
 <meta property="og:description" content="TEST · 归档预渲染稿">
+<meta property="og:url" content="https://jinsuper.rth1.xyz/p/archive/TEST.html">
 <meta property="og:locale" content="zh_CN">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="TEST">
 <meta name="twitter:description" content="TEST · 归档预渲染稿">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"TEST","description":"TEST · 归档预渲染稿","url":"","mainEntityOfPage":{"@type":"WebPage","@id":""},"author":{"@type":"Person","name":"JinSuper"},"publisher":{"@type":"Organization","name":"JinSuper 奇思妙想"},"inLanguage":"zh-CN","isPartOf":{"@type":"Blog","name":"JinSuper 奇思妙想","url":"https://jinsuper.rth1.xyz/p/docs.html"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"TEST","description":"TEST · 归档预渲染稿","url":"https://jinsuper.rth1.xyz/p/archive/TEST.html","mainEntityOfPage":{"@type":"WebPage","@id":"https://jinsuper.rth1.xyz/p/archive/TEST.html"},"author":{"@type":"Person","name":"JinSuper"},"publisher":{"@type":"Organization","name":"JinSuper 奇思妙想"},"inLanguage":"zh-CN","isPartOf":{"@type":"Blog","name":"JinSuper 奇思妙想","url":"https://jinsuper.rth1.xyz/p/docs.html"}}</script>
 <!-- 由发布控制台预渲染：源 Markdown 在项目根 para\ 留底，这里是成品 -->
 <link rel="stylesheet" href="../docs-md.css">
 <style>
@@ -392,6 +395,9 @@ a{ color:var(--accent); }
 /* ---------- 文章头（frontmatter 元数据）用的间距微调 ---------- */
 .md .md-fm{ margin-top:0 }
 
+/* 目录里「没有小节」时的兜底条目指向正文容器本身，跳回来别被吸顶栏盖住 */
+#post{ scroll-margin-top:calc(var(--bar-h) + 14px) }
+
 /* ---------- 上下篇 ---------- */
 .pn{
   grid-column:2;
@@ -594,6 +600,8 @@ html:not(.has-js) .md .cg-panel{ display:block }
   </aside>
 
   <article class="md" id="post">
+
+
 
 <h1 id="全功能-markdown-测试文档">全功能 Markdown 测试文档<a class="anchor" href="#全功能-markdown-测试文档" aria-label="锚点链接">#</a></h1>
 <blockquote>
@@ -1191,6 +1199,8 @@ cond(no)-&gt;op
 </section>
 
 
+  
+  
   </article>
 
   <footer class="foot">

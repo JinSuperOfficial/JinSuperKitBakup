@@ -2,35 +2,29 @@
 <html lang="zh-CN" data-theme="obsidian" data-glass="mica">
 <head>
 <meta charset="UTF-8">
-<link rel="icon" type="image/svg+xml" href="../../../favicon.svg">
-<link rel="apple-touch-icon" href="../../../apple-touch-icon.svg">
+<link rel="icon" type="image/svg+xml" href="../../favicon.svg">
+<link rel="apple-touch-icon" href="../../apple-touch-icon.svg">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<!-- 有没有脚本，样式要区别对待（见下面 html:not(.has-js) 那几条）。
-     放在样式表之前执行，避免闪一下。 -->
 <script>document.documentElement.classList.add('has-js');</script>
-<title>启程 · JinSuper 奇思妙想</title>
-<meta name="description" content="这个站点的起点：关于金旭的个人文档，学校事务、项目文档与随笔日记都放在这里。">
-<meta name="author" content="JinSuper">
-<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1">
-<link rel="canonical" href="https://www.jinsuper.cn/p/post/para/1SetUp.html">
-<link rel="alternate" type="application/rss+xml" title="JinSuper 奇思妙想 · RSS" href="../../feed.xml">
+<meta name="description" content="Screen off · 归档预渲染稿 · JinSuper">
+<title>Screen off, Welcome To the Real World · JinSuper 奇思妙想</title>
+<meta name="robots" content="index,follow,max-image-preview:large">
+<link rel="canonical" href="https://jinsuper.rth1.xyz/p/archive/2.ScreenOff.html">
+<link rel="alternate" type="application/rss+xml" title="JinSuper 奇思妙想 · RSS" href="../feed.xml">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="JinSuper 奇思妙想">
-<meta property="og:title" content="启程">
-<meta property="og:description" content="这个站点的起点：关于金旭的个人文档，学校事务、项目文档与随笔日记都放在这里。">
-<meta property="og:url" content="https://www.jinsuper.cn/p/post/para/1SetUp.html">
+<meta property="og:title" content="Screen off, Welcome To the Real World">
+<meta property="og:description" content="Screen off · 归档预渲染稿 · JinSuper">
+<meta property="og:url" content="https://jinsuper.rth1.xyz/p/archive/2.ScreenOff.html">
 <meta property="og:locale" content="zh_CN">
-<meta property="article:tag" content="站点">
-<meta property="article:tag" content="说明">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="启程">
-<meta name="twitter:description" content="这个站点的起点：关于金旭的个人文档，学校事务、项目文档与随笔日记都放在这里。">
-<meta name="x-post-index" content="第 5 / 5 篇">
-<link rel="prev" href="homework.html">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"启程","description":"这个站点的起点：关于金旭的个人文档，学校事务、项目文档与随笔日记都放在这里。","url":"https://www.jinsuper.cn/p/post/para/1SetUp.html","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.jinsuper.cn/p/post/para/1SetUp.html"},"author":{"@type":"Person","name":"JinSuper"},"publisher":{"@type":"Organization","name":"JinSuper 奇思妙想"},"inLanguage":"zh-CN","articleSection":"启程","keywords":"站点,说明","isPartOf":{"@type":"Blog","name":"JinSuper 奇思妙想","url":"https://www.jinsuper.cn/p/docs.html"}}</script>
-<link rel="stylesheet" href="../../docs-md.css?v=4">
+<meta name="twitter:title" content="Screen off, Welcome To the Real World">
+<meta name="twitter:description" content="Screen off · 归档预渲染稿 · JinSuper">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"Screen off, Welcome To the Real World","description":"Screen off · 归档预渲染稿 · JinSuper","url":"https://jinsuper.rth1.xyz/p/archive/2.ScreenOff.html","mainEntityOfPage":{"@type":"WebPage","@id":"https://jinsuper.rth1.xyz/p/archive/2.ScreenOff.html"},"author":{"@type":"Person","name":"JinSuper"},"publisher":{"@type":"Organization","name":"JinSuper 奇思妙想"},"inLanguage":"zh-CN","isPartOf":{"@type":"Blog","name":"JinSuper 奇思妙想","url":"https://jinsuper.rth1.xyz/p/docs.html"}}</script>
+<!-- 由发布控制台预渲染：源 Markdown 在项目根 para\ 留底，这里是成品 -->
+<link rel="stylesheet" href="../docs-md.css">
 <style>
-/* ═══════════ 主题 token：构建时从 build/template/docs.html 抠出来 ═══════════ */
+/* 主题 token：构建时从 build/template/docs.html 抠出来（build/lib/theme.mjs），别抄第二遍 */
 /* 下面这一段是从 build/template/docs.html 里抠出来的（build/lib/theme.mjs），
    改配色请改模板，改完重新构建。 */
 :root{
@@ -250,12 +244,7 @@ html[data-glass="acrylic"]{
   --glass-size:4px 4px,auto;
   --glass-blend:normal;
 }
-
-/* ═══════════ 外壳：顶栏 + 两列布局 + 侧栏目录 + 页脚 ═══════════
-   ---------------------------------------------------
-   这一份住在 build/template/post-chrome.css，只此一份：
-   构建期（这一页）和控制台烘的归档稿（/p/archive/**）共用，
-   别在这儿另抄一份。见 build/lib/chrome.mjs。 */
+/* 文章外壳：和 /p/post/*.html 是同一份（build/template/post-chrome.css） */
 /* ═══════════════════════════════════════════════════
    文章外壳的样式（顶栏 + 两列布局 + 侧栏目录 + 上下篇 + 页脚）
    ---------------------------------------------------
@@ -522,16 +511,14 @@ html:not(.has-js) .md .cg-panel{ display:block }
 </head>
 <body>
 
-<!-- 顶栏 / 两列布局 / 侧栏目录 / 上下篇 / 页脚都由 build/lib/chrome.mjs 的
-     chromeBody() 生成（控制台烘的归档稿用同一份，见 console/lib/render.mjs） -->
 <header class="top">
-  <a class="brand" href="../../">
+  <a class="brand" href="../">
     <svg class="logo-mark" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"><path fill="currentColor" d="M512 629.04c-64.536 0-117.04-52.504-117.04-117.04S447.464 394.96 512 394.96 629.04 447.464 629.04 512 576.536 629.04 512 629.04z m0-160.08c-23.732 0-43.04 19.308-43.04 43.04s19.308 43.04 43.04 43.04 43.04-19.308 43.04-43.04-19.308-43.04-43.04-43.04zM799.529 836.529c-9.469 0-18.938-3.612-26.163-10.837-14.45-14.449-14.45-37.877 0-52.326C843.18 703.553 881.628 610.731 881.628 512S843.18 320.447 773.366 250.634c-14.449-14.449-14.449-37.877 0-52.326 14.45-14.449 37.876-14.449 52.326 0 40.73 40.73 72.712 88.17 95.058 141.001 23.143 54.717 34.878 112.818 34.878 172.691s-11.734 117.975-34.878 172.691c-22.346 52.831-54.328 100.271-95.058 141.001-7.224 7.225-16.694 10.837-26.163 10.837zM224.471 836.529c-9.469 0-18.938-3.612-26.163-10.837-40.73-40.73-72.712-88.17-95.058-141.001C80.107 629.974 68.372 571.873 68.372 512s11.734-117.975 34.878-172.691c22.346-52.831 54.328-100.271 95.058-141.001 14.45-14.449 37.877-14.448 52.326 0 14.45 14.449 14.45 37.877 0 52.326C180.82 320.447 142.372 413.268 142.372 512s38.448 191.553 108.261 261.366c14.449 14.449 14.449 37.877 0 52.326-7.224 7.225-16.693 10.837-26.162 10.837z"/><path fill="currentColor" d="M339.681 721.319c-9.47 0-18.938-3.611-26.163-10.837-53.016-53.016-82.214-123.506-82.214-198.482 0-74.978 29.198-145.466 82.214-198.481 14.45-14.448 37.877-14.448 52.326 0 14.449 14.45 14.449 37.877 0 52.326-39.04 39.039-60.54 90.944-60.54 146.155s21.5 107.116 60.54 146.156c14.449 14.449 14.449 37.877 0 52.326-7.224 7.224-16.695 10.837-26.163 10.837zM684.319 721.319c-9.469 0-18.938-3.612-26.163-10.837-14.449-14.449-14.449-37.877 0-52.326 39.04-39.04 60.54-90.945 60.54-146.156s-21.5-107.116-60.54-146.155c-14.449-14.449-14.45-37.876 0-52.326 14.449-14.449 37.876-14.449 52.326 0 53.016 53.016 82.214 123.504 82.214 198.481 0 74.977-29.198 145.466-82.214 198.482-7.225 7.225-16.694 10.837-26.163 10.837z"/></svg>
     <span>JinSuper 奇思妙想</span>
     <span class="brand-sub" id="brandSub"></span>
   </a>
   <nav class="top-nav" aria-label="站点导航">
-    <a href="/p/" class="on" aria-current="page">博客</a><a href="/p/#timeline">时间线</a><a href="/p/#tags">标签</a><a href="/p/docs.html">阅读器</a><a href="/p/feed.xml">RSS</a><a href="/" class="wide">百宝箱</a>
+    <a href="/p/">博客</a><a href="/p/#timeline">时间线</a><a href="/p/#tags">标签</a><a href="/p/docs.html">阅读器</a><a href="/p/feed.xml">RSS</a><a href="/" class="wide">百宝箱</a>
   </nav>
 </header>
 
@@ -541,54 +528,88 @@ html:not(.has-js) .md .cg-panel{ display:block }
   <aside class="ptoc" id="ptoc" aria-label="本页目录">
     <p class="ptoc-title">本页目录</p>
     <ul id="ptocList">
-      <li class="lv-1"><a href="#welcome-to-my-document-websites" data-target="welcome-to-my-document-websites" title="Welcome to my document websites!">Welcome to my document websites!</a></li>
-      <li class="lv-2"><a href="#introduction" data-target="introduction" title="Introduction">Introduction</a></li>
-      <li class="lv-2"><a href="#latest-para" data-target="latest-para" title="Latest Para">Latest Para</a></li>
+      <li class="lv-1"><a href="#screen-off" data-target="screen-off" title="Screen Off, Welcome To the Real World">Screen Off, Welcome To the Real World</a></li>
     </ul>
   </aside>
 
   <article class="md" id="post">
-<header class="md-fm">
-<h1 class="md-fm-title">启程</h1>
-<p class="md-fm-summary">这个站点的起点：关于金旭的个人文档，学校事务、项目文档与随笔日记都放在这里。</p>
-<div class="md-fm-chips"><span class="md-fm-chip" data-fm="author"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="8" cy="5.6" r="2.6"/><path d="M3.2 13.2c.6-2.3 2.5-3.6 4.8-3.6s4.2 1.3 4.8 3.6"/></svg><span class="md-fm-chip-t">JinSuper</span></span><span class="md-fm-chip" data-fm="category"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 7.4 7.6 2.4h5.4v5.4l-5 5z"/><circle cx="10.2" cy="5.4" r="1"/></svg><span class="md-fm-chip-t">启程</span></span><span class="md-fm-chip md-fm-reading" data-fm="reading"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="8" cy="8" r="6.2"/><path d="M8 4.6V8l2.3 1.5"/></svg><span class="md-fm-chip-t">约 1 分钟</span></span><span class="md-fm-tags" data-fm="tags"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 7.4 7.6 2.4h5.4v5.4l-5 5z"/><circle cx="10.2" cy="5.4" r="1"/></svg><a class="md-fm-tag" href="../../../p/#tag-%E7%AB%99%E7%82%B9">站点</a><a class="md-fm-tag" href="../../../p/#tag-%E8%AF%B4%E6%98%8E">说明</a></span></div>
-</header>
-<h1 id="welcome-to-my-document-websites">Welcome to my document websites!<a class="anchor" href="#welcome-to-my-document-websites" aria-label="锚点链接">#</a></h1>
-<h2 id="introduction">Introduction<a class="anchor" href="#introduction" aria-label="锚点链接">#</a></h2>
-<p>这是一个关于金旭的个人文档。</p>
-<p>我也许会发布一些关于<em>学校事务</em>、<em>项目文档</em>或<em>随笔日记</em>在这里。</p>
-<h2 id="latest-para">Latest Para<a class="anchor" href="#latest-para" aria-label="锚点链接">#</a></h2>
-<p><a href="../../docs.html#archive%2Fidea%2F3.%E6%9E%A3%E9%A6%99%E7%AB%A5%E5%B9%B4.html" class="card">
-  <span class="card-title">[奇思妙想] 枣香，童年</span>
-  <span class="card-date">2026.10.6</span>
-</a><br>
-<a href="../../docs.html#archive%2F2.ScreenOff.html" class="card">
-  <span class="card-title">[奇思妙想] ScreenOff,Welcome to the real world!</span>
-  <span class="card-date">2026.10.4</span>
-</a><br>
-<a href="../../docs.html#archive%2Fidea%2F1.%E5%BD%92%E9%80%94%E4%B8%94%E6%85%A2.html" class="card">
-  <span class="card-title">[奇思妙想] 归途，且慢</span>
-  <span class="card-date">2026.9.27</span>
-</a></p>
 
+
+
+
+    <!-- 标题区 -->
+    <h1 id="screen-off">Screen Off, Welcome To the Real World</h1>
+    <p style="text-align: center; text-indent: 0; color: #869298; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.9em;">
+        By: JinSuper | 金旭<br>
+        Class: 11 / Grade 8
+    </p>
+
+    <!-- Tab 块：正文与翻译同层级 -->
+    <div class="tabs-tabs-wrapper">
+        <div class="tabs-tabs-header" role="tablist">
+            <button type="button" class="tabs-tab-button active" role="tab" aria-selected="true" tabindex="0" data-tab="0" data-active onclick="switchTab(this, 0)">English(正文)</button>
+            <button type="button" class="tabs-tab-button" role="tab" aria-selected="false" tabindex="-1" data-tab="1" onclick="switchTab(this, 1)">翻译(机翻)</button>
+        </div>
+        
+        <div class="tabs-tabs-container">
+            <!-- Tab 1: 英文正文 -->
+            <div class="tabs-tab-content active" role="tabpanel" data-index="0" data-active>
+                <p>It's no secret that our digital life has made everything much easier. Artificial Intelligence (AI) and robots can do dangerous jobs for us. Tablets, smartphones, and other mobile devices help us get the latest messages and communicate with others quickly. What's more, <mark>internet memes</mark> create <mark>unprecedented</mark> interest among people.</p>
+
+                <p>However, excessive use of smartphones and <mark>addiction to</mark> the virtual world might expose us to too much fragmented and junk information. They make us numb, <mark>rob us of</mark> the joy of doing everything, and destroy our ability to focus. Some people <mark>overuse</mark> internet memes in real life; this might <mark>seriously affect</mark> others who are <mark>confused or feel lost</mark>.<sup class="footnote-ref"><a href="#fn1" id="fnref1">[1]</a></sup></p>
+
+                <p>So, it's time for <span style="color: #D97757; font-weight: bold;">us</span> to take action against digital addiction! Victory is within <span style="color: #D97757; font-weight: bold;">your</span> reach as long as <span style="color: #D97757; font-weight: bold;">you</span> make an effort and believe in <span style="color: #D97757; font-weight: bold;">yourself</span>! Turn off your screen. Next, embrace the wonderful, real world!<sup class="footnote-ref"><a href="#fn2" id="fnref2">[2]</a></sup></p>
+            </div>
+            
+            <!-- Tab 2: 翻译 -->
+            <div class="tabs-tab-content" role="tabpanel" data-index="1">
+                <p>数字化浪潮让生活变得便捷，这早已不是秘密。人工智能与机器人为我们承担了危险的工作。平板、手机等移动设备，助我们迅速获取讯息，与人交流。更有甚者，网络迷因在人们中间引发了前所未有的兴致。</p>
+
+                <p>然而，过度使用手机与沉迷虚拟世界，可能让我们饱受碎片化与垃圾信息的侵扰。它们令我们麻木，剥夺了做事的乐趣，摧毁了专注的能力。有些人甚至在现实生活里滥用网络迷因，这或许会深深影响那些困惑、迷茫的人。</p>
+
+                <p>所以，是时候对数字成瘾宣战了！只要肯付出努力并相信自己，胜利便触手可及！关上屏幕，去拥抱美好而真实的现实世界吧！</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 著作时间 -->
+    <div style="font-size: 0.85em; color: #b9af72; text-align: left; line-height: 1.6; margin-top: 30px;">
+        <details>
+            <summary style="cursor: pointer; outline: none;">著作时间</summary>
+            <div style="font-size: 0.85em; color: #666; text-align: left; line-height: 1.6;">
+                2026.10.2<br>
+                星期五，初二
+            </div>
+        </details>
+    </div>
+
+    <!-- 脚注区 -->
+    <hr class="footnotes-sep">
+    <section class="footnotes">
+        <ol class="footnotes-list">
+            <li id="fn1" class="footnote-item"><p><strong>语法避坑提示：</strong> 1. 两个完整句子不能只用逗号连接（逗号粘连），应改用分号或连词。2. 并列结构（A, B, and C）的词性必须一致。<a href="#fnref1" class="footnote-backref">↩︎</a></p></li>
+            <li id="fn2" class="footnote-item"><p><strong>关于人称转换：</strong> 结尾处从 we/us 转换到 you/your，是经典的演讲式呼吁手法（Call to Action），从“共同面对”过渡到“个人承担”，极具号召力，而非语法错误。<a href="#fnref2" class="footnote-backref">↩︎</a></p></li>
+        </ol>
+    </section>
+
+
+  
+  
   </article>
-
-    <a class="pn-prev" href="homework.html"><span class="pn-k">← 更新的一篇</span><span class="pn-t">本周作业</span></a>
-    <span class="pn-empty">更早的一篇 →</span>
 
   <footer class="foot">
     <div class="foot-row">
       © JinSuper · 想到什么写什么
-      <a href="../../docs.html">在阅读器里看这一篇</a>
-      <a href="../../feed.xml">订阅 RSS</a>
-      <a href="../../../">回百宝箱</a>
+      <a href="../">博客首页</a>
+      <a href="../feed.xml">订阅 RSS</a>
+      <a href="../../">回百宝箱</a>
     </div>
   </footer>
 </main>
 
+<script src="../../p/docs-card.js"></script>
+<script src="../../p/docs-md.js"></script>
 <script>
-/* 文章页的小增强（选项卡 / 代码组 / 复制按钮 / 剧透 / 目录高亮）住在
-   build/template/post-script.js —— 归档稿共用同一份，别另抄。 */
 /* ═══════════════════════════════════════════════════
    文章页的小增强（选项卡 / 代码组 / 复制按钮 / 剧透 / 目录高亮）
    ---------------------------------------------------
@@ -734,6 +755,5 @@ html:not(.has-js) .md .cg-panel{ display:block }
 })();
 
 </script>
-
 </body>
 </html>

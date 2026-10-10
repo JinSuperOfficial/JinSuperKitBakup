@@ -103,7 +103,7 @@ node build/test-manifest.mjs         # jsdom 真跑四个页面：排序 / hidde
 
 | 文件 | 生成者 | 内容 |
 |:--|:--|:--|
-| `jinsuper.rth1.xyz/sitemap.xml` | `build/gen-site-index.mjs` | 站点地图：页面 + 工具 + **每篇文章的独立网址**（带 `lastmod`），保留 `jinsuper{$rthSuffix}` 服务端变量 |
+| `jinsuper.rth1.xyz/sitemap.xml` | `build/gen-site-index.mjs` | 站点地图：页面 + 工具 + **每篇文章的独立网址**（带 `lastmod`），绝对地址前缀取 `site.json` 的 `blog.origin` |
 | `jinsuper.rth1.xyz/docs/info/site-index.js` | 同上 | `window.SITE_INDEX`：站点目录树（说明文字在 `docs/info/info.js` 的 `DESC` 里） |
 
 （`/asset/icon` 的图标名单没有生成：那是第三方图标集的静态清单，由 `verify-manifests.mjs` 盯着数量。）

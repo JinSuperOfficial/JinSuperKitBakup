@@ -45,7 +45,7 @@ export const BLOG_HOME = '/p/';
 const BLOG_FALLBACK = {
   title: 'JinSuper 奇思妙想',
   desc: 'JinSuper 的随笔与手稿：想到什么写什么，写完就搁在这儿。',
-  origin: 'https://jinsuper.rth1.xyz',
+  origin: 'https://www.jinsuper.cn',
   author: 'JinSuper',
 };
 

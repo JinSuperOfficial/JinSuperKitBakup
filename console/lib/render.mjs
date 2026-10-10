@@ -205,6 +205,20 @@ function archiveHead({ title, desc, url, siteRel, published, tags }) {
 }
 
 /**
+ * 老产物里带来的 canonical 还值不值得沿用：主机必须是当前主域名。
+ * 换过主域名时（例如从 jinsuper.rth1.xyz 换到 www.jinsuper.cn）老值就作废。
+ */
+function usableCanonical(canonical, origin) {
+  const c = String(canonical || '').trim();
+  if (!c) return '';
+  try {
+    return new URL(c).origin === new URL(origin).origin ? c : '';
+  } catch {
+    return '';
+  }
+}
+
+/**
  * 整页外壳（归档产物用）。
  * ---------------------------------------------------
  * 结构要点：
@@ -222,8 +236,12 @@ export function renderShell({ bodyHtml, title, desc, tags = [], published = '', 
   const blog = blogInfo();
   const items = tocItems || tocFromHtml(bodyHtml);
   /* canonical 空着就等于没写 —— 落回自己的地址，别生成 href="" 这种半截标签
-     （老产物里没有 canonical，重刷外壳时就会遇到） */
-  const canon = canonical || `${blog.origin}/${encodeSitePath(String(siteRel).replace(/^\/+/, ''))}`;
+     （老产物里没有 canonical，重刷外壳时就会遇到）
+     老产物里的 canonical 也不能照抄：它可能是在旧主域名下烘的（比如 jinsuper.rth1.xyz，
+     那个免费域名对搜索引擎 UA 一律 404），换过域名之后沿用 = 把收录指到抓不到的地方。
+     只有主机还是当前 blog.origin 时才沿用。 */
+  const canon = usableCanonical(canonical, blog.origin)
+    || `${blog.origin}/${encodeSitePath(String(siteRel).replace(/^\/+/, ''))}`;
 
   return `<!DOCTYPE html>
 <html lang="zh-CN" data-theme="${ESC(theme)}" data-glass="mica">

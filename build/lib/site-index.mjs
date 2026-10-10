@@ -2,7 +2,7 @@
  * 站点索引的生成逻辑（唯一实现）
  * ---------------------------------------------------
  * 产出两样东西（都不写时间戳，同样的输入产出一模一样）：
- *   jinsuper.rth1.xyz/sitemap.xml               站点地图（保留 jinsuper{$rthSuffix} 服务端变量）
+ *   jinsuper.rth1.xyz/sitemap.xml               站点地图（绝对地址，前缀取 site.json 的 blog.origin）
  *   jinsuper.rth1.xyz/docs/info/site-index.js   window.SITE_INDEX：目录树结构
  *
  * 为什么单独一个模块：build.mjs 与 verify-manifests.mjs 都要用它，
@@ -44,7 +44,23 @@ export function readAllCollections(site) {
    1. sitemap.xml
    ═══════════════════════════════════════════════════ */
 
+/**
+ * sitemap 里用的绝对前缀：跟 site.json 的 blog.origin 走，一处配置管到底。
+ *
+ * ⚠️ 不要退回热铁盒的 `jinsuper{$rthSuffix}` 服务端变量：它在自定义域名上
+ * 也照样展开成 `.rth1.xyz`，而免费域名 *.rth1.xyz 对搜索引擎 UA 一律回
+ * 404「您的请求可疑，已被阻止」（2026-10 实测 Googlebot/Bingbot/Baiduspider
+ * 全部如此）。站点地图指向那里 = 搜索引擎一条都抓不到。
+ */
+const SITEMAP_ORIGIN_FALLBACK = 'https://www.jinsuper.cn';
+
+export function sitemapOrigin(site) {
+  const raw = site && site.blog && site.blog.origin ? String(site.blog.origin) : SITEMAP_ORIGIN_FALLBACK;
+  return raw.replace(/\/+$/, '');
+}
+
 export function buildSitemap(site, collections) {
+  const origin = sitemapOrigin(site);
   /* 顺序：首页 → 各 collection 落地页 → 各条目 → 博客文章页 → site.json 里的额外条目。
      同一地址重复出现时后面的覆盖前面的，所以手工条目能抬优先级。 */
   const order = [];
@@ -81,7 +97,7 @@ export function buildSitemap(site, collections) {
   for (const ex of site.extraUrls || []) push(ex.loc, ex.priority == null ? 0.6 : ex.priority);
 
   const body = order.map((loc) =>
-    `  <url><loc>https://jinsuper{$rthSuffix}${loc}</loc>` +
+    `  <url><loc>${origin}${loc}</loc>` +
     (lastmod.get(loc) ? `<lastmod>${lastmod.get(loc)}</lastmod>` : '') +
     `<priority>${Number(priority.get(loc)).toFixed(1)}</priority></url>`).join('\n');
 
