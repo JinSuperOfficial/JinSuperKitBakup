@@ -6,7 +6,64 @@ window.SITE_INDEX = {
   "open": true,
   "children": [
     {
-      "name": "811/",
+      "name": "asset/",
+      "dir": true,
+      "children": [
+        {
+          "name": "homework/",
+          "dir": true,
+          "children": [
+            {
+              "name": "bg_botanical.jpg"
+            },
+            {
+              "name": "bg_grid.jpg"
+            },
+            {
+              "name": "bg_ink.jpg"
+            },
+            {
+              "name": "bg_map.jpg"
+            },
+            {
+              "name": "chinese.jpg"
+            },
+            {
+              "name": "egg_background.jpg"
+            },
+            {
+              "name": "english.jpg"
+            },
+            {
+              "name": "math.jpg"
+            },
+            {
+              "name": "science.jpg"
+            },
+            {
+              "name": "social.jpg"
+            }
+          ]
+        },
+        {
+          "name": "icon/",
+          "dir": true,
+          "children": [],
+          "count": 601
+        },
+        {
+          "name": "功能.md"
+        },
+        {
+          "name": "color-theme.md"
+        },
+        {
+          "name": "SKILL.md"
+        }
+      ]
+    },
+    {
+      "name": "class/",
       "dir": true,
       "children": [
         {
@@ -116,11 +173,26 @@ window.SITE_INDEX = {
               ]
             },
             {
+              "name": "hwk/",
+              "dir": true,
+              "children": [
+                {
+                  "name": "hwk-n261010.json"
+                },
+                {
+                  "name": "index.json"
+                }
+              ]
+            },
+            {
               "name": "hwk-log/",
               "dir": true,
               "children": [
                 {
                   "name": "2026-10-10-bg-and-log.json"
+                },
+                {
+                  "name": "2026-10-10-theme-and-scroll.json"
                 },
                 {
                   "name": "index.json"
@@ -149,63 +221,6 @@ window.SITE_INDEX = {
         },
         {
           "name": "tools.json"
-        }
-      ]
-    },
-    {
-      "name": "asset/",
-      "dir": true,
-      "children": [
-        {
-          "name": "homework/",
-          "dir": true,
-          "children": [
-            {
-              "name": "bg_botanical.jpg"
-            },
-            {
-              "name": "bg_grid.jpg"
-            },
-            {
-              "name": "bg_ink.jpg"
-            },
-            {
-              "name": "bg_map.jpg"
-            },
-            {
-              "name": "chinese.jpg"
-            },
-            {
-              "name": "egg_background.jpg"
-            },
-            {
-              "name": "english.jpg"
-            },
-            {
-              "name": "math.jpg"
-            },
-            {
-              "name": "science.jpg"
-            },
-            {
-              "name": "social.jpg"
-            }
-          ]
-        },
-        {
-          "name": "icon/",
-          "dir": true,
-          "children": [],
-          "count": 601
-        },
-        {
-          "name": "功能.md"
-        },
-        {
-          "name": "color-theme.md"
-        },
-        {
-          "name": "SKILL.md"
         }
       ]
     },

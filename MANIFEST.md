@@ -11,7 +11,7 @@
 |:--|:--|:--|:--|
 | `jinsuper.rth1.xyz/site.json` | — | 站点级目录：有哪些 collection、忽略名单、sitemap 额外条目、**博客身份**（`blog` 段的标题/简介/主域名） | 生成器 + 校验器 |
 | `jinsuper.rth1.xyz/Skills/skills.json` | `skills` | 工具站（/Skills/ 下的工具） | `/index.html`、`/web/index.html`、`/Skills/index.html` |
-| `jinsuper.rth1.xyz/811/tools.json` | `811` | 811 专区（含 `english.html` 英语听力页） | `/index.html`、`/web/index.html`、`/811/index.html` |
+| `jinsuper.rth1.xyz/class/tools.json` | `811` | 811 专区（含 `english.html` 英语听力页） | `/index.html`、`/web/index.html`、`/class/index.html` |
 | `jinsuper.rth1.xyz/sk.json` | — | 博客「JinSuper 奇思妙想」（分组 → 文章路径），格式**不同**，见 §7 | 阅读器 `p/docs.html` + 构建出的 `p/post/*.html` |
 
 运行时只有一份实现：`jinsuper.rth1.xyz/lib/manifest.js` —— 数据归一 + 排序 + 去重 + 渲染兜底 + 图标注册表。
@@ -21,7 +21,7 @@
 
 ## 2. 加一个工具（三步）
 
-1. 把页面放进站点目录，例如 `jinsuper.rth1.xyz/811/newtool.html`。
+1. 把页面放进站点目录，例如 `jinsuper.rth1.xyz/class/newtool.html`。
 2. 打开对应的 collection，在 `items` 里加一条：
 
    ```json
@@ -29,7 +29,7 @@
      "id": "newtool",
      "title": "新工具",
      "desc": "一句话说清它是干什么的。",
-     "href": "/811/newtool.html",
+     "href": "/class/newtool.html",
      "icon": "wrench",
      "order": 30
    }
@@ -37,7 +37,7 @@
 
 3. 刷新页面（清单是运行时 fetch 的，**不用重新构建**）。
 
-想让它出现在首页：`site.json` 的 `collections` 里已经有 `/811/tools.json` 了，所以同一条会自动出现在首页的「811 专区」分组里。
+想让它出现在首页：`site.json` 的 `collections` 里已经有 `/class/tools.json` 了，所以同一条会自动出现在首页的「811 专区」分组里。
 想临时下线：`"hidden": true`。想调顺序：改 `order` 数字。
 
 新增图标才需要动第二个地方：`lib/manifest.js` 顶部的 `ICONS` 里加一个名字，然后 `"icon": "你的名字"`。
@@ -52,7 +52,7 @@
 | `id` | ✅ | 集合内唯一，`^[a-z0-9][a-z0-9-]*$`；全局键是 `collection/id`。**一旦定了就别改**（右键菜单、深链、去重都靠它） |
 | `title` | ✅ | 卡片标题 |
 | `desc` | ✅ | 一句话介绍（可以是空串，但字段要在） |
-| `href` | ✅ | **站点根绝对路径**，如 `/811/homework.html` |
+| `href` | ✅ | **站点根绝对路径**，如 `/class/homework.html` |
 | `icon` | — | `lib/manifest.js` 的 `ICONS` 里的名字 |
 | `iconSvg` | — | 直接给 `<svg>` 内的内容，优先级高于 `icon` |
 | `iconFile` | — | 引用站点里的图标文件，如 `/asset/icon/calendar.svg` |
@@ -66,14 +66,14 @@
 
 ```jsonc
 {
-  "collection": "811",        // 必填（裸数组时取目录名）
+  "collection": "class",        // 必填（裸数组时取目录名）
   "title": "811 专区",         // 可选：首页分组标题
-  "root": "/811/",            // 可选：集合落地页（分组标题链接、sitemap 收录）
+  "root": "/class/",            // 可选：集合落地页（分组标题链接、sitemap 收录）
   "items": [ /* … */ ]
 }
 ```
 
-裸数组也兼容（像早期的 `811/tools.json`），但新写的清单请用对象顶层。
+裸数组也兼容（像早期的 `class/tools.json`），但新写的清单请用对象顶层。
 
 ---
 
@@ -82,7 +82,7 @@
 1. **`href` 用站点根绝对路径**。三处托管（热铁盒 ×2、GitHub Pages）都是域名根部署。
    相对路径（`./x`、`../x`）运行时会被归一成绝对路径并打告警——能跑，但别写。
 2. **路径里的中文要 percent-encode**，逐段编码、`.` / `..` 原样（`lib/manifest.js` 的 `resolveHref` 已经这么做）。
-3. **图标不许靠文件名猜**。以前按文件名正则猜 kind/图标，结果 `/811/index.html` 因为名字里有 `html` 被猜成「函数图表」图标。现在一律显式写 `icon`，没写就回落 `default`。
+3. **图标不许靠文件名猜**。以前按文件名正则猜 kind/图标，结果 `/class/index.html` 因为名字里有 `html` 被猜成「函数图表」图标。现在一律显式写 `icon`，没写就回落 `default`。
 
 ---
 

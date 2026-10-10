@@ -32,7 +32,7 @@ const evaluate = async (expression) => {
 };
 await send('Runtime.enable'); await send('Page.enable'); await send('Network.enable');
 
-await send('Page.navigate', { url: 'http://127.0.0.1:8788/811/english.html' });
+await send('Page.navigate', { url: 'http://127.0.0.1:8788/class/english.html' });
 await sleep(2600);
 
 console.log('=== 点第一行播放 ===');

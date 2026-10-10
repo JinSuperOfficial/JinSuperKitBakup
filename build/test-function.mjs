@@ -1,4 +1,4 @@
-/* 811/function.html（Plot 图像计算器）回归测试
+/* class/function.html（Plot 图像计算器）回归测试
    主题 / GeoGebra 语法 / 公式计算器 / 工具栏 / 表格区 / 对象模型 / 几何构造 逐项断言。
    跑：node build/test-function.mjs   （挂在 部署.cmd check 的快速自检里） */
 import { readFileSync } from 'node:fs';
@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
 
-const FILE = fileURLToPath(new URL('../jinsuper.rth1.xyz/811/function.html', import.meta.url));
+const FILE = fileURLToPath(new URL('../jinsuper.rth1.xyz/class/function.html', import.meta.url));
 const html = readFileSync(FILE, 'utf8');
 
 const errors = [];
@@ -30,7 +30,7 @@ function makeCtx(win){
 }
 
 const dom = new JSDOM(html, {
-  runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/811/function.html',
+  runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/class/function.html',
   beforeParse(win){
     win.__ops = [];
     win.__ctxSeq = 0;
@@ -894,7 +894,7 @@ console.log('\n[K] 三套主题的对比度（WCAG：正文 ≥4.5、大字/图�
 console.log('\n[L] 跟随系统主题 / 自动交点 / 811 工具索引');
 function loadWith({ dark, saved, narrow, savedToolbar }){
   const d = new JSDOM(html, {
-    runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/811/function.html',
+    runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/class/function.html',
     beforeParse(w){
       w.matchMedia = (q) => ({
         matches: /prefers-color-scheme:\s*dark/.test(q) ? !!dark : false,
@@ -966,7 +966,7 @@ check('导出的 JSON 带 autoInter', () => assert.match(win.exportJSON.toString
 check('更多811工具里有「打开 811 工具索引」', () => {
   const a = doc.getElementById('toolsIndexLink');
   assert.ok(a, '按钮要在');
-  assert.equal(a.getAttribute('href'), '/811/index.html');
+  assert.equal(a.getAttribute('href'), '/class/index.html');
   assert.match(a.textContent, /811 工具索引/);
   assert.equal(a.getAttribute('target'), '_blank');
 });

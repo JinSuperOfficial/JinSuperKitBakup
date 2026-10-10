@@ -67,9 +67,10 @@ F:\@Project\node\
 │   ├── site.json             ← ★ 站点级目录：有哪些 collection、sitemap 额外条目、校验忽略名单
 │   ├── lib\manifest.js       ← ★ 站点运行时：清单归一 / 排序 / 去重 / 图标注册表（四个卡片页共用）
 │   ├── sitemap.xml           ← 生成物（build\gen-site-index.mjs），别手改
-│   ├── 811\                  ← ★ 八年(11)班专区：index.html 工具箱 + homework.html
+│   ├── class\                  ← ★ 八年(11)班专区：index.html 工具箱 + homework.html
 │   │                             + classtable.html + english.html（英语听力音频）
-│   │                             + tools.json（本区清单）+ data\homework.json + data\english\
+│   │                             + tools.json（本区清单）+ data\english\（英语听力）
+│   │                             + data\hwk\（作业数据：一天一份，详见 §4.7）
 │   │                             + data\hwk-log\（作业页更新日志，详见 §4.7）
 │   ├── p\                    ← ★ 博客／文档站（详见 §5.1）
 │   │   ├── index.html        ← ★ 博客首页（构建产出：最新 + 标签筛选 + 时间线；旧的写作台已舍弃）
@@ -141,15 +142,15 @@ F:\@Project\node\
 
 ### 4.3 加一个工具（只改 json，不碰 HTML）
 
-1. 页面放进站点目录，例如 `jinsuper.rth1.xyz\811\newtool.html`
-2. 在对应清单的 `items` 里加一条 —— 工具站是 `Skills\skills.json`，811 是 `811\tools.json`：
+1. 页面放进站点目录，例如 `jinsuper.rth1.xyz\class\newtool.html`
+2. 在对应清单的 `items` 里加一条 —— 工具站是 `Skills\skills.json`，811 是 `class\tools.json`：
 
 ```json
 {
   "id": "newtool",
   "title": "新工具",
   "desc": "一句话介绍。",
-  "href": "/811/newtool.html",
+  "href": "/class/newtool.html",
   "icon": "wrench",
   "order": 30
 }
@@ -309,22 +310,77 @@ KaTeX、代码高亮 / 行号 / 高亮行、表格、任务列表、告示、提
 node console\test\console.test.mjs     （或 npm run console:test）
 ```
 
-### 4.6 英语听力页（`/811/english.html`）
+### 4.6 英语听力页（`/class/english.html`）
 
 811 专区里的英语音频页：Unit 1–5 的课文录音，按单元分组、可折叠、单元内连着播，
 底部有迷你播放条（进度可拖、倍速 0.75×–1.5×）。键盘：`空格` 播放暂停、`←→` 快退进 5 秒、`↑↓` 换曲、`/` 聚焦搜索。
 
-- **数据与音频都是静态文件**：清单 `/811/data/english/index.json`，音频 `/811/data/english/<单元>/<文件>.mp3`。
+- **数据与音频都是静态文件**：清单 `/class/data/english/index.json`，音频 `/class/data/english/<单元>/<文件>.mp3`。
   页面上 `<audio>` 直接引用这些路径 —— **不需要任何接口**，也和 `console\` 没有任何关系。
 - 加一条音频 = 把文件丢进对应单元目录 + 在 `index.json` 的 `units[].tracks` 里加一行（`file` 写相对路径）。
-- 卡片出现在首页与 `/811/`：它只是 `811\tools.json` 里的一条普通条目（`id: english`），
+- 卡片出现在首页与 `/class/`：它只是 `class\tools.json` 里的一条普通条目（`id: english`），
   图标名 `audio` 在 `lib\manifest.js` 的 `ICONS` 里。
 
-### 4.7 作业页的背景与更新日志（`/811/homework.html`）
+### 4.7 作业页：数据、背景、时光机与更新日志（`/class/homework.html`）
+
+#### 数据：一天一个文件（`class\data\hwk\`）
+
+作业数据不再是一个大文件（老路径 `class\data\homework.json`），改成一天一份：
+
+```
+jinsuper.rth1.xyz\class\data\hwk\
+├── index.json        目录：所有 hwk-*.json 的**裸数组**（新的在前）→ 页面拿第一条当「今天这份」
+└── hwk-<id>.json     当天记录：id / date / title / bg + **各科正文直接写在里面**（"语文": "…"）+ "笔记"
+```
+
+- **科目就是顶层键**（跟老的 `homework.json` 一模一样）：`"语文": "1. …"`、`"笔记": "…"`；
+  加一天 = 加一个 `hwk-<id>.json`，把它登记进 `index.json`（或再跑一次迁移脚本重建索引）。
+- 换行照旧用 `\n`（页面 `toList()` 自己按行拆），**正文一个字都没动**。
+- 重跑迁移**幂等**：已存在的 `hwk-<id>.json` 跳过、不覆盖（`--force` 才重写）。
+- 将来若想把某段内容抽成「多天共用的一份」，再在记录里写
+  `subjects: {语文: "<id>"}` / `notesId` / `eggId` 指向同目录的 `<id>.json` 内容片 ——
+  页面两条路都认（`loadHwkNew`），平时的数据不用这么写。
+- **id 沿用旧的那份**（`n261010`）：勾选状态存在 `localStorage`，键是 `hw:<id>:<条目哈希>`，
+  换 id 等于把勾过的勾全清空。迁移脚本刻意保 id、保科目顺序、保正文逐字节一致。
+- **`bg` 变成对象**（`{"value":"default"}`）；页面三种写法都认：字符串 / `{value}` / `{slug}`。
+- 旧的 `class\data\homework.json` **默认留着当备份**：新结构读不到（index.json 404 / 空 /
+  内容片缺失）时页面自动退回读它，迁移过程中不会白屏。
+
+**拆分脚本**（幂等，可以反复跑）：
+
+```
+node build\migrate-hwk.mjs                    # 读 class\data\homework.json → 写 class\data\hwk\
+node build\migrate-hwk.mjs --dry-run          # 只打印计划，一个字节不写
+node build\migrate-hwk.mjs --force            # 覆盖已存在的 hwk-<id>.json
+node build\migrate-hwk.mjs --prune-old        # 迁完把旧文件改名成 homework.json.bak（不删）
+```
+
+以后加新的一天：照 `hwk-<id>.json` 的字段写一份记录 + 内容片，再把这条登记进 `index.json`
+（或者再跑一次迁移脚本 —— 它按目录实际内容重建 index.json）。
+
+#### 时光机：翻全部历史作业（右上角）
+
+点右上角「时光机」可以翻所有历史作业：左边按日期列，右边是那一天的科目 / 条目 / 笔记。
+数据读 GitHub 仓库的 `class/data/hwk/`，**三级降级**，哪一级挂掉都往下走：
+
+| 步骤 | 首选（3 秒超时） | 兜底 ② | 兜底 ③ |
+|:--|:--|:--|:--|
+| 目录 | GitHub Contents API | jsDelivr 的 `index.json` | 同源 `./data/hwk/index.json` |
+| 每份文件 | `raw.githubusercontent.com` | jsDelivr | 同源 |
+
+- 三级全挂 → 窗口里只说一句「时光机暂时迷路了」，**今天这份作业完全不受影响**。
+- **缓存**：`localStorage['hwk-index-v2']`，5 分钟 TTL —— 未认证的 GitHub API 只有 60 次/小时。
+- **并发 8**：一批一批拉；列表先画 50 条，多出来的给「加载更多」。
+- **内容片按需拉**：选中哪天拉哪天，不一次性把全部历史的正文拉下来。
+- 拉文件**不带任何认证头**（raw 的 CORS 预检会被 `Authorization` 打挂）。
+- 键盘：`Tab` 走到按钮、`Enter` 打开、`Esc` 关、`↑` `↓` 换日期、焦点在弹窗里循环、关掉还给按钮。
+- **没部署时** GitHub / CDN 上都没有 `class/data/hwk/`，时光机会一路降级到同源 ——
+  本地 `部署.cmd serve` 或热铁盒那条线上照样能看；推完 GitHub Pages 才会走前两级。
 
 #### 背景：三处来源，优先级从低到高
 
-1. **`811\data\homework.json` 的 `bg` 字段** —— 站点作者说了算
+1. **当天记录 `class\data\hwk\hwk-<id>.json` 里的 `bg`** —— 站点作者说了算
+   （退回旧备份读 `homework.json` 时，就是那个文件的 `bg`）
 2. **右上角「切换背景」按钮** —— 只覆盖本机，记在 `localStorage`（键 `homework.bg`）
 3. 都没有 → **默认**：四张底纹随机拼一条（老行为，一点没变）
 
@@ -349,7 +405,7 @@ node console\test\console.test.mjs     （或 npm run console:test）
 
 - **都在项目根 `asset\background\`**（不是 `jinsuper.rth1.xyz\asset\`）：MC 五档 + `ut.png`，共约 2.8 MB。
   `prep-deploy.mjs` 会把项目根 `asset\` 整个镜像进 `dist\asset\`（§10.3），所以**不用**再往站点目录放一份。
-  页面里写的是相对路径 `../asset/background/…`（从 `/811/homework.html` 出发）。
+  页面里写的是相对路径 `../asset/background/…`（从 `/class/homework.html` 出发）。
 - **MC 的目录约定**：一个尺寸一个文件夹，文件夹名就是「宽x高」，里面固定叫 `wallpaper.png`：
 
   ```
@@ -372,7 +428,7 @@ node console\test\console.test.mjs     （或 npm run console:test）
 
 #### 更新日志：右上角「更新日志」→ 悬浮窗
 
-- **数据目录**：`jinsuper.rth1.xyz\811\data\hwk-log\`（和 `homework.json` **同级**）
+- **数据目录**：`jinsuper.rth1.xyz\class\data\hwk-log\`（和 `data\hwk\` 同级）
 - **目录文件**：`index.json` —— 一个数组，也可以写成 `{ "entries": [...] }`。
   **新条目写在最前面**；每条要么直接在索引里写全，要么只写个 `file` 指向同目录下的日志文件。
   页面按需取后者（只在内存里合并，不写回文件）。
@@ -768,13 +824,15 @@ Windows 上装个系统 Deno（`winget install DenoLand.Deno`），脚本优先�
 | 时间线 / 标签里看不到归档稿 | 归档稿（`/p/archive/**.html`）由 `listArchivedPosts()` 从 `sk.json` + 成品页 head 里读出来，不进「最新」卡片；只改了归档产物而没重新构建，时间线也不会变（跑 `node build/build.mjs`） |
 | 站点地图里没有文章 | `sitemap.xml` 是生成物：跑 `node build/gen-site-index.mjs`（或 `部署.cmd build`）。文章条目由 `build\lib\site-index.mjs` 调 `listPosts()` 算出来 |
 | 搜索引擎收录的还是 `/p/docs.html` | 正常：先让 sitemap 上线、在 Google Search Console / Bing 站长工具里提交 `sitemap.xml`。canonical 指 `site.json` 的 `blog.origin`，换主域名要同步改这一处 |
-| 作业页显示「示例清单」 | 没读到数据。作业数据在 `811\data\homework.json`（老路径 `Skills\tools\data\` 已废弃） |
+| 作业页显示「示例清单」 | 没读到数据。作业数据在 `class\data\hwk\`（`index.json` + `hwk-<id>.json` + 内容片；旧的大文件 `homework.json` 只是备份）。老路径 `Skills\tools\data\` 已废弃 |
+| 时光机说「暂时迷路了」 | 三级降级都没通：GitHub Contents API（可能被限流）、jsDelivr、同源 `./data/hwk/index.json`。刚迁完还没 `部署.cmd full` 时属正常（GitHub / CDN 上还没有 `class/data/hwk/`）；本地 `部署.cmd serve` 下会走同源兜底 |
+| 老链接 `/811/homework.html` 404 | 专区目录已改名 `class`（只改路径，人看的名还叫「811 专区」）。站内引用 / 博客里的 iframe / sitemap / 站点索引都已同步；`404.html` 里已经做了 `/811/*` → `/class/*` 的前缀跳转，站外老链接会自动落到新地址 |
 | GitHub Pages 404 | 去仓库 Settings → Pages 确认已启用（Source: main / root） |
 | 控制台打不开 / 端口占用 | `控制台.cmd --port 8792` 换端口；同一时间只跑一个实例 |
 | 控制台说「读不到预渲染核心」 | `build\node_modules` 没装：在 `build\` 里跑一次 `npm install` |
 | 归档失败 | 流程里有自检：产物没写成功就把原文搬回 `/p`，不会留下「登记了但文件不在」的状态。看界面提示的原文/产物路径 |
 | 阅读器里归档篇显示成源码 | 只有 **sk.json 里指向 `archive/*.html`** 的才当预渲染稿注入；手写放在别处的 `.html` 仍按源码显示 |
-| 英语页（`/811/english.html`）没声音 | 音频是直接读 `/811/data/english/<单元>/<文件>.mp3`；用 `file://` 打开读不到清单，`部署.cmd serve` 或线上访问 |
+| 英语页（`/class/english.html`）没声音 | 音频是直接读 `/class/data/english/<单元>/<文件>.mp3`；用 `file://` 打开读不到清单，`部署.cmd serve` 或线上访问 |
 | 传热铁盒报 `UNC paths are not supported` / `node: .env: not found` | 控制台在 Windows、项目在 WSL（UNC 路径），而 Deno 落在 `.cmd` 包装上。见 §10.13。最快的办法：Windows 上 `winget install DenoLand.Deno`，或改用 WSL/Linux 侧的 `./部署.sh` |
 | `./部署.sh` 到最后一步「推 GitHub Pages」失败：`Invalid username or token` | `dist/.git` 的 remote 里没 token（§11 说过换机器要重配）：`git -C dist remote set-url origin https://<TOKEN>@github.com/JinSuperOfficial/JinSuper.github.io.git` |
 | 推 GitHub Pages 报 `fatal: detected dubious ownership in repository at '//wsl.localhost/...'` | Windows 工具链 + WSL 里的项目（UNC）：git 认为仓库不属于当前用户。已经由 `build/lib/git-safe.mjs` 给每次调用加 `-c safe.directory=<本仓库>` 放行（见 §10.13），重跑即可 |
@@ -796,7 +854,7 @@ Windows 上装个系统 Deno（`winget install DenoLand.Deno`），脚本优先�
 | `jinsuper.rth1.xyz\p\blog.md` | **写作指南**：怎么加一篇文章、frontmatter 字段、构建产出什么（站点上也能读） |
 | `build\template\blog.html` | **博客首页模板**（`p/index.html` 是产物）：最新卡片 / 标签筛选 / 时间线 |
 | `jinsuper.rth1.xyz\site.json` | 站点目录 + **博客身份**（`blog` 段：标题 / 简介 / 主域名） |
-| `jinsuper.rth1.xyz\811\data\hwk-log\index.json` | **作业页更新日志目录**（每条日志同目录下一个 json；只增不改，见 §4.7） |
+| `jinsuper.rth1.xyz\class\data\hwk-log\index.json` | **作业页更新日志目录**（每条日志同目录下一个 json；只增不改，见 §4.7） |
 | `asset\background\` | **作业页游戏壁纸**（`mc\<宽x高>\wallpaper.png` + `ut.png`，见 §4.7） |
 | `rth-sites.json` | 要发布的站点清单 |
 | `部署.cmd --help` / `控制台.cmd` | 部署命令与选项 / 启动本地控制台 |

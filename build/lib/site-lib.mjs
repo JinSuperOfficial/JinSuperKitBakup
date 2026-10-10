@@ -30,12 +30,12 @@ export function loadManifestLib() {
 
 /**
  * 读一个清单文件并归一（Node 侧，不走 fetch）。
- * @param {string} relOrAbs '/811/tools.json' 或绝对路径
+ * @param {string} relOrAbs '/class/tools.json' 或绝对路径
  * @returns {{ok:boolean, file:string, raw:any, error?:string} & ReturnType<loadManifestLib>['normalizeCollection']}
  */
 export function readCollection(relOrAbs, opts = {}) {
   const M = loadManifestLib();
-  /* 站点路径一律写成 '/811/tools.json'；Windows 上 '/' 开头会被 path 当成盘根，所以先判断 */
+  /* 站点路径一律写成 '/class/tools.json'；Windows 上 '/' 开头会被 path 当成盘根，所以先判断 */
   const winAbs = /^[a-zA-Z]:[\\/]/.test(relOrAbs) || relOrAbs.startsWith('\\\\');
   const file = winAbs ? relOrAbs : path.join(siteRoot, String(relOrAbs).replace(/^\/+/, ''));
   const base = opts.base || dirOfSite(relOrAbs);
@@ -59,7 +59,7 @@ export function readCollection(relOrAbs, opts = {}) {
   }
 }
 
-/** '/811/tools.json' → '/811/' */
+/** '/class/tools.json' → '/class/' */
 export function dirOfSite(p) {
   const s = String(p).split(/[?#]/)[0];
   const i = s.lastIndexOf('/');

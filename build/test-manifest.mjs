@@ -58,9 +58,9 @@ function canonCard(el, pageUrl, opts = {}) {
  * 起一个页面。
  * @param {object} o
  *   html      页面 HTML 文本
- *   pageUrl   形如 'http://x/811/index.html'
+ *   pageUrl   形如 'http://x/class/index.html'
  *   root      相对路径的落地根（站点根或 dist 根）
- *   overlay   虚拟文件覆盖：{'/811/tools.json': '…'}，优先于磁盘
+ *   overlay   虚拟文件覆盖：{'/class/tools.json': '…'}，优先于磁盘
  */
 function boot({ html, pageUrl, root, overlay = {} }) {
   const errs = [];
@@ -177,32 +177,32 @@ console.log('\n── 1. 共用运行时（/lib/manifest.js） ──');
   else bad('编码不对：' + M.resolveHref('中文 名.md', '/p/'));
   if (M.resolveHref('/a/b.html#x', '/') === '/a/b.html#x') ok('hash 原样保留');
   if (M.resolveHref('https://x.com/a', '/') === 'https://x.com/a') ok('外链原样返回');
-  if (M.sitePath('Skills/../811/x.html') === '811/x.html') ok('sitePath 折叠 ..');
+  if (M.sitePath('Skills/../class/x.html') === 'class/x.html') ok('sitePath 折叠 ..');
 }
 
 /* ═══════════════════════════════════════════════════
    2. 811 页：渲染 + 与 dist 对照
    ═══════════════════════════════════════════════════ */
-console.log('\n── 2. /811/index.html ──');
+console.log('\n── 2. /class/index.html ──');
 
-const PAGE_811 = '811/index.html';
+const PAGE_811 = 'class/index.html';
 const newHtml811 = fs.readFileSync(path.join(siteRoot, PAGE_811), 'utf8');
 const oldFile811 = path.join(distRoot, PAGE_811);
 
 {
-  const M811 = readCollection('/811/tools.json', { strict: true });
+  const M811 = readCollection('/class/tools.json', { strict: true });
   const wantTitles = M811.items.map((i) => i.title).join(',');
   const wantCount = M811.items.length;
 
   const { doc, errs, reqLog } = boot({
     html: newHtml811,
-    pageUrl: 'http://x/811/index.html',
+    pageUrl: 'http://x/class/index.html',
     root: siteRoot,
   });
   await sleep(80);
 
   if (errs.length) bad('页面报错：' + errs.join(' | ')); else ok('页面无 JS 报错');
-  if (reqLog.some((u) => u.includes('/811/tools.json'))) ok('清单走 fetch：' + reqLog.join(', ')); else bad('没有请求清单');
+  if (reqLog.some((u) => u.includes('/class/tools.json'))) ok('清单走 fetch：' + reqLog.join(', ')); else bad('没有请求清单');
 
   /* 卡片数 / 顺序 / 标题都按现清单算，加一条工具不用回来改测试 */
   const cs = cards(doc);
@@ -210,9 +210,9 @@ const oldFile811 = path.join(distRoot, PAGE_811);
   else bad(`卡片数：${cs.length}，按 tools.json 应该是 ${wantCount}`);
   if (titles(doc).join(',') === wantTitles) ok('顺序与标题正确');
   else bad('标题/顺序：' + titles(doc).join(','));
-  if (cs[0] && cs[0].getAttribute('href') === '/811/homework.html') ok('href 已归一为站点根绝对路径');
+  if (cs[0] && cs[0].getAttribute('href') === '/class/homework.html') ok('href 已归一为站点根绝对路径');
   else bad('href：' + (cs[0] && cs[0].getAttribute('href')));
-  if (cs[0] && cs[0].dataset.id === 'homework' && cs[0].dataset.key === '811/homework') ok('data-id / data-key 正确');
+  if (cs[0] && cs[0].dataset.id === 'homework' && cs[0].dataset.key === 'class/homework') ok('data-id / data-key 正确');
   else bad('dataset：' + JSON.stringify(cs[0] && cs[0].dataset));
 
   const ico = cs[0] && cs[0].querySelector('.card-ico svg');
@@ -222,16 +222,16 @@ const oldFile811 = path.join(distRoot, PAGE_811);
 
   /* 与 dist 里的旧版逐字符对照：旧版只可能少几张（新加的条目不算回归） */
   if (!fs.existsSync(oldFile811)) {
-    meh('dist/811/index.html 不存在，跳过 DOM 对照（未组装过产物时属正常）');
+    meh('dist/class/index.html 不存在，跳过 DOM 对照（未组装过产物时属正常）');
   } else {
     const old = boot({
       html: fs.readFileSync(oldFile811, 'utf8'),
-      pageUrl: 'http://x/811/index.html',
+      pageUrl: 'http://x/class/index.html',
       root: distRoot,
     });
     await sleep(80);
     const oldCards = cards(old.doc).map((c) => canonCard(c, old.window.location.href));
-    const newCards = cards(doc).map((c) => canonCard(c, 'http://x/811/index.html'));
+    const newCards = cards(doc).map((c) => canonCard(c, 'http://x/class/index.html'));
     if (newCards.length < oldCards.length) {
       bad(`比旧版少了卡片：旧 ${oldCards.length} / 新 ${newCards.length}`);
     } else {
@@ -253,16 +253,16 @@ const oldFile811 = path.join(distRoot, PAGE_811);
 /* ═══════════════════════════════════════════════════
    3. 811 页：清单变化的行为
    ═══════════════════════════════════════════════════ */
-console.log('\n── 3. 改清单就生效（/811/index.html） ──');
+console.log('\n── 3. 改清单就生效（/class/index.html） ──');
 
-const base811 = JSON.parse(fs.readFileSync(path.join(siteRoot, '811/tools.json'), 'utf8'));
+const base811 = JSON.parse(fs.readFileSync(path.join(siteRoot, 'class/tools.json'), 'utf8'));
 
 async function render811(payload) {
   const { doc } = boot({
     html: newHtml811,
-    pageUrl: 'http://x/811/index.html',
+    pageUrl: 'http://x/class/index.html',
     root: siteRoot,
-    overlay: { '/811/tools.json': typeof payload === 'string' ? payload : JSON.stringify(payload) },
+    overlay: { '/class/tools.json': typeof payload === 'string' ? payload : JSON.stringify(payload) },
   });
   await sleep(60);
   return doc;
@@ -270,7 +270,7 @@ async function render811(payload) {
 
 {
   const added = JSON.parse(JSON.stringify(base811));
-  const addedItem = { id: 'new', title: '新工具', desc: 'd', href: '/811/new.html', icon: 'calendar', order: 5 };
+  const addedItem = { id: 'new', title: '新工具', desc: 'd', href: '/class/new.html', icon: 'calendar', order: 5 };
   added.items.push(addedItem);
   const d1 = await render811(added);
   const addedTitles = cards(d1).map((c) => (c.querySelector('h2, .card-title') || {}).textContent || '');
@@ -304,7 +304,7 @@ async function render811(payload) {
   if (e5 && /清单没加载出来/.test(e5.textContent)) ok('坏 JSON → 兜底文案');
   else bad('坏 JSON 文案：' + (e5 && e5.textContent));
 
-  const d6 = await render811(JSON.stringify({ collection: '811', items: null }));
+  const d6 = await render811(JSON.stringify({ collection: 'class', items: null }));
   const e6 = d6.querySelector('.grid-empty');
   if (e6 && /清单没加载出来/.test(e6.textContent)) ok('顶层结构不对 → 兜底文案');
   else bad('顶层结构兜底不对');
@@ -423,8 +423,8 @@ for (const rel of [PAGE_HOME, 'web/index.html']) {
     bad(`  卡片数：${cs.length}，按清单应该是 ${homeExpect.cards}（${homeExpect.detail}）`);
   }
 
-  if (heads[0] && heads[0].querySelector('a') && heads[0].querySelector('a').getAttribute('href') === '/811/') {
-    ok('  分组标题链到集合落地页 /811/');
+  if (heads[0] && heads[0].querySelector('a') && heads[0].querySelector('a').getAttribute('href') === '/class/') {
+    ok('  分组标题链到集合落地页 /class/');
   } else bad('  分组标题链接不对');
 
   if (cs[0] && cs[0].classList.contains('card-lead')) ok('  第一张卡带 card-lead（跨两列）');
@@ -447,7 +447,7 @@ for (const rel of [PAGE_HOME, 'web/index.html']) {
   fresh.dispatchEvent(new window.MouseEvent('contextmenu', { bubbles: true, clientX: 10, clientY: 10 }));
   await sleep(30);
   const ctxHead = doc.querySelector('#ctx .ctx-head');
-  if (ctxHead && ctxHead.textContent === '811/homework.html') ok('  右键菜单标题：' + ctxHead.textContent);
+  if (ctxHead && ctxHead.textContent === 'class/homework.html') ok('  右键菜单标题：' + ctxHead.textContent);
   else bad('  右键菜单标题：' + (ctxHead && ctxHead.textContent));
 
   if (logs.some((l) => /error/.test(l))) meh('  控制台有 error：' + logs.filter((l) => /error/.test(l)).join(' | '));
@@ -496,7 +496,7 @@ console.log('\n── 6. 首页与改造前对照 ──');
        新版用清单里写的图标，所以这些「不一致」正是修好的 bug。 */
     const iconChanged = [...newMap.keys()].filter((h) =>
       oldIcons.has(h) && oldIcons.get(h) !== newIcons.get(h));
-    /* 简介变化：811 两张卡改成了 811/tools.json 里定的文案（与 811 中枢页一致） */
+    /* 简介变化：811 两张卡改成了 class/tools.json 里定的文案（与 811 中枢页一致） */
     const descChanged = [...newMap.keys()].filter((h) =>
       oldPlain.has(h) && oldPlain.get(h) !== newPlain.get(h));
 

@@ -11,7 +11,7 @@
 
 站点的「有什么工具」由清单决定，**加工具不要改 HTML**：
 
-- 工具清单：`jinsuper.rth1.xyz/Skills/skills.json`（工具站）、`jinsuper.rth1.xyz/811/tools.json`（811 专区）
+- 工具清单：`jinsuper.rth1.xyz/Skills/skills.json`（工具站）、`jinsuper.rth1.xyz/class/tools.json`（811 专区）
 - 站点目录 / 博客身份：`jinsuper.rth1.xyz/site.json`（`blog` 段 = 标题 / 简介 / 主域名）
 - 文章清单：`jinsuper.rth1.xyz/sk.json`（博客「JinSuper 奇思妙想」，分组 → `/p/` 下的路径）
 - 唯一运行时：`jinsuper.rth1.xyz/lib/manifest.js`（归一 / 排序 / 渲染 + 图标注册表；页面里不许再写自己的解析 / 猜图标 / 路径编码逻辑）

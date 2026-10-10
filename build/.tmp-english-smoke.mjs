@@ -1,11 +1,11 @@
-/* 临时冒烟测试：把 811/english.html 在 jsdom 里跑起来，验证渲染 / 搜索 / 键盘 / 自动下一首。
+/* 临时冒烟测试：把 class/english.html 在 jsdom 里跑起来，验证渲染 / 搜索 / 键盘 / 自动下一首。
    不进仓库，跑完就删。 */
 import fs from 'node:fs';
 import path from 'node:path';
 import { JSDOM, VirtualConsole } from 'jsdom';
 
 const siteRoot = 'F:/@Project/node/jinsuper.rth1.xyz';
-const PAGE = '811/english.html';
+const PAGE = 'class/english.html';
 const html = fs.readFileSync(path.join(siteRoot, PAGE), 'utf8');
 
 let fail = 0;
@@ -18,7 +18,7 @@ const vc = new VirtualConsole();
 vc.on('jsdomError', (e) => errs.push(e.message));
 for (const l of ['error', 'warn', 'log']) vc.on(l, (...a) => logs.push(l + ': ' + a.join(' ')));
 
-const dom = new JSDOM(html, { url: 'http://x/811/english.html', runScripts: 'outside-only', pretendToBeVisual: true, virtualConsole: vc });
+const dom = new JSDOM(html, { url: 'http://x/class/english.html', runScripts: 'outside-only', pretendToBeVisual: true, virtualConsole: vc });
 const { window } = dom;
 const doc = window.document;
 
@@ -27,7 +27,7 @@ window.matchMedia = (q) => ({ matches: false, media: q, addEventListener() {}, r
 /* fetch 桩：只认 index.json */
 window.fetch = async (url) => {
   const u = String(url).split('?')[0];
-  const abs = u.startsWith('/') ? u : new URL(u, 'http://x/811/english.html').pathname;
+  const abs = u.startsWith('/') ? u : new URL(u, 'http://x/class/english.html').pathname;
   const f = path.join(siteRoot, abs.replace(/^\/+/, ''));
   if (!fs.existsSync(f)) return { ok: false, status: 404, text: async () => '', json: async () => { throw new Error('404'); } };
   const text = fs.readFileSync(f, 'utf8');
@@ -67,7 +67,7 @@ const key = (k) => doc.dispatchEvent(new window.KeyboardEvent('keydown', { key: 
 console.log('\n-- 渲染 --');
 if (errs.length) bad('页面报错：' + errs.join(' | ')); else ok('无 JS 报错');
 
-const unitsSrc = fs.readFileSync(path.join(siteRoot, '811/data/english/index.json'), 'utf8');
+const unitsSrc = fs.readFileSync(path.join(siteRoot, 'class/data/english/index.json'), 'utf8');
 const data = JSON.parse(unitsSrc);
 const wantTracks = data.units.reduce((n, u) => n + u.tracks.length, 0);
 const wantBytes = data.units.reduce((n, u) => n + u.tracks.reduce((m, t) => m + t.bytes, 0), 0);
@@ -95,7 +95,7 @@ console.log('\n-- 播放 --');
 const firstPlay = first.querySelector('.play');
 fire(firstPlay, 'click');
 await sleep(10);
-if (audio.src === '/811/data/english/U1/words-and-expressions.mp3') ok('audio.src = ' + audio.src);
+if (audio.src === '/class/data/english/U1/words-and-expressions.mp3') ok('audio.src = ' + audio.src);
 else bad('audio.src = ' + audio.src);
 if (!audio.paused) ok('点了播放键就开播');
 else bad('没播起来');
@@ -127,11 +127,11 @@ if (!audio.paused) ok('K：继续播');
 else bad('K 没继续');
 key('ArrowDown');
 await sleep(10);
-if (audio.src === '/811/data/english/U1/understanding-ideas-2.mp3') ok('↓ 下一首：' + audio.src.split('/').pop());
+if (audio.src === '/class/data/english/U1/understanding-ideas-2.mp3') ok('↓ 下一首：' + audio.src.split('/').pop());
 else bad('↓ 后 src = ' + audio.src);
 key('ArrowUp');
 await sleep(10);
-if (audio.src === '/811/data/english/U1/words-and-expressions.mp3') ok('↑ 上一首：' + audio.src.split('/').pop());
+if (audio.src === '/class/data/english/U1/words-and-expressions.mp3') ok('↑ 上一首：' + audio.src.split('/').pop());
 else bad('↑ 后 src = ' + audio.src);
 
 console.log('\n-- 倍速 / 进度 --');
@@ -205,7 +205,7 @@ console.log('\n-- 降级 --');
   const errs2 = [];
   const vc2 = new VirtualConsole();
   vc2.on('jsdomError', (e) => errs2.push(e.message));
-  const dom2 = new JSDOM(html, { url: 'http://x/811/english.html', runScripts: 'outside-only', pretendToBeVisual: true, virtualConsole: vc2 });
+  const dom2 = new JSDOM(html, { url: 'http://x/class/english.html', runScripts: 'outside-only', pretendToBeVisual: true, virtualConsole: vc2 });
   const w2 = dom2.window;
   w2.matchMedia = window.matchMedia;
   w2.fetch = async () => ({ ok: false, status: 404, text: async () => '', json: async () => { throw new Error('HTTP 404'); } });
@@ -224,7 +224,7 @@ console.log('\n-- 降级 --');
 {
   /* file:// 文案 */
   const vc3 = new VirtualConsole();
-  const dom3 = new JSDOM(html, { url: 'file:///F:/@Project/node/jinsuper.rth1.xyz/811/english.html', runScripts: 'outside-only', pretendToBeVisual: true, virtualConsole: vc3 });
+  const dom3 = new JSDOM(html, { url: 'file:///F:/@Project/node/jinsuper.rth1.xyz/class/english.html', runScripts: 'outside-only', pretendToBeVisual: true, virtualConsole: vc3 });
   const w3 = dom3.window;
   w3.matchMedia = window.matchMedia;
   w3.fetch = async () => { throw new TypeError('Failed to fetch'); };

@@ -5,7 +5,7 @@
  *   · 控制台服务（8791）同时挂 console/web/ 和站点根，`/index.html` 会被
  *     控制台自己的页面顶掉 —— 拿来预览站点是不准的。
  *   · 预览服务（默认 8790）**只**服务站点根 `jinsuper.rth1.xyz/`，
- *     路径和线上一致：/p/docs.html、/Skills/index.html、/811/…
+ *     路径和线上一致：/p/docs.html、/Skills/index.html、/class/…
  *
  * 两处和线上对齐的细节：
  *   · `/p/raw.php?f=…` 照 build/.serve.mjs 的语义模拟（线上是云函数），

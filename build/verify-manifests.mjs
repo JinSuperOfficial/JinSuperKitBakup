@@ -159,7 +159,7 @@ console.log('\n── 6. 生成物 ──');
 /* ── 8. 卡片页是否都在用同一个运行时 ──
    新的卡片页要加进下面这个清单；引用写法必须一字不差：<script src="/lib/manifest.js"></script> */
 console.log('\n── 7. 卡片页引用 ──');
-for (const rel of ['index.html', 'web/index.html', 'Skills/index.html', '811/index.html', '811/english.html']) {
+for (const rel of ['index.html', 'web/index.html', 'Skills/index.html', 'class/index.html', 'class/english.html']) {
   const file = path.join(siteRoot, rel);
   if (!exists(file)) { meh(`${rel} 不存在，跳过`); continue; }
   const html = fs.readFileSync(file, 'utf8');

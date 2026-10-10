@@ -5,7 +5,7 @@
  *
  *   百宝箱（site.json 的 title）
  *   ├─ 工具站（Skills/skills.json）      ← 清单：标题 / 说明 / 顺序都从这儿来
- *   ├─ 811 专区（811/tools.json）
+ *   ├─ 811 专区（class/tools.json）
  *   ├─ 文档站（sk.json）                 ← .md 走阅读器 /p/docs.html#路径
  *   ├─ site.json 里的额外地址
  *   └─ 目录扫描（清单没登记的 .html）    ← 兜底：盘上有的一个都不漏
