@@ -31,7 +31,10 @@
     let data = null;
     try { data = text ? JSON.parse(text) : null; } catch { data = { error: text }; }
     if (!res.ok) {
-      const err = new Error((data && data.error) || ('HTTP ' + res.status));
+      /* 服务端可以带一句 hint（比如「控制台是老进程，重启一下」）——
+         只说「没有这个接口」会让人以为是代码坏了 */
+      const err = new Error(((data && data.error) || ('HTTP ' + res.status))
+        + (data && data.hint ? '　' + data.hint : ''));
       err.status = res.status;
       err.payload = data;
       throw err;

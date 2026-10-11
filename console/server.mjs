@@ -145,7 +145,14 @@ const server = http.createServer(async (req, res) => {
     const key = `${req.method} ${urlPath}`;
     const handler = ROUTES[key];
     if (!handler) {
-      sendJson(res, 404, { error: '没有这个接口：' + key });
+      /* 最常撞的一种情况：控制台是**改动之前**启动的老进程 ——
+         路由表在启动时就定死了，新加的接口要重启这个窗口才会出现。
+         光说「没有这个接口」会让人以为是代码写错了，所以把这条出路一起说了。 */
+      sendJson(res, 404, {
+        error: '没有这个接口：' + key,
+        hint: '控制台是 Node 服务，改了代码要重启才生效：关掉这个窗口再跑一次 控制台.cmd（或 ./控制台.sh）。'
+          + '已经重启还是这样，就是前端和后端版本不一致，两边都更新一下。',
+      });
       return;
     }
     try {
