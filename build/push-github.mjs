@@ -100,6 +100,33 @@ if (!fs.existsSync(distIgnore)) {
 /* 提交身份：没配过就用一个中性的，避免 commit 直接失败 */
 if (ensureCommitIdentity()) log('设置了仓库级提交身份（不影响全局 git 配置）');
 
+/* ── 1.5 仓库用的 .github/（不进热铁盒，只跟着这次推送进 GitHub） ──
+   作业清单要由 CI 在仓库里重建（jsDelivr 只能读已提交的文件），
+   所以 workflow 和它调的那个脚本得**跟着构建产物一起进 dist**：
+
+     build/template/github/workflows/hwk-index.yml → dist/.github/workflows/hwk-index.yml
+     build/lib/hwk-index.mjs                       → dist/.github/scripts/hwk-index.mjs
+
+   两份都是拷贝：只有 build/ 里那两份是源，改了就下次推送自动生效。
+   组装（prep-deploy）按 KEEP_ROOT 保留 dist/.github，不会把它清掉。
+   （内容一样就不写，免得每次推送都刷新 mtime、白进一次提交。） */
+const GITHUB_FILES = [
+  ['template/github/workflows/hwk-index.yml', '.github/workflows/hwk-index.yml'],
+  ['lib/hwk-index.mjs', '.github/scripts/hwk-index.mjs'],
+];
+const copied = [];
+for (const [from, to] of GITHUB_FILES) {
+  const src = path.join(buildDir, ...from.split('/'));
+  const dst = path.join(distDir, ...to.split('/'));
+  if (!fs.existsSync(src)) { log('缺模板：' + from + '（跳过）'); continue; }
+  const buf = fs.readFileSync(src);
+  if (fs.existsSync(dst) && Buffer.compare(fs.readFileSync(dst), buf) === 0) continue;
+  fs.mkdirSync(path.dirname(dst), { recursive: true });
+  fs.writeFileSync(dst, buf);
+  copied.push(to);
+}
+if (copied.length) log('已更新仓库文件：' + copied.join(' / '));
+
 /* ── 2. 暂存 ── */
 console.log('\n[2/4] 暂存改动');
 

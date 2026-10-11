@@ -381,17 +381,26 @@ if (!pres.length) {
   }
 }
 
-/* 运行时渲染的文档也要有按钮 */
-const rtProbe = [...doc.querySelectorAll('.file-item')].find((x) => x.dataset.path === 'science.md');
-rtProbe.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-await sleep(900);
-const rtPres = [...doc.querySelectorAll('.content .md pre')];
-if (!rtPres.length) {
-  ok('science.md 没有代码块（运行时覆盖检查跳过）');
+/* 运行时渲染的文档也要有按钮。
+   挑哪一篇要能兜底：science.md 只是当年那个样本，站里早就没有它了 ——
+   写死它的话，这一整套测试会在这一行直接崩掉（不是「断言失败」，是 undefined.dispatchEvent）。 */
+const RT_CANDIDATES = ['science.md', 'idea/index.md', 'para/homework.md', 'TEST.md'];
+const rtProbe = RT_CANDIDATES
+  .map((p) => [...doc.querySelectorAll('.file-item')].find((x) => x.dataset.path === p))
+  .find(Boolean);
+if (!rtProbe) {
+  meh('侧栏里没有可点开的样本（' + RT_CANDIDATES.join(' / ') + '），运行时覆盖检查跳过');
 } else {
-  const rtWith = rtPres.filter((p) => p.querySelector(':scope > .code-copy'));
-  if (rtWith.length === rtPres.length) ok('运行时渲染的代码块也有按钮');
-  else bad(`运行时渲染只有 ${rtWith.length}/${rtPres.length} 个有按钮`);
+  rtProbe.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await sleep(900);
+  const rtPres = [...doc.querySelectorAll('.content .md pre')];
+  if (!rtPres.length) {
+    ok(rtProbe.dataset.path + ' 没有代码块（运行时覆盖检查跳过）');
+  } else {
+    const rtWith = rtPres.filter((p) => p.querySelector(':scope > .code-copy'));
+    if (rtWith.length === rtPres.length) ok('运行时渲染的代码块也有按钮（' + rtProbe.dataset.path + '）');
+    else bad(`运行时渲染只有 ${rtWith.length}/${rtPres.length} 个有按钮（${rtProbe.dataset.path}）`);
+  }
 }
 
 /* ═══ 原文来源的两条路径 ═══
@@ -662,8 +671,16 @@ fs.rmSync(tmpRoot, { recursive: true, force: true });
 fs.mkdirSync(path.join(tmpRoot, 'p'), { recursive: true });
 fs.cpSync(path.join(projectRoot, 'asset'), path.join(tmpRoot, 'asset'), { recursive: true });
 
+/* 产物必须齐（页面、渲染器、样式）；后面那个 science.md 只是当年顺手带上的一份样本，
+   站里早就没有它了 —— 缺了不该让整套测试崩在 copyFileSync 上（本节自己会写一篇新 md）。 */
 for (const f of ['docs.html', 'docs-md.js', 'docs-md.css', 'science.md']) {
-  fs.copyFileSync(path.join(siteRoot, 'p', f), path.join(tmpRoot, 'p', f));
+  const src = path.join(siteRoot, 'p', f);
+  if (!fs.existsSync(src)) {
+    if (f === 'science.md') meh('p/' + f + ' 不在站里了（只是样本），跳过复制');
+    else bad('缺产物 p/' + f + '，本节断言会不准');
+    continue;
+  }
+  fs.copyFileSync(src, path.join(tmpRoot, 'p', f));
 }
 fs.cpSync(path.join(siteRoot, 'p', 'fonts'), path.join(tmpRoot, 'p', 'fonts'), { recursive: true });
 
@@ -1003,10 +1020,14 @@ const CARD_HASH = '#' + encodeURIComponent(CARD_PATH);
   const w = p.window;
   const d = w.document;
 
+  /* 第三篇要挑一个**站里确实有**的：以前写死 science.md，它早就归档/不在了，
+     写死的话这里会一连串「切过去失败」。按存在性挑，断言才有意义。 */
+  const thirdPath = ['para/homework.md', 'blog.md', 'idea/index.md']
+    .find((p) => fs.existsSync(path.join(pDir, p))) || 'idea/index.md';
   const seq = [
     ['idea/index.md', expectDocName('索引', 'idea/index.md')],
     [CARD_PATH, '归途'],
-    ['science.md', expectDocName('科技节活动方案', 'science.md')],
+    [thirdPath, expectDocName('本周作业', thirdPath)],
     [CARD_PATH, '归途'],
   ];
   const seen = [];

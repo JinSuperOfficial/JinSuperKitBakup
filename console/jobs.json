@@ -1,6 +1,115 @@
 {
   "jobs": [
     {
+      "id": "2026-10-11T0352-ao1d",
+      "label": "一键部署（构建 → 自检 → 组装 → 热铁盒 → GitHub）",
+      "pipeline": "full",
+      "flags": {
+        "noBuild": false,
+        "noCheck": false,
+        "noGh": false
+      },
+      "state": "done",
+      "startedAt": 1791690739426,
+      "endedAt": 1791690909249,
+      "ms": 168036,
+      "exitCode": 0,
+      "ok": true,
+      "steps": [
+        {
+          "id": "build",
+          "label": "构建（docs.html / docs-md.js / docs-md.css / 字体）",
+          "soft": false,
+          "state": "ok",
+          "ms": 6971,
+          "code": 0
+        },
+        {
+          "id": "check-manifests",
+          "label": "自检 · 清单与生成物",
+          "soft": false,
+          "state": "ok",
+          "ms": 2061,
+          "code": 0
+        },
+        {
+          "id": "check-manifest-render",
+          "label": "自检 · 卡片渲染",
+          "soft": false,
+          "state": "ok",
+          "ms": 16945,
+          "code": 0
+        },
+        {
+          "id": "check-function",
+          "label": "自检 · Plot 图像计算器",
+          "soft": false,
+          "state": "ok",
+          "ms": 38805,
+          "code": 0
+        },
+        {
+          "id": "check-render",
+          "label": "自检 · 渲染语法",
+          "soft": false,
+          "state": "ok",
+          "ms": 6376,
+          "code": 0
+        },
+        {
+          "id": "check-artifacts",
+          "label": "自检 · 产物结构",
+          "soft": false,
+          "state": "ok",
+          "ms": 1991,
+          "code": 0
+        },
+        {
+          "id": "prep",
+          "label": "组装 dist/",
+          "soft": false,
+          "state": "ok",
+          "ms": 7532,
+          "code": 0
+        },
+        {
+          "id": "rth",
+          "label": "传热铁盒（rth-sites.json 里的每个站点）",
+          "soft": false,
+          "state": "ok",
+          "ms": 75777,
+          "code": 0
+        },
+        {
+          "id": "gh",
+          "label": "推 GitHub Pages",
+          "soft": false,
+          "state": "ok",
+          "ms": 11519,
+          "code": 0
+        }
+      ],
+      "error": null,
+      "mode": "pipe",
+      "pid": 19792,
+      "logFile": "/home/jinsuper/project/node/console/logs/2026-10-11T0352-ao1d.log",
+      "logBytes": 101048,
+      "domains": [
+        "jinsuper.rth1.xyz",
+        "jinsuper.cn",
+        "www.jinsuper.cn"
+      ],
+      "changed": [
+        "Skills/index.html",
+        "class/homework.html",
+        "class/index.html",
+        "docs/info/site-index.js",
+        "index.html",
+        "lib/theme.js",
+        "web/index-bak2.html"
+      ]
+    },
+    {
       "id": "2026-10-10T1540-01wc",
       "label": "一键部署（构建 → 自检 → 组装 → 热铁盒 → GitHub）",
       "pipeline": "full",

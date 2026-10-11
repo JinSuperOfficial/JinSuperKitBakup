@@ -647,6 +647,52 @@ html[data-theme="light"] .hl .t-tag{color:#E45649}
 .asset-acts button.danger:hover{color:var(--danger)}
 .asset audio{width:100%;height:32px}
 
+/* ═══════════ 作业数据 ═══════════
+   左边录入（表单 / JSON 源码两档），右边是现有那些天。
+   宽度和滚动跟「归档」那条一样的规矩：面板自己不滚，两列各滚各的。 */
+.hwk-pane{
+  flex:1;min-height:0;overflow:auto;
+  padding:14px 16px 80px;
+  scrollbar-width:thin;
+}
+.hwk-row{display:flex;gap:10px;margin-bottom:10px}
+.hwk-row .field{flex:1;min-width:0}
+.hwk-row .hwk-grow{flex:2.2}
+.hwk-subbox{display:flex;flex-direction:column;gap:10px;margin:14px 0 2px}
+.hwk-sub{
+  border:1px solid var(--line);
+  border-radius:var(--radius-card);
+  background:var(--raised);
+  padding:8px 10px 10px;
+}
+.hwk-sub-head{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.hwk-sub-name{flex:0 1 160px;font-weight:600}
+.hwk-sub-del{
+  margin-left:auto;width:26px;min-height:26px;padding:0;
+  justify-content:center;font-size:15px;line-height:1;
+}
+.hwk-sub-del:hover{color:var(--danger);border-color:color-mix(in srgb,var(--danger) 40%,var(--line))}
+.hwk-sub-text{
+  width:100%;min-height:54px;resize:vertical;
+  font:inherit;font-size:12.5px;line-height:1.65;
+}
+/* 笔记那一格：虚线框，一眼看出不是科目 */
+.hwk-sub.is-notes{background:transparent;border-style:dashed}
+.hwk-sub.is-notes .hwk-sub-name{color:var(--dim)}
+.hwk-actions{display:flex;align-items:center;gap:8px;margin-top:14px;flex-wrap:wrap}
+.hwk-spacer{flex:1}
+.hwk-src{
+  width:100%;min-height:330px;resize:vertical;margin-top:8px;
+  font-family:var(--mono);font-size:12.5px;line-height:1.7;
+  white-space:pre;overflow:auto;tab-size:2;
+}
+#hwkWhere{margin-left:auto;font-family:var(--mono);font-size:11px}
+/* 结果那条 note 是多行文本（写入路径 / 备份 / 清单 / 警告），保留换行 */
+#hwkNote{white-space:pre-wrap;font-family:var(--mono);font-size:11px;line-height:1.75}
+#hwkList .a-acts button{white-space:nowrap}
+#hwkList li.is-current{border-color:var(--accent-line);background:var(--accent-soft)}
+#hwkList li.is-bad{border-color:color-mix(in srgb,var(--warn) 45%,var(--line))}
+
 /* ═══════════ 设置 ═══════════ */
 .settings{
   flex:1;min-height:0;overflow:auto;

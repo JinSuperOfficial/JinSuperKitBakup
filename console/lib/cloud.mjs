@@ -83,6 +83,9 @@ export function baseFiles() {
   const walk = (abs, rel) => {
     for (const e of fs.readdirSync(abs, { withFileTypes: true })) {
       if (e.name === '.git') continue;
+      /* .github/ 是给仓库用的 GitHub Actions（作业清单），不是站点内容：
+         它只在 dist 里、不会出现在热铁盒那边，别当成「线上该有却没有」 */
+      if (rel === '' && e.name === '.github') continue;
       const child = rel ? rel + '/' + e.name : e.name;
       const childAbs = path.join(abs, e.name);
       if (e.isDirectory()) { walk(childAbs, child); continue; }

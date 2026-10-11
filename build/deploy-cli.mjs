@@ -21,6 +21,7 @@ import fs from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 import readline from 'node:readline';
+import { pathToFileURL } from 'node:url';
 import { buildDir, siteRoot } from './paths.mjs';
 import { PIPELINES, resolveSteps } from './lib/pipeline.mjs';
 import { stepArgv } from './lib/proc.mjs';
@@ -219,13 +220,13 @@ function findDeno() {
   return { ok: false, where: '没找到（首次部署会自动 npm 装一个）' };
 }
 
-/** 数文件。dist 里的 .git 是推送用的仓库，不该算进「站点文件」里。 */
+/** 数文件。dist 里的 .git 是推送用的仓库、.github 是给仓库的 CI，都不算「站点文件」。 */
 function countFiles(dir) {
   if (!fs.existsSync(dir)) return 0;
   let n = 0;
   const walk = (d) => {
     for (const e of fs.readdirSync(d, { withFileTypes: true })) {
-      if (e.name === '.git') continue;
+      if (e.name === '.git' || e.name === '.github') continue;
       if (e.isDirectory()) walk(path.join(d, e.name));
       else n++;
     }
@@ -695,6 +696,29 @@ async function cmdStatus() {
   return 0;
 }
 
+/**
+ * `部署.cmd hwk` —— 录作业（跟「备份源码」一样，是**另一条线**的功能）
+ * ---------------------------------------------------
+ * 它和部署无关，所以不进 MENU / TUI（那两张表是「部署包括什么」的契约），
+ * 但 .cmd 能敲到的入口要有 —— 实现一份在 console/hwk-cli.mjs，
+ * 和控制台网页「作业数据」面板共用，绝不在这里再长一套。
+ *
+ *   node build/deploy-cli.mjs hwk            问答式录入
+ *   node build/deploy-cli.mjs hwk --json     粘 JSON 源码
+ *   node build/deploy-cli.mjs hwk --list     看现在有哪几天
+ */
+async function cmdHwk() {
+  const cli = path.join(projectRoot, 'console', 'hwk-cli.mjs');
+  if (!fs.existsSync(cli)) {
+    fail('缺文件：console/hwk-cli.mjs');
+    note('作业录入的实现跟着发布控制台一起走，先把项目拉全。');
+    return 1;
+  }
+  const { main: runHwk } = await import(pathToFileURL(cli).href);
+  const code = await runHwk(process.argv.slice(3));
+  return Number.isFinite(code) ? code : 0;
+}
+
 /* ═══════════════════════════════════════════════════
    菜单
    ═══════════════════════════════════════════════════ */
@@ -880,6 +904,7 @@ const COMMANDS = {
    而且「部署包括什么」不该因为多了一个备份功能而变化。 */
 const COMMANDS_EXTRA = {
   bakup: { desc: '备份整个项目源码到 JinSuperKitBakup', run: cmdBakup },
+  hwk:   { desc: '录作业（class/data/hwk/，和控制台「作业数据」面板同一份实现）', run: cmdHwk },
 };
 const ALL_COMMANDS = { ...COMMANDS, ...COMMANDS_EXTRA };
 
@@ -891,6 +916,7 @@ const ALIAS = {
   d: 'diff', diff: 'diff',
   s: 'serve', st: 'status',
   backup: 'bakup', bak: 'bakup', bk: 'bakup',
+  homework: 'hwk', 作业: 'hwk',
 };
 
 const OPTIONS = [
@@ -943,6 +969,17 @@ function usage() {
     ['部署.cmd bakup --tag v1.0.0 --tag-message "说明"', 'tag 带说明'],
   ]) console.log(`    ${pad(a, 50)}${dim(d)}`);
   console.log(dim('    注意：git push 默认不推 tag，所以不打 tag 就没有标签。'));
+  console.log('');
+  console.log(bold('  另一个功能：录作业'));
+  console.log(dim('    写一天作业 → class\\data\\hwk\\hwk-<id>.json + 目录 index.json，'));
+  console.log(dim('    并重建生产清单 class\\data\\index-produce.json（时光机的 CDN 兜底读它）。'));
+  console.log(dim('    和部署互不影响；控制台网页「作业数据」面板是同一份实现。'));
+  for (const [a, d] of [
+    ['部署.cmd hwk', '问答式录入（一路回车 = 今天）'],
+    ['部署.cmd hwk --json', '直接粘 JSON 源码（粘完 Ctrl+Z 回车）'],
+    ['部署.cmd hwk --list', '看现在有哪几天'],
+    ['部署.cmd hwk --dry-run', '只算不写'],
+  ]) console.log(`    ${pad(a, 28)}${dim(d)}`);
   console.log('');
 }
 

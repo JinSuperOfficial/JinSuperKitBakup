@@ -3037,6 +3037,21 @@ async function main() {
     log('⚠ 站点索引生成跳过：' + e.message);
   }
 
+  /* ── 作业清单 ──
+     class/data/hwk/*.json → hwk/index.json（目录）+ class/data/index-produce.json
+     （生产清单：目录 + 最近 5 天正文，时光机的 CDN 兜底读它）。
+     手写/手拷了一份作业文件、没走控制台的时候，这一步就把它收进清单。
+     GitHub 仓库那边由 .github/workflows/hwk-index.yml 跑同一份实现（见 push-github.mjs）。 */
+  try {
+    const { buildAll } = await import('./lib/hwk-index.mjs');
+    const res = buildAll(siteRoot);
+    log(res.changed.length
+      ? '作业清单：' + res.entries.length + ' 天 · ' + res.changed.join(' · ')
+      : '作业清单：未变化（' + res.entries.length + ' 天）');
+  } catch (e) {
+    log('⚠ 作业清单生成跳过：' + e.message);
+  }
+
   const ms = (performance.now() - t0).toFixed(0);
   const bytes = fs.statSync(htmlPath).size;
 

@@ -25,6 +25,9 @@ F\:\\@Project*/
 # 部署工具的日志（TUI 每次运行留一份，不属于源码）
 .deploy-logs/
 
+# 测试留下的临时站点（build/test-dom.mjs 搭的）
+build/.tmp-site/
+
 # 编辑器 / 系统
 .vscode/
 .idea/

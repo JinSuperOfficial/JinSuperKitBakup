@@ -28,6 +28,7 @@ import * as cloud from './cloud.mjs';
 import * as links from './links.mjs';
 import * as pages from './pages.mjs';
 import * as preview from './preview.mjs';
+import * as hwk from './hwk.mjs';
 
 const err = (msg, status = 400) => { const e = new Error(msg); e.status = status; return e; };
 
@@ -980,4 +981,28 @@ function previewSettingsOf() {
     previewClickMode: s.previewClickMode,
     previewTreeSource: s.previewTreeSource,
   };
+}
+
+/* ═══════════════════════════════════════════════════
+   作业数据（`class/data/hwk/`）
+   ---------------------------------------------------
+   页面读的是「一天一个文件」，所以这里只做三件事：
+     · 看现状（目录 + 磁盘实况 + 两个清单在不在）
+     · 写一天（自动把这条顶到 index.json 最前；同一天覆盖前先备份；
+       老的大文件 homework.json 里那份没进历史的先补进去）
+     · 重建清单（index.json + index-produce.json，实现与 GitHub Actions 同一个脚本）
+   实现都在 lib/hwk.mjs，这里只做转手 —— 终端入口用的是同一份。
+   ═══════════════════════════════════════════════════ */
+
+export function getHwk() { return hwk.listRecords(); }
+
+export function getHwkRecord(query = {}) { return hwk.readRecord(query.id); }
+
+export async function postHwkSave(body = {}) { return hwk.saveHomework(body); }
+
+export async function postHwkReindex(body = {}) {
+  const preview = Number(body && body.preview);
+  const res = await hwk.rebuildManifests(Number.isFinite(preview) && preview > 0 ? { preview } : {});
+  if (res.skipped) throw err('清单生成器跑不了：' + res.reason, 500);
+  return { ...res, list: hwk.listRecords() };
 }

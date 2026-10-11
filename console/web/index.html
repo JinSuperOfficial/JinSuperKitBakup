@@ -93,6 +93,15 @@
       <span>文档清单</span>
     </button>
 
+    <button class="nav-item" role="tab" id="tab-hwk" data-view="hwk" aria-controls="panel-hwk" aria-selected="false" tabindex="-1">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M6 3.5h9L19 7.5V20.5H6Z"/>
+        <path d="M15 3.5v4h4"/>
+        <path d="m8.8 14.6 1.9 1.9 4-4.6"/>
+      </svg>
+      <span>作业数据</span>
+    </button>
+
     <button class="nav-item" role="tab" id="tab-deploy" data-view="deploy" aria-controls="panel-deploy" aria-selected="false" tabindex="-1">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M12 3v12"/><path d="m7.5 10.5 4.5 4.5 4.5-4.5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
@@ -492,6 +501,98 @@
     </section>
 
     <!-- 发布与部署 -->
+    <!-- 作业数据：写一天 → class/data/hwk/hwk-<id>.json + 目录 + 生产清单 -->
+    <section class="panel" id="panel-hwk" role="tabpanel" aria-labelledby="tab-hwk" tabindex="0" hidden>
+      <header class="panel-head">
+        <div class="ph-left">
+          <h1>作业数据</h1>
+          <p class="ph-sub">
+            写一天作业 → 落成 <code>class/data/hwk/hwk-&lt;id&gt;.json</code>，
+            自动顶到 <code>index.json</code> 最前（原来那天还在，就是历史）。
+          </p>
+        </div>
+        <div class="ph-right">
+          <button class="btn" id="hwkRefresh">刷新</button>
+          <button class="btn" id="hwkReindex"
+                  title="按磁盘上的 hwk-*.json 重写 hwk/index.json 与 class/data/index-produce.json（和 GitHub Actions 跑的是同一个脚本）">重建清单</button>
+        </div>
+      </header>
+
+      <div class="bar">
+        <div class="seg" id="hwkMode" role="tablist" aria-label="录入方式">
+          <button class="seg-btn on" type="button" role="tab" aria-selected="true" data-mode="form">表单</button>
+          <button class="seg-btn" type="button" role="tab" aria-selected="false" data-mode="json">JSON 源码</button>
+        </div>
+        <span class="hint" id="hwkWhere"></span>
+      </div>
+
+      <div class="dual">
+        <div class="dual-col">
+          <div class="dual-head">
+            <h2>写这一天</h2>
+            <p class="hint" id="hwkHint">日期 / id 留空就按今天生成；科目留空就不写那一科。</p>
+          </div>
+
+          <div class="hwk-pane" id="hwkFormPane">
+            <div class="hwk-row">
+              <label class="field"><span>日期</span>
+                <input class="input" id="hwkDate" placeholder="2026-10-11" autocomplete="off"></label>
+              <label class="field"><span>id（文件名）</span>
+                <input class="input" id="hwkId" placeholder="n261011" autocomplete="off"></label>
+            </div>
+            <div class="hwk-row">
+              <label class="field hwk-grow"><span>标题</span>
+                <input class="input" id="hwkTitle" placeholder="作业-20261011" autocomplete="off"></label>
+              <label class="field"><span>背景</span>
+                <select class="input" id="hwkBg"></select></label>
+            </div>
+
+            <div class="hwk-subbox" id="hwkSubjects"></div>
+
+            <div class="hwk-actions">
+              <button class="btn ghost" id="hwkAddSubject">＋ 加一科</button>
+              <span class="hwk-spacer"></span>
+              <button class="btn" id="hwkPreview">预览</button>
+              <button class="btn primary" id="hwkSave">写入作业</button>
+            </div>
+          </div>
+
+          <div class="hwk-pane" id="hwkJsonPane" hidden>
+            <p class="hint">
+              直接粘一份记录（就是 <code>hwk-&lt;id&gt;.json</code> 的样子）：
+              顶层 <code>id / date / title / bg</code> 是元数据，<code>"语文": "…"</code> 这种键都是科目，
+              <code>"笔记"</code> 特殊。多余的逗号也认。
+            </p>
+            <textarea class="input mono hwk-src" id="hwkSource" spellcheck="false"
+                      aria-label="JSON 源码" placeholder='{
+  "id": "n261011",
+  "date": "2026-10-11",
+  "title": "作业-20261011",
+  "bg": { "value": "default" },
+  "语文": "1. …",
+  "笔记": "…"
+}'></textarea>
+            <div class="hwk-actions">
+              <button class="btn ghost" id="hwkFromCurrent">以现在这份填进来</button>
+              <span class="hwk-spacer"></span>
+              <button class="btn" id="hwkJsonPreview">预览</button>
+              <button class="btn primary" id="hwkJsonSave">写入作业</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="dual-col">
+          <div class="dual-head">
+            <h2>现有 <em class="mono" id="hwkCount">0</em> 天</h2>
+            <p class="hint">第一条就是页面上「今天这份」，往下都是历史。</p>
+          </div>
+          <ul class="alist" id="hwkList"></ul>
+        </div>
+      </div>
+
+      <p class="note" id="hwkNote" hidden></p>
+    </section>
+
     <section class="panel" id="panel-deploy" role="tabpanel" aria-labelledby="tab-deploy" tabindex="0" hidden>
       <header class="panel-head">
         <div class="ph-left">

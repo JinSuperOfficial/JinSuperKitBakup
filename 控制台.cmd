@@ -8,6 +8,15 @@ rem  Starts console\server.mjs on 127.0.0.1:8791 and opens the
 rem  browser. The server prints the URL again, so a failed
 rem  auto-open is never a dead end.
 rem
+rem  Arguments are forwarded as-is. Besides --port / --no-open there
+rem  are subcommands handled inside Node (this file stays a launcher):
+rem    console.cmd hwk            enter today's homework in the terminal
+rem    console.cmd hwk --json     paste the JSON source instead
+rem    console.cmd hwk --list     list the days that exist
+rem    console.cmd hwk --web      open the console on the homework panel
+rem    console.cmd server         headless preview service only
+rem  Same subcommands work on Linux: ./console.sh hwk ...
+rem
 rem  KEEP THIS FILE PURE ASCII.
 rem  cmd.exe decodes a batch file byte-by-byte with the current
 rem  code page and re-reads it by byte offset; non-ASCII here

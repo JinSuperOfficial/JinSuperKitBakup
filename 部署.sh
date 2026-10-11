@@ -27,6 +27,7 @@
 #    ./部署.sh full --no-build  只改了几篇 .md，跳过重新构建
 #    ./部署.sh build            只构建     ./部署.sh status   看状态
 #    ./部署.sh bakup --check    只看会备份什么（源码备份，与部署无关）
+#    ./部署.sh hwk              录作业（class/data/hwk/；和控制台「作业数据」面板同一份实现）
 #    ./部署.sh --help           全部命令和选项
 #
 #  环境变量（可选）：

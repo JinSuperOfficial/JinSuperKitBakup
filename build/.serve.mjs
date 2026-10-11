@@ -4,6 +4,9 @@
  * 它模拟 Retinbox 的静态托管行为：
  *   · .md 等文本文件原样返回（对应 raw.php 的语义）
  *   · 其它文件按扩展名给 Content-Type
+ *   · `/asset/…` 和线上一样：组装时项目根的 asset/ 会盖到 dist/asset/ 上，
+ *     所以这儿先找项目根 asset/，再回落到站点里的 asset/
+ *     （作业页的游戏壁纸 asset/background/** 只在项目根，站点目录里没有）
  */
 import http from 'node:http';
 import fs from 'node:fs';
@@ -12,12 +15,31 @@ import { siteRoot as root } from './paths.mjs';
 
 const port = Number(process.argv[2] || 8788);
 
+/** 项目根的 asset/（组装时镜像成线上的 /asset/） */
+const assetRoot = path.resolve(root, '..', 'asset');
+
+/** 在 base 下按 URL 路径找一个文件；越界 / 不存在 / 是目录都返回 null */
+function findFile(base, urlPath) {
+  const p = path.resolve(base, String(urlPath).replace(/^[/\\]+/, ''));
+  if (p !== base && !p.startsWith(base + path.sep)) return null;
+  if (!fs.existsSync(p) || fs.statSync(p).isDirectory()) return null;
+  return p;
+}
+
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
   '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.gif': 'image/gif',
+  '.mp3': 'audio/mpeg',
+  '.m4a': 'audio/mp4',
+  '.mp4': 'video/mp4',
   '.woff2': 'font/woff2',
   '.woff': 'font/woff',
   '.md': 'text/markdown; charset=utf-8',
@@ -45,8 +67,12 @@ const server = http.createServer((req, res) => {
   if (urlPath === '/') urlPath = '/index.html';
   if (urlPath.endsWith('/')) urlPath += 'index.html';
 
-  const file = path.join(root, urlPath.replace(/^\/+/, ''));
-  if (!file.startsWith(root) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
+  /* `/asset/…` 先按线上的来源找（项目根 asset/ → 站点 asset/），其余走站点根 */
+  const isAsset = urlPath === '/asset' || urlPath.startsWith('/asset/');
+  const file = isAsset
+    ? findFile(assetRoot, urlPath.slice('/asset'.length)) || findFile(root, urlPath)
+    : findFile(root, urlPath);
+  if (!file) {
     res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end('404 ' + urlPath);
     return;

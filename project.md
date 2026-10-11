@@ -51,6 +51,8 @@ F:\@Project\node\
 │   ├── lib\paths.mjs         ← 路径唯一来源（站点根 / p / 归档 / 留底 / 状态文件）
 │   ├── lib\store.mjs         ← sk.json 读写（保形）、/p 扫描、归档元数据、原子写
 │   ├── lib\render.mjs        ← 预渲染器：复用 build\lib\markdown.cjs，一个字节都不碰 docs-md.js
+│   ├── lib\hwk.mjs           ← 作业数据读写：写一天 + 顶目录 + 备份 + 重建两份清单
+│   ├── hwk-cli.mjs           ← 作业录入的终端入口（控制台.cmd hwk / 部署.cmd hwk 都是它）
 │   ├── lib\api.mjs           ← 接口实现（扫描/读写/发布/归档/重建/回滚/队列/预览）
 │   ├── web\                  ← 前端：index.html + console.css + app.js，零依赖
 │   ├── test\console.test.mjs ← node:test 23 条，全在临时 fixture 上跑（不碰真站点）
@@ -66,6 +68,7 @@ F:\@Project\node\
 │   ├── sk.json               ← ★ 文档站清单，加文档改这里
 │   ├── site.json             ← ★ 站点级目录：有哪些 collection、sitemap 额外条目、校验忽略名单
 │   ├── lib\manifest.js       ← ★ 站点运行时：清单归一 / 排序 / 去重 / 图标注册表（四个卡片页共用）
+│   ├── lib\theme.js          ← ★ 三张列表页的明暗 + 主题色（右上角按钮也是它注入的，见 §8）
 │   ├── sitemap.xml           ← 生成物（build\gen-site-index.mjs），别手改
 │   ├── class\                  ← ★ 八年(11)班专区：index.html 工具箱 + homework.html
 │   │                             + classtable.html + english.html（英语听力音频）
@@ -96,6 +99,9 @@ F:\@Project\node\
 │   ├── lib\site-index.mjs    ← 生成 sitemap.xml + docs\info\site-index.js
 │   ├── lib\site-lib.mjs      ← 在 Node 里载入站点自己的 lib\manifest.js
 │   ├── gen-site-index.mjs    ← 扫盘 + 读清单，产出站点索引（--check 只比对）
+│   ├── gen-hwk-index.mjs     ← 产出作业清单：hwk\index.json + class\data\index-produce.json
+│   ├── lib\hwk-index.mjs     ← 上面那份清单的实现（GitHub Actions 里跑的是它的拷贝）
+│   ├── template\github\      ← 给 dist 仓库用的 GitHub Actions 模板（推送前复制进 dist\.github\）
 │   ├── verify-manifests.mjs  ← ★ 清单校验：schema、id 唯一、文件存在、生成物新鲜度
 │   ├── test-manifest.mjs     ← ★ 卡片页 jsdom 验收 + 与 dist 对照
 │   ├── prep-deploy.mjs       ← 组装 dist\
@@ -198,7 +204,7 @@ F:\@Project\node\
 双击项目根的 **`控制台.cmd`**（或 `npm run console`）→ 起在 `http://127.0.0.1:8791/` 并自动开浏览器。
 它**只监听本机**，是本地工具：`console\` 不参与构建、`prep-deploy.mjs` 的忽略名单里有它，绝不会被上传。
 
-五个面板：
+主要面板：
 
 | 面板 | 干什么 |
 |:--|:--|
@@ -207,6 +213,7 @@ F:\@Project\node\
 | 文档清单 | 直接编辑 `sk.json`：**表格**（改标题/路径、换组、排序、加分组）+ **源码**（原始 JSON，实时校验再保存，坏文件先备份）双模式；「扫描清单」列出问题（文件不存在、重复登记、空分组、写法混用、归档标题缺后缀…）并**一键修复**，还能把 `/p` 下没登记的文件勾选登记 |
 | 归档与预渲染 | 左右两列，只处理勾选的：归档把 Markdown 编译成静态 HTML 放进 `/p/archive/` 并在 sk.json 登记；支持重新构建选中、**重刷外壳**（正文不动，按当前模板重写 head / 顶栏 / 目录 / 页脚，原文没留底也能刷）、回滚上一版、取消归档 |
 | 素材库 | `/p` 下的图片 / PDF / 音视频，灯箱、试听（直接读静态文件，没有专门接口）、复制路径、删除 |
+| 作业数据 | 写一天作业（表单 / JSON 源码两档）：落成 `class/data/hwk/hwk-<id>.json`、顶到 `index.json` 最前、重建 `class/data/index-produce.json`；同一天重复写先备份旧版本，旧的大文件里没进历史的那份会自动补进去。详见 §4.7 |
 
 ### 写作面板的预览：和文档站长一样，还多画几张图
 
@@ -261,6 +268,9 @@ F:\@Project\node\
 - **别拿控制台自己的 8791 当预览**：那个端口上 `/index.html` 是控制台自己的页面，会把站点首页顶掉。
   预览是**另一个端口、只服务 `jinsuper.rth1.xyz/`**，路径和线上一致；`/p/raw.php?f=…` 照
   `build/.serve.mjs` 的语义模拟（线上是云函数），文档站在预览里也能拿到 Markdown 原文。
+  **唯一的例外是 `/asset/…`**：线上那份是「站点 `asset\` ← 项目根 `asset\` 覆盖」组装出来的
+  （`prep-deploy` 的 mirrorInto，游戏壁纸只在项目根），所以预览也按同样顺序找一遍
+  （见 §4.7「游戏壁纸」）——不然作业页的「游戏-MC / 游戏-UT」在本地永远是空白。
 - **默认行为在「设置 → 预览」**：端口、进面板自动开服务、开服务后打开首页、
   点页面的默认行为（没开就先开再打开 / 只打开 / 只复制路径）、页面清单来源（自动 / 清单 / 目录）。
 
@@ -328,9 +338,11 @@ node console\test\console.test.mjs     （或 npm run console:test）
 作业数据不再是一个大文件（老路径 `class\data\homework.json`），改成一天一份：
 
 ```
-jinsuper.rth1.xyz\class\data\hwk\
-├── index.json        目录：所有 hwk-*.json 的**裸数组**（新的在前）→ 页面拿第一条当「今天这份」
-└── hwk-<id>.json     当天记录：id / date / title / bg + **各科正文直接写在里面**（"语文": "…"）+ "笔记"
+jinsuper.rth1.xyz\class\data\
+├── index-produce.json   生产清单（**构建生成，别手改**）：目录 + 最近 5 天的正文，给 CDN 兜底读
+└── hwk\
+    ├── index.json       目录：所有 hwk-*.json 的**裸数组**（新的在前）→ 页面拿第一条当「今天这份」
+    └── hwk-<id>.json    当天记录：id / date / title / bg + **各科正文直接写在里面**（"语文": "…"）+ "笔记"
 ```
 
 - **科目就是顶层键**（跟老的 `homework.json` 一模一样）：`"语文": "1. …"`、`"笔记": "…"`；
@@ -346,36 +358,69 @@ jinsuper.rth1.xyz\class\data\hwk\
 - 旧的 `class\data\homework.json` **默认留着当备份**：新结构读不到（index.json 404 / 空 /
   内容片缺失）时页面自动退回读它，迁移过程中不会白屏。
 
-**拆分脚本**（幂等，可以反复跑）：
+**怎么加一天**（从 2026-10-11 起有三条路，写出来的东西一样）：
+
+1. **控制台「作业数据」面板**（推荐）：表单填一科一格，或者切到「JSON 源码」粘一整份记录 →
+   「写入作业」。它会写 `hwk-<id>.json`、把这条顶到 `index.json` 最前、重建生产清单；
+   同一天写第二次会先把旧版本备份到控制台的状态目录（`console/` 下，不进站点、不会被上传）。
+2. **终端**：`控制台.cmd hwk`（Linux `./控制台.sh hwk`）问答式录入，`hwk --json` 粘源码，
+   `hwk --list` 看有哪几天，`hwk --dry-run` 只算不写。Windows 的 `部署.cmd hwk` 是同一个入口。
+3. **手写文件**：照 `hwk-<id>.json` 的字段放一份进目录，然后
+   `node build\gen-hwk-index.mjs` 重建两份清单（`--check` 只比对）。
+   构建（`部署.cmd build` / 部署时的构建步骤）也会自动跑这一步，所以手放的文件不会漏掉。
+
+> **目录必须落成文件**：只有 GitHub Contents API 能列目录，jsDelivr / 热铁盒 / GitHub Pages
+> 这些静态托管都列不了。少了 `index.json`，页面那几级兜底就全废了。
+
+**拆分脚本**（幂等，可以反复跑；只用于把老的大文件迁进新结构）：
 
 ```
 node build\migrate-hwk.mjs                    # 读 class\data\homework.json → 写 class\data\hwk\
 node build\migrate-hwk.mjs --dry-run          # 只打印计划，一个字节不写
 node build\migrate-hwk.mjs --force            # 覆盖已存在的 hwk-<id>.json
 node build\migrate-hwk.mjs --prune-old        # 迁完把旧文件改名成 homework.json.bak（不删）
+node build\gen-hwk-index.mjs                  # 按目录实际内容重建 index.json + index-produce.json
 ```
 
-以后加新的一天：照 `hwk-<id>.json` 的字段写一份记录 + 内容片，再把这条登记进 `index.json`
-（或者再跑一次迁移脚本 —— 它按目录实际内容重建 index.json）。
+**生产清单**（`class\data\index-produce.json`，构建产物，别手改）：
+
+- 内容 = `{ source, count, previewCount, entries: [...], preview: { "hwk-<id>.json": {完整记录} } }`：
+  `entries` 是全量目录，`preview` 只带**最近 5 天**的正文。
+- **不写时间戳**：同样的输入产出一样的字节（本地生成一次、CI 再生成一次不会互相覆盖）。
+- 实现只有一份：`build\lib\hwk-index.mjs`。三个地方跑它 ——
+  `build\gen-hwk-index.mjs`（本地/构建时）、控制台的保存与「重建清单」、
+  以及仓库里的 GitHub Actions（`.github/workflows/hwk-index.yml`）。
+- **CI 那份怎么进仓库**：`build\template\github\workflows\hwk-index.yml` +
+  `build\lib\hwk-index.mjs` 由 `build\push-github.mjs` 在推送前复制成
+  `dist\.github\workflows\hwk-index.yml` 与 `dist\.github\scripts\hwk-index.mjs`；
+  `prep-deploy` 按 `KEEP_ROOT` 保留 `dist\.github`，**热铁盒那条线不会多出任何文件**。
+  往 `class/data/hwk/` 加/改文件就会触发它重建两个清单并提交回去（提交信息带 `[skip ci]`，不会来回刷）。
 
 #### 时光机：翻全部历史作业（右上角）
 
 点右上角「时光机」可以翻所有历史作业：左边按日期列，右边是那一天的科目 / 条目 / 笔记。
-数据读 GitHub 仓库的 `class/data/hwk/`，**三级降级**，哪一级挂掉都往下走：
+数据读 GitHub 仓库的 `class/data/`，**多级降级**，哪一级挂掉都往下走：
 
-| 步骤 | 首选（3 秒超时） | 兜底 ② | 兜底 ③ |
-|:--|:--|:--|:--|
-| 目录 | GitHub Contents API | jsDelivr 的 `index.json` | 同源 `./data/hwk/index.json` |
-| 每份文件 | `raw.githubusercontent.com` | jsDelivr | 同源 |
+| 步骤 | 首选（3 秒超时，主力） | 兜底 ② | 兜底 ③ | 兜底 ④ | 兜底 ⑤ |
+|:--|:--|:--|:--|:--|:--|
+| 目录 | GitHub Contents API | CDN 的 `index-produce.json`<br>（**构建时生成**：目录 + 最近 5 天正文） | CDN 的 `index.json` | 同源 `./data/index-produce.json` | 同源 `./data/hwk/index.json` |
+| 每份文件 | `raw.githubusercontent.com` | jsDelivr | 同源 | —— | —— |
 
-- 三级全挂 → 窗口里只说一句「时光机暂时迷路了」，**今天这份作业完全不受影响**。
-- **缓存**：`localStorage['hwk-index-v2']`，5 分钟 TTL —— 未认证的 GitHub API 只有 60 次/小时。
-- **并发 8**：一批一批拉；列表先画 50 条，多出来的给「加载更多」。
-- **内容片按需拉**：选中哪天拉哪天，不一次性把全部历史的正文拉下来。
+- **主力永远是 GitHub API**：它给的是最新目录。一限流 / 一超时（3 秒）就落到 CDN ——
+  能兜底的只有静态文件，所以那两份清单必须跟着数据一起提交进仓库。
+- 全挂 → 窗口里只说一句「时光机暂时迷路了」，**今天这份作业完全不受影响**。
+- **缓存**：`localStorage['hwk-index-v3']`（目录 + 已经取回来的正文一起存），5 分钟 TTL ——
+  未认证的 GitHub API 只有 60 次/小时。
+- **一次 5 天**：列表先显示 5 天，「加载更多」每次再要 5 天**并顺手取回这 5 天的正文**；
+  点开还没取过的那天会立刻补一次。`index-produce.json` 带来的那 5 天连正文都是现成的，
+  那几天一个请求都不用发。
+- **并发 8**：一批一批拉；同一个地址只打一次（降级链会去重）。
+- **内容片按需拉**：老的 `subjects/notesId` 写法才需要另拉内容片，选中哪天拉哪天。
 - 拉文件**不带任何认证头**（raw 的 CORS 预检会被 `Authorization` 打挂）。
 - 键盘：`Tab` 走到按钮、`Enter` 打开、`Esc` 关、`↑` `↓` 换日期、焦点在弹窗里循环、关掉还给按钮。
-- **没部署时** GitHub / CDN 上都没有 `class/data/hwk/`，时光机会一路降级到同源 ——
-  本地 `部署.cmd serve` 或热铁盒那条线上照样能看；推完 GitHub Pages 才会走前两级。
+- **没部署 / 刚写的那天**：GitHub 与 CDN 上还是旧的那份，时光机会量力而行 ——
+  想要它立刻出现，就把数据推上去（`部署.cmd full -y` 会一起推 dist 与数据文件）；
+  本地 `部署.cmd serve` 或热铁盒那条线上走同源那两级，新写的那天**马上**就能看到。
 
 #### 背景：三处来源，优先级从低到高
 
@@ -406,6 +451,12 @@ node build\migrate-hwk.mjs --prune-old        # 迁完把旧文件改名成 home
 - **都在项目根 `asset\background\`**（不是 `jinsuper.rth1.xyz\asset\`）：MC 五档 + `ut.png`，共约 2.8 MB。
   `prep-deploy.mjs` 会把项目根 `asset\` 整个镜像进 `dist\asset\`（§10.3），所以**不用**再往站点目录放一份。
   页面里写的是相对路径 `../asset/background/…`（从 `/class/homework.html` 出发）。
+- **本地预览也要能看见它们**：站点目录里没有 `asset\background\`，所以「只服务站点根」的预览
+  （控制台预览 8790 与 `部署.cmd serve`）会把 `/asset/background/**` 全部 404 —— 表现就是
+  **四张底纹正常、游戏-MC / 游戏-UT 两张空白**。两个预览服务因此都补了一条映射：
+  `/asset/…` 先按 dist 的组装顺序找（**项目根 `asset\` 优先，站点 `asset\` 兜底**），其余路径照旧。
+  改动在 `console\lib\preview.mjs` 与 `build\.serve.mjs`；**改完要重启控制台**（预览服务是控制台进程里的，
+  `Server Off → Server On` 不会重新载入模块），`部署.cmd serve` 则是重开一次就行。
 - **MC 的目录约定**：一个尺寸一个文件夹，文件夹名就是「宽x高」，里面固定叫 `wallpaper.png`：
 
   ```
@@ -464,9 +515,13 @@ node build\migrate-hwk.mjs --prune-old        # 迁完把旧文件改名成 home
 部署.cmd                    纯 ASCII 启动器：切目录、切 UTF-8 码页、转发参数
   └─ build/deploy-cli.mjs   菜单 / 命令行，负责交互和步骤编排
        ├─ build/build.mjs           重新生成 docs.html / docs-md.js / docs-md.css / fonts
+       │                            + 作业清单（hwk/index.json、class/data/index-produce.json）
        ├─ test-render + verify      快速自检（不过就拦下发布）
        └─ build/deploy.mjs          组装 → 逐个站点上传 → 检查域名
             ├─ prep-deploy.mjs      jinsuper.rth1.xyz\ + asset\ → dist\（增量 + 清理）
+            │                       （dist\.github\ 按 KEEP_ROOT 保留：那是给仓库用的 CI）
+            ├─ push-github.mjs      推之前把 build\template\github\ 与 build\lib\hwk-index.mjs
+            │                       复制进 dist\.github\（workflow + 它调的脚本）
             ├─ 热铁盒 CLI（Deno）    每个站点跑一次，失败自动重试 3 次
             └─ push-github.mjs      git push dist\ → GitHub Pages
 ```
@@ -477,6 +532,9 @@ node build\migrate-hwk.mjs --prune-old        # 迁完把旧文件改名成 home
   免得两个平台内容对不上还以为都好了。
 - **GitHub 推失败不影响热铁盒**（那边已经成功了），只提示。
 - 站点清单在 `rth-sites.json`。加站点就往里加一项，`domains` 是上传后要检查的域名。
+- **推 GitHub 时会顺带两个仓库文件**：`dist\.github\workflows\hwk-index.yml` 与
+  `dist\.github\scripts\hwk-index.mjs`（来自 `build\template\github\` 与 `build\lib\hwk-index.mjs`）。
+  它们是给仓库的 CI 用的，热铁盒那边不会多出来（`prep-deploy` 的 EXCLUDE / KEEP_ROOT 见 §4.7）。
 
 ### 5.1 博客／文档站（p\）是怎么工作的
 
@@ -601,8 +659,31 @@ CommonMark、GFM 表格/任务列表/删除线/自动链接/脚注、Emoji、上
 
 ### 主题
 
-文档站自带 **12 套配色**，默认 `obsidian`（对比度最高的一套）。定义在
-`build\template\docs.html` 里，改完要重新构建。
+分两块，别混：
+
+**① 三张列表页**（`/index.html`、`/Skills/index.html`、`/class/index.html`）——明暗 + 主题色，
+只有一份实现：**`jinsuper.rth1.xyz\lib\theme.js`**（在 `<head>` 里同步跑，属性先落到 `<html>` 上，首屏不闪）。
+
+| 维度 | `<html>` 上的属性 | 取值 | 默认 |
+|:--|:--|:--|:--|
+| 明暗 | `data-appearance` | `light` / `dark` | 跟随系统（`prefers-color-scheme`） |
+| 主题色 | `data-accent` | `amber` / `blue` | 暗色 = 现在的暖橘；亮色 = DeepSeek 蓝 |
+
+- 右上角那组按钮（「跟随系统 / 亮色 / 暗色」+「跟随明暗 / 现在的颜色 / DeepSeek 蓝」）由 `theme.js`
+  自己注入，**三个页面共用一份**，别在页面里再写一遍；偏好存 `localStorage`
+  （`site.appearance` / `site.accent`），跨标签页同步，系统换主题时跟随项自动跟。
+- 页面 CSS 里的颜色**一律走 token**：`--accent` / `--accent-rgb`（配 `rgba(var(--accent-rgb),.1)`）、
+  `--tint-rgb`（白色叠加）、`--shadow-rgb` / `--overlay-rgb`（浮层）、`--glow-a..-b` / `--grad-a..-b`（背景）、
+  `--tx-*` / `--sf-*` / `--bd-*`（文字 / 面 / 边框）。亮色只覆盖 `:root[data-appearance="light"]{…}` 一段。
+  **再往规则里写死 `#RRGGBB` 或 `rgba(215,119,87,…)`，亮色模式就会花掉一块。**
+- 蓝色取自 deepseek.com 自己的设计变量（`--ds-color-brand:#4d6bfe`，暗色用它的 `deepseek-450`）：
+  暗色 `#5686FE` 对 `#0E1214` 约 6.0:1，亮色 `#3964FE` 对白底约 4.7:1，都过 4.5:1。
+- 811 专区是最暖的一套（纸/OAK/橄榄），亮色基准本来就是浅色，所以它只换了 `--accent` / `--clay` / `--glow-1`，
+  暗色仍然是原来的暖橘，观感没动。
+- 改动前的首页留了一份：`jinsuper.rth1.xyz\web\index-bak2.html`（`web\` 里还有更早的 `bak.html`、`index.html`）。
+
+**② 文档站**（`/p/`）——自带 **12 套配色**，默认 `obsidian`（对比度最高的一套）。定义在
+`build\template\docs.html` 里，改完要重新构建。它和上面那套是两条线。
 
 正文对比度要求 ≥ 4.5:1（WCAG AA）。当前 **146/146 个前景色组合全部达标**，
 改样式后用 `audit-contrast.mjs` 复查。
@@ -625,7 +706,8 @@ CommonMark、GFM 表格/任务列表/删除线/自动链接/脚注、Emoji、上
 | `build\test-dom.mjs` | jsdom 真跑页面：切换、复制按钮、搜索、主题、加文档流程 | ~1–2min |
 | `build\test-pipeline.mjs` | 部署管线：步骤顺序与 id、开关映射、遇错停 / soft 步骤、上传文件规则（EXCLUDE、asset 覆盖）、`部署.cmd` 必须纯 ASCII、源码备份不混进管线 | ~4s |
 | `build\test-tui.mjs` | ink TUI：用假终端渲染，验菜单 / 计划开关 / 状态页 / 执行→结果 / Ctrl+C 中止 | ~8s |
-| `console\test\` | 控制台：原有 20 条（文章 / 归档 / 队列 / 片段预览 / 深链接）+ 预览面板 3 条（页面树 / 预览服务 / 预览设置）+ 部署作业 9 条 | ~3s |
+| `build\test-homework.mjs` | 作业页：811→class 改名与迁移、主页新旧两种数据、时光机多级降级（API → 生产清单 → index.json → 同源）、超时/缓存/并发、一次 5 天分页、清单生成器、控制台与 CI 的装配契约（115 项） | ~12s |
+| `console\test\` | 控制台：文章 / 归档 / 队列 / 片段预览 / 深链接 20 条 + 预览面板 3 条 + 部署作业 9 条 + **作业数据 14 条**（一天一文件、顶目录、备份、JSON 源码、重建清单） | ~6s |
 
 ```bash
 部署.cmd check        # 上面全部
@@ -839,6 +921,11 @@ Windows 上装个系统 Deno（`winget install DenoLand.Deno`），脚本优先�
 | 推 GitHub Pages 报 `error: open("xxx"): No such file or directory` / `unable to index file` | Windows 通过 UNC 访问 WSL 里的 dist 时，`git add` 要哈希七百多个文件，偶发一次 open 失败（**文件其实好好在着**，重跑就过）。`push-github.mjs` 现在自己重试 3 次；真失败再 `npm run deploy:prep` 重新组装 |
 | 推 GitHub Pages 时满屏 `warning: in the working copy of '...', LF will be replaced by CRLF` | Windows 侧 git 默认 `core.autocrlf=true`，那只是**警告**，暂存内容不变。**不要去改 autocrlf**：dist 里 HTML 本来就是 CRLF、其它是 LF，关掉它会让所有 CRLF 文件都变成「有改动」并改写发布出去的字节，白白搞出一个巨大的 diff |
 | 控制台部署面板：日志盖在作业列表上 / 整页滚不动 | 面板是满屏高度的 flex 列，子块被压扁后内容会溢出画到邻居身上。规则在 `console/web/console.css` 的「部署面板」一节：面板自己滚、子块不收缩、日志卡片固定高度 |
+| 控制台写作业报「清单生成器跑不了」 | 少了 `build/lib/hwk-index.mjs`（或者站点根不对）。项目拉全、在项目根跑一次 `node build/gen-hwk-index.mjs` 看看报什么 |
+| 手放了一份 `hwk-<id>.json`，页面/时光机里没有它 | 它还没进目录。跑 `node build/gen-hwk-index.mjs`（或控制台「重建清单」），`部署.cmd build` 也会自动做这一步 |
+| 时光机里看不到刚写的那天 | 时光机读的是**仓库上**那份。本地 / 热铁盒走同源那两级，写了马上就能看；要 GitHub 与 CDN 也有，得 `部署.cmd full -y` 把数据推上去。CI（`hwk-index.yml`）会在收到推送后自己重建清单并提交 |
+| GitHub 仓库里没跑「作业清单」这个 workflow | 它住在 **dist 仓库**（`jinsuperofficial.github.io`），不在源码备份仓库。第一次推送后去仓库的 Actions 标签页看；本地 `dist/.github/` 是 `push-github.mjs` 复制进去的，组装时会按 `KEEP_ROOT` 保留 |
+| `部署.cmd hwk` / `控制台.cmd hwk` 说没这个命令 | 终端入口在 Node 里（`console/hwk-cli.mjs`）：先确认文件在、再确认参数没写错（`hwk --list`、`hwk --json`、`hwk --help`） |
 
 ---
 
@@ -850,6 +937,8 @@ Windows 上装个系统 Deno（`winget install DenoLand.Deno`），脚本优先�
 | `MANIFEST.md` | **清单规范**：加工具只改 json、字段表、三条硬规则、校验命令 |
 | `build\README.md` | **构建系统详解**：打包器、预渲染、样式合并、对比度脚本、图标生成、部署细节 |
 | `console\lib\store.mjs` / `api.mjs` / `render.mjs` | **发布控制台**的实现（sk.json 保形读写、归档流程、预渲染器与「重刷外壳」、接口）；用法见 §4.5 |
+| `console\lib\hwk.mjs` / `console\hwk-cli.mjs` | **作业数据读写**：网页面板与终端入口共用这一份（写一天、顶目录、备份、重建清单）；数据格式见 §4.7 |
+| `build\lib\hwk-index.mjs` / `build\gen-hwk-index.mjs` | **作业清单生成**：`hwk\index.json` + `class\data\index-produce.json`；GitHub Actions 里跑的是它的拷贝，见 §4.7 |
 | `jinsuper.rth1.xyz\p\TEST.md` | **Markdown 语法逐条对照稿** + 支持/不支持速查表 |
 | `jinsuper.rth1.xyz\p\blog.md` | **写作指南**：怎么加一篇文章、frontmatter 字段、构建产出什么（站点上也能读） |
 | `build\template\blog.html` | **博客首页模板**（`p/index.html` 是产物）：最新卡片 / 标签筛选 / 时间线 |

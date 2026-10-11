@@ -19,6 +19,7 @@ import path from 'node:path';
 import { siteRoot, paths } from './paths.mjs';
 import { loadManifestLib, readCollection } from './lib/site-lib.mjs';
 import { checkOutputs } from './lib/site-index.mjs';
+import { buildAll as buildHwkIndex } from './lib/hwk-index.mjs';
 import { collectHtml } from './lib/favicon.mjs';
 
 const M = loadManifestLib();
@@ -154,6 +155,14 @@ console.log('\n── 6. 生成物 ──');
   if (stale.length) bad('生成物过期或被手改：' + stale.map((s) => s.label).join(', ') +
     '（跑 node build/gen-site-index.mjs 重新生成）');
   else ok('sitemap.xml 与 docs/info/site-index.js 都是现场生成的结果');
+
+  /* 作业清单同理：内容来自磁盘上的 hwk-*.json，时间戳一个都不写。
+     页面在 GitHub 不通时读的就是 index-produce.json，歪了就是「时光机少一天」。 */
+  const hwk = buildHwkIndex(siteRoot, { check: true });
+  if (hwk.changed.length) bad('作业清单过期：' + hwk.changed.join(', ') +
+    '（跑 node build/gen-hwk-index.mjs 重新生成）');
+  else ok('作业清单（hwk/index.json + index-produce.json）和现场一致，共 ' + hwk.entries.length + ' 天');
+  for (const p of hwk.problems) meh('作业清单：' + p);
 }
 
 /* ── 8. 卡片页是否都在用同一个运行时 ──

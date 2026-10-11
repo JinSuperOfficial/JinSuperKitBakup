@@ -12,18 +12,38 @@
  *     这样文档站在预览里也能拿到 Markdown 真原文；
  *   · `/__preview.json` 是本服务自己的名片，用来认「端口上是不是我们」。
  *
+ * 还有一处也必须对齐：**`/asset/…` 的来源不只站点目录**。
+ * prep-deploy 组装 dist 时先镜像站点，再把**项目根的 `asset/`** 整个盖到
+ * `dist/asset/` 上（见 build/lib/deploy-files.mjs 的 mirrorInto），
+ * 所以线上 `/asset/background/**`（作业页的 MC / UT 游戏壁纸）在站点目录里
+ * 根本不存在。预览只服务站点根的话，这两档背景在本地永远是两张空白 ——
+ * 这里按同样的顺序再找一遍：项目根 asset/ 优先，站点 asset/ 兜底。
+ *
  * 跑法：
  *   node console/server.mjs server [--port 8790]     headless（也可以 ./控制台.sh server）
  *   控制台界面里点「Server On」
  */
 import http from 'node:http';
 import path from 'node:path';
-import { DEFAULT_SETTINGS, isDir, siteRoot } from './paths.mjs';
+import { DEFAULT_SETTINGS, isDir, siteRoot, workspaceRoot } from './paths.mjs';
 import { resolveStatic, sendFile, sendJson } from './http-static.mjs';
 
 export const APP_ID = 'jinsuper-preview';
 export const DEFAULT_PORT = DEFAULT_SETTINGS.previewPort;
 const HOST = '127.0.0.1';
+
+/** 项目根的 asset/：组装时会被镜像成线上的 /asset/（游戏壁纸就在这儿） */
+const assetRoot = path.join(workspaceRoot, 'asset');
+
+/**
+ * `/asset/…` 的解析：和 dist 的组装顺序一致 —— 项目根 asset/ 先找，站点 asset/ 兜底。
+ * 别的路径返回 null，交给调用方按站点根解析。
+ */
+function resolveAsset(urlPath) {
+  if (urlPath !== '/asset' && !urlPath.startsWith('/asset/')) return null;
+  const rel = urlPath.slice('/asset'.length) || '/';
+  return resolveStatic(rel, [assetRoot, path.join(siteRoot, 'asset')]);
+}
 
 /** 当前跑着的那个（一个进程只开一个预览服务） */
 let current = null;
@@ -85,10 +105,10 @@ function handle(req, res, ctx) {
   let p = urlPath === '/' ? '/index.html' : urlPath;
   if (p.endsWith('/')) p += 'index.html';
 
-  const hit = resolveStatic(p, [siteRoot]);
+  const hit = resolveAsset(p) || resolveStatic(p, [siteRoot]);
   if (!hit) {
     res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-    res.end('404 ' + p + '\n\n预览服务只服务站点根：' + siteRoot);
+    res.end('404 ' + p + '\n\n预览服务只服务站点根：' + siteRoot + '\n（/asset/ 还会去项目根的 asset/ 找一遍）');
     return;
   }
   sendFile(req, res, hit.file);

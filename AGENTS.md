@@ -15,7 +15,7 @@
 - 站点目录 / 博客身份：`jinsuper.rth1.xyz/site.json`（`blog` 段 = 标题 / 简介 / 主域名）
 - 文章清单：`jinsuper.rth1.xyz/sk.json`（博客「JinSuper 奇思妙想」，分组 → `/p/` 下的路径）
 - 唯一运行时：`jinsuper.rth1.xyz/lib/manifest.js`（归一 / 排序 / 渲染 + 图标注册表；页面里不许再写自己的解析 / 猜图标 / 路径编码逻辑）
-- 生成物不许手改：`sitemap.xml`、`docs/info/site-index.js`、`p/index.html`（博客首页）、`p/post/`（每篇文章的独立网址）、`p/feed.xml`
+- 生成物不许手改：`sitemap.xml`、`docs/info/site-index.js`、`p/index.html`（博客首页）、`p/post/`（每篇文章的独立网址）、`p/feed.xml`、`class/data/hwk/index.json` 与 `class/data/index-produce.json`（作业清单，跑 `node build/gen-hwk-index.mjs` 重建）
 - 改完清单跑：`node build/verify-manifests.mjs && node build/test-manifest.mjs`
 
 完整字段表与三步流程见 **`MANIFEST.md`**。
@@ -38,6 +38,16 @@
   没有小节的短文退回一条「文章标题 → `#post`」兜底条目。三处目录共用这一条规则
 - 改了元数据行为或加了 Markdown 语法：更新 `build/test-render.mjs` 的断言 + `MANIFEST.md` §7
 - 字段表、canonical / OG / JSON-LD / RSS / sitemap 的做法见 **`MANIFEST.md` §7**
+
+## 主题（首页 / 工具站 / 811 专区）
+
+三张列表页的明暗与主题色**只有一个实现**：`jinsuper.rth1.xyz/lib/theme.js`
+（往 `<html>` 上写 `data-appearance` / `data-accent`，右上角那组按钮也是它注入的，三个页面共用）。
+默认「跟随系统」，暗色用现在的暖橘、亮色用 DeepSeek 蓝。
+
+**颜色一律走 CSS token**（`--accent` / `--accent-rgb` / `--tint-rgb` / `--tx-*` / `--sf-*` / `--bd-*` …），
+别再往规则里写死 `#RRGGBB` 或 `rgba(215,119,87,…)` —— 写死一处，亮色模式就花一处。
+细节见 `project.md` §8「主题」。
 
 ## UI 圆角规范
 

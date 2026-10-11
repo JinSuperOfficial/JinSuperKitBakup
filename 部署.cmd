@@ -12,6 +12,11 @@ rem    2. switch the console to UTF-8, otherwise Node's Chinese
 rem       output comes out as mojibake
 rem    3. forward the arguments
 rem
+rem  Commands live in build\deploy-cli.mjs, e.g. full / build / prep /
+rem  rth / gh / check / serve / status / bakup, and "hwk" (enter
+rem  today's homework; it shares the implementation with the console's
+rem  homework panel). Run "deploy.cmd --help" for the current list.
+rem
 rem  KEEP THIS FILE PURE ASCII.
 rem  cmd.exe decodes a batch file byte-by-byte using the *current*
 rem  code page, and it re-reads the file by byte offset as it goes.

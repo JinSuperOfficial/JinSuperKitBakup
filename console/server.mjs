@@ -39,6 +39,8 @@ const HOST = '127.0.0.1';
 const OPEN = !argv.includes('--no-open');
 /* 不带子命令就是控制台本体；`server` 是 headless 的预览服务 */
 const COMMAND = argv[0] && !argv[0].startsWith('-') ? argv[0] : '';
+/* 开浏览器时落在哪个面板（`控制台.cmd hwk --web` → #hwk） */
+let openHash = '';
 
 /* ── 路由表 ── */
 const ROUTES = {
@@ -83,6 +85,11 @@ const ROUTES = {
   'GET /api/preview/status': () => api.getPreviewStatus(),
   'POST /api/preview/start': (q, b) => api.postPreviewStart(b),
   'POST /api/preview/stop': () => api.postPreviewStop(),
+  /* 作业面板：录入 / 以某天为底稿 / 重建清单（class/data/hwk/） */
+  'GET /api/hwk': () => api.getHwk(),
+  'GET /api/hwk/record': (q) => api.getHwkRecord(q),
+  'POST /api/hwk/save': (q, b) => api.postHwkSave(b),
+  'POST /api/hwk/reindex': (q, b) => api.postHwkReindex(b),
 };
 
 /* ── 静态资源类型 ──
@@ -279,13 +286,15 @@ function openBrowser(link) {
  */
 async function main() {
   const link = `http://${HOST}:${PORT}/`;
+  /* 深链接：`控制台.cmd hwk --web` 直接落在「作业」面板上 */
+  const target = link + openHash;
 
   if (await consoleAlreadyRunning(PORT)) {
     console.log('');
     console.log(`  控制台已经开着了：${link}`);
     console.log('  （上一次的窗口应该还在。要用新端口：控制台.cmd --port ' + (PORT + 1) + '）');
     console.log('');
-    if (OPEN) openBrowser(link);
+    if (OPEN) openBrowser(target);
     return;
   }
 
@@ -355,8 +364,35 @@ async function serverMain() {
   }
 }
 
+/**
+ * `node console/server.mjs hwk …` —— 在终端里录今天这份作业
+ * ---------------------------------------------------
+ * 和网页面板走**同一份实现**（`console/hwk-cli.mjs` → `lib/hwk.mjs`），
+ * 所以两边写出来的文件、提示、备份规则完全一样。
+ *
+ *   ./控制台.sh hwk                 问答式录作业（日期 / 科目 / 笔记）
+ *   ./控制台.sh hwk --json          直接粘 JSON 源码（粘贴完 Ctrl+D / Ctrl+Z 回车）
+ *   ./控制台.sh hwk --json 某份.json  从文件读 JSON
+ *   ./控制台.sh hwk --list          看现在有哪几天
+ *   ./控制台.sh hwk --web           不开终端问答，直接打开控制台并跳到「作业」面板
+ *
+ * Windows 上就是 `控制台.cmd hwk`（.cmd 只负责转发参数，逻辑全在 Node 里，
+ * 所以两条启动器天生同步）。`部署.cmd hwk` 也指向这里。
+ */
+async function hwkMain() {
+  if (argv.includes('--web') || argv.includes('-w')) {
+    openHash = '#hwk';
+    await main();
+    return;
+  }
+  const { main: runHwk } = await import('./hwk-cli.mjs');
+  const code = await runHwk(argv.slice(1));
+  process.exitCode = Number.isFinite(code) ? code : 0;
+}
+
 if (isMain) {
   if (COMMAND === 'server') serverMain();
+  else if (COMMAND === 'hwk') hwkMain();
   else main();
 }
 

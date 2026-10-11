@@ -3,7 +3,7 @@
    ---------------------------------------------------
    零依赖：一个文件里装完视图、编辑器、队列。
    分节：#0 小工具 / #1 编辑器 / #2 写作 / #3 管理 / #4 归档 / #5 素材 /
-        #6 设置 / #7 拖拽队列 / #8 启动与路由
+        #6 设置 / #7 拖拽队列 / #8 启动与路由 / #9 作业数据
    ═══════════════════════════════════════════════════ */
 (function () {
   'use strict';
@@ -2785,9 +2785,312 @@
     }
   }
 
+  /* ═══════════ #9 作业数据（class/data/hwk/） ═══════════
+     写一天 = 一份 hwk-<id>.json + 把它顶到 index.json 最前，
+     再重建「生产清单」class/data/index-produce.json（时光机的 CDN 兜底读它）。
+     两条输入路：表单（一科一格）与 JSON 源码（直接粘一份记录）。
+     落盘、备份、目录维护全在服务端（console/lib/hwk.mjs），前端只管收集与提示。 */
+
+  /* 记录里的保留字：必须和 homework.html 的 INLINE_RESERVED、lib/hwk.mjs 的 RESERVED 对齐 */
+  const HK_RESERVED = ['id', 'date', 'title', 'bg', 'name', 'file',
+                       'subjects', 'notesId', 'eggId', 'homework', 'notes', 'egg', '彩蛋'];
+  const HK_BG_FALLBACK = ['default', 'game-mc', 'game-ut', 'egg',
+                          'bg_grid', 'bg_ink', 'bg_map', 'bg_botanical'];
+
+  const HK = {
+    info: null,
+    mode: 'form',
+    loadedOnce: false,   /* 首次进面板才按默认值填表单，之后刷新不覆盖人家正在写的东西 */
+  };
+
+  /** 背景下拉：可选值来自服务端（认不出的值页面会退回默认，所以这里给的是认得的那几个） */
+  function hkFillBg(keep) {
+    const sel = $('hwkBg');
+    const values = (HK.info && HK.info.bgKnown && HK.info.bgKnown.length) ? HK.info.bgKnown : HK_BG_FALLBACK;
+    const cur = keep || sel.value || 'default';
+    sel.replaceChildren();
+    /* 手上这份记录如果写的是个「不认识」的值，把它当额外一项留着：
+       拿它当底稿再写一次时，不该悄悄被换成 default */
+    const list = values.slice();
+    if (cur && !list.includes(cur)) list.unshift(cur);
+    list.forEach((v) => { const o = el('option', null, v); o.value = v; sel.appendChild(o); });
+    sel.value = list.includes(cur) ? cur : list[0];
+  }
+
+  /** 一科一格的骨架（笔记那格用虚线框，名字只读） */
+  function hkSubjectRow(name, text, { notes } = {}) {
+    const row = el('div', 'hwk-sub' + (notes ? ' is-notes' : ''));
+    row.dataset.kind = notes ? 'notes' : 'subject';
+
+    const head = el('div', 'hwk-sub-head');
+    const nameIn = el('input', 'input hwk-sub-name');
+    nameIn.value = name || '';
+    nameIn.setAttribute('aria-label', '科目名');
+    if (notes) { nameIn.readOnly = true; nameIn.tabIndex = -1; }
+    head.appendChild(nameIn);
+    if (!notes) {
+      const del = el('button', 'btn ghost hwk-sub-del', '×');
+      del.type = 'button';
+      del.title = '删掉这一科';
+      del.setAttribute('aria-label', '删掉 ' + (name || '这一科'));
+      del.addEventListener('click', () => row.remove());
+      head.appendChild(del);
+    }
+    row.appendChild(head);
+
+    const ta = el('textarea', 'input hwk-sub-text');
+    ta.rows = 2;
+    ta.value = text || '';
+    ta.spellcheck = false;
+    ta.placeholder = notes ? '写在下面的备注…' : '一行一条，页面自己按行拆';
+    ta.setAttribute('aria-label', (name || '科目') + '的正文');
+    row.appendChild(ta);
+    return row;
+  }
+
+  /** 表单 ← 一份记录（底稿），传 null 就按今天生成一份空的 */
+  function hkFillForm(rec) {
+    const box = $('hwkSubjects');
+    box.replaceChildren();
+    if (rec) {
+      $('hwkDate').value = rec.date || '';
+      $('hwkId').value = rec.id || '';
+      $('hwkTitle').value = rec.title || '';
+      const bg = (rec.bg && typeof rec.bg === 'object') ? (rec.bg.value || rec.bg.slug || '') : (rec.bg || '');
+      hkFillBg(bg ? String(bg) : 'default');
+      Object.keys(rec).forEach((k) => {
+        if (HK_RESERVED.includes(k) || k === '笔记') return;
+        if (k.slice(0, 2) === '__') return;                  /* 时光机塞进来的内部键 */
+        if (typeof rec[k] !== 'string') return;              /* 内容片写法（subjects/notesId）不往表单搬 */
+        box.appendChild(hkSubjectRow(k, rec[k]));
+      });
+      box.appendChild(hkSubjectRow('笔记', typeof rec['笔记'] === 'string' ? rec['笔记'] : '', { notes: true }));
+      return;
+    }
+    const info = HK.info || {};
+    const date = info.today || '';
+    $('hwkDate').value = date;
+    $('hwkId').value = 'n' + String(date).slice(2).replace(/-/g, '');
+    $('hwkTitle').value = '作业-' + String(date).replace(/-/g, '');
+    hkFillBg('default');
+    (info.defaultSubjects || []).forEach((n) => box.appendChild(hkSubjectRow(n, '')));
+    box.appendChild(hkSubjectRow('笔记', '', { notes: true }));
+  }
+
+  /** 表单 → 请求体 */
+  function hkReadForm() {
+    const subjects = [];
+    Array.prototype.forEach.call($('hwkSubjects').children, (row) => {
+      if (row.dataset.kind === 'notes') return;              /* 笔记单独取 */
+      const name = row.querySelector('.hwk-sub-name').value.trim();
+      const text = row.querySelector('.hwk-sub-text').value;
+      if (!name || !text.trim()) return;
+      subjects.push({ name, text });
+    });
+    const notesEl = $('hwkSubjects').querySelector('.hwk-sub[data-kind="notes"] .hwk-sub-text');
+    return {
+      mode: 'form',
+      date: $('hwkDate').value.trim(),
+      id: $('hwkId').value.trim(),
+      title: $('hwkTitle').value.trim(),
+      bg: $('hwkBg').value,
+      subjects,
+      notes: notesEl ? notesEl.value : '',
+    };
+  }
+
+  function hkSetMode(mode) {
+    HK.mode = mode === 'json' ? 'json' : 'form';
+    $('hwkFormPane').hidden = HK.mode !== 'form';
+    $('hwkJsonPane').hidden = HK.mode !== 'json';
+    Array.prototype.forEach.call($('hwkMode').children, (b) => {
+      const on = b.dataset.mode === HK.mode;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    $('hwkHint').textContent = HK.mode === 'json'
+      ? '粘一份记录：顶层 id/date/title/bg 是元数据，其余字符串键都当科目，「笔记」特殊。'
+      : '日期 / id 留空就按今天生成；科目留空就不写那一科。';
+  }
+
+  /** 结果写进底部那条 note（预览、成功、警告都在这一处，不刷屏） */
+  function hkNote(res, dryRun) {
+    const box = $('hwkNote');
+    const lines = [];
+    lines.push((dryRun ? '预览（一个字节都没写）' : '已写入') + ' ' + res.rel
+      + '　' + res.date + ' · ' + res.title
+      + '　科目：' + (res.meta.subjects.join('、') || '（一个都没有）')
+      + (res.meta.hasNotes ? ' + 笔记' : ''));
+    lines.push('目录 index.json 现在 ' + res.indexCount + ' 天，这条'
+      + (res.isFirst ? '在最前（页面今天就显示它）' : '不在最前（日期比现有的早）'));
+    if (res.replaced) lines.push('原来同一天的文件已经备份：' + (res.backups.join('、') || '（没备份成）'));
+    res.backups.slice(1).forEach((b) => lines.push('旧版本备份：' + b));
+    res.archived.forEach((a) => lines.push('老文件 homework.json 那份已按 ' + a.name + ' 补进历史（' + a.date + '）'));
+    if (res.manifests && !res.manifests.skipped) {
+      lines.push('清单已重建：index.json + class/data/index-produce.json'
+        + (res.manifests.changed.length ? '（变了 ' + res.manifests.changed.join('、') + '）' : '（内容没变）'));
+    } else if (res.manifests && res.manifests.reason && !dryRun) {
+      lines.push('清单生成器没跑成：' + res.manifests.reason);
+    }
+    res.notes.forEach((n) => lines.push('⚠ ' + n));
+    if (!dryRun) lines.push('要上线：部署面板「一键部署」，或者 部署.cmd full -y');
+    box.textContent = lines.join('\n');
+    box.hidden = false;
+  }
+
+  async function hkSubmit(kind) {
+    const input = HK.mode === 'json'
+      ? { mode: 'json', source: $('hwkSource').value }
+      : hkReadForm();
+    if (kind === 'preview') input.dryRun = true;
+    const btns = ['hwkSave', 'hwkJsonSave', 'hwkPreview', 'hwkJsonPreview'].map($).filter(Boolean);
+    btns.forEach((b) => { b.disabled = true; });
+    try {
+      const res = await api('POST', '/api/hwk/save', input);
+      hkNote(res, kind === 'preview');
+      toast(kind === 'preview' ? '算完了：' + res.name : '已写入 ' + res.name, 'ok');
+      if (kind !== 'preview') {
+        if (HK.mode === 'json') {
+          /* 写完把源码框对齐成刚落盘的样子（顺手消掉手写时的多余空格） */
+          try {
+            const one = await api('GET', '/api/hwk/record?id=' + encodeURIComponent(res.id));
+            $('hwkSource').value = JSON.stringify(one.record, null, '\t');
+          } catch { /* 读不回来就算了，反正已经写进去了 */ }
+        }
+        await hkLoad();
+      }
+    } catch (e) {
+      toast((kind === 'preview' ? '预览失败：' : '写入失败：') + e.message, 'bad');
+    } finally {
+      btns.forEach((b) => { b.disabled = false; });
+    }
+  }
+
+  function hkRenderList() {
+    const info = HK.info || {};
+    const list = $('hwkList');
+    list.replaceChildren();
+    const records = info.records || [];
+    if (!records.length) list.appendChild(el('li', 'empty', '还没有任何一天。左边填一份，点「写入作业」。'));
+    records.forEach((r, i) => {
+      const li = el('li');
+      if (i === 0 && r.exists) li.classList.add('is-current');
+      if (!r.exists) li.classList.add('is-bad');
+      const body = el('div', 'a-body');
+      body.appendChild(el('span', 'a-title',
+        (r.date || '(无日期)') + '　' + (r.title || r.id) + (i === 0 && r.exists ? '　（今天这份）' : '')));
+      body.appendChild(el('span', 'a-meta', r.name + ' · ' + fmtBytes(r.bytes) + (r.exists ? '' : ' · 文件不在')));
+      li.appendChild(body);
+
+      const acts = el('div', 'a-acts');
+      if (r.exists) {
+        const draft = el('button', null, '底稿');
+        draft.type = 'button';
+        draft.title = '把这一天填进左边表单，改完再写入（同一天会先备份旧版本）';
+        draft.addEventListener('click', () => hkUseDraft(r.id));
+        acts.appendChild(draft);
+
+        const asJson = el('button', null, '源码');
+        asJson.type = 'button';
+        asJson.title = '把这一天填进「JSON 源码」那一档';
+        asJson.addEventListener('click', () => hkUseSource(r.id));
+        acts.appendChild(asJson);
+      }
+      li.appendChild(acts);
+      list.appendChild(li);
+    });
+
+    if (info.orphans && info.orphans.length) {
+      const li = el('li', 'is-bad');
+      li.appendChild(el('div', 'a-body',
+        '目录里没登记：' + info.orphans.map((o) => o.name).join('、') + '（点「重建清单」就会收进来）'));
+      list.appendChild(li);
+    }
+    $('hwkCount').textContent = records.length;
+  }
+
+  async function hkUseDraft(id) {
+    try {
+      const one = await api('GET', '/api/hwk/record?id=' + encodeURIComponent(id));
+      hkSetMode('form');
+      hkFillForm(one.record);
+      toast('把 ' + one.name + ' 填进表单了（写入前会先备份旧版本）', 'ok');
+    } catch (e) { toast('读不到这一天：' + e.message, 'bad'); }
+  }
+
+  async function hkUseSource(id) {
+    try {
+      const one = await api('GET', '/api/hwk/record?id=' + encodeURIComponent(id));
+      hkSetMode('json');
+      $('hwkSource').value = one.source;
+      toast('把 ' + one.name + ' 的源码填进来了', 'ok');
+    } catch (e) { toast('读不到这一天：' + e.message, 'bad'); }
+  }
+
+  async function hkFromCurrent() {
+    const cur = ((HK.info && HK.info.records) || []).find((r) => r.exists);
+    if (!cur) { toast('现在还没有任何一天', 'warn'); return; }
+    await hkUseSource(cur.id);
+  }
+
+  async function hkReindex() {
+    const b = $('hwkReindex');
+    b.disabled = true;
+    try {
+      const res = await api('POST', '/api/hwk/reindex', {});
+      toast(res.changed.length ? '清单已重建：' + res.changed.join('、') : '清单检查过了，内容没变', 'ok');
+      const box = $('hwkNote');
+      box.textContent = '清单：' + res.count + ' 天　'
+        + (res.changed.length ? '更新了 ' + res.changed.join('、') : '两个文件都和现场一致')
+        + (res.problems.length ? '\n⚠ ' + res.problems.join('\n⚠ ') : '')
+        + '\n生成物（docs/info/site-index.js / sitemap.xml）：'
+        + (res.generated && res.generated.skipped ? res.generated.reason : '已刷新');
+      box.hidden = false;
+      await hkLoad();
+    } catch (e) {
+      toast('重建清单失败：' + e.message, 'bad');
+    } finally {
+      b.disabled = false;
+    }
+  }
+
+  async function hkLoad() {
+    const info = await api('GET', '/api/hwk');
+    const first = !HK.loadedOnce;
+    HK.info = info;
+    HK.loadedOnce = true;
+    $('hwkWhere').textContent = info.dirRel + '/hwk-<id>.json'
+      + (info.produceExists ? '　·　index-produce.json ✓' : '　·　index-produce.json ✗');
+    if (first) hkFillForm(null);
+    else hkFillBg($('hwkBg').value);
+    hkRenderList();
+  }
+
+  function initHwk() {
+    $('hwkMode').addEventListener('click', (e) => {
+      const b = e.target.closest('.seg-btn');
+      if (b) hkSetMode(b.dataset.mode);
+    });
+    $('hwkAddSubject').addEventListener('click', () => {
+      const box = $('hwkSubjects');
+      const row = hkSubjectRow('', '');
+      box.insertBefore(row, box.querySelector('.hwk-sub.is-notes'));
+      row.querySelector('.hwk-sub-name').focus();
+    });
+    $('hwkSave').addEventListener('click', () => hkSubmit('save'));
+    $('hwkPreview').addEventListener('click', () => hkSubmit('preview'));
+    $('hwkJsonSave').addEventListener('click', () => hkSubmit('save'));
+    $('hwkJsonPreview').addEventListener('click', () => hkSubmit('preview'));
+    $('hwkFromCurrent').addEventListener('click', hkFromCurrent);
+    $('hwkRefresh').addEventListener('click', () => {
+      hkLoad().then(() => toast('已刷新', 'ok')).catch((e) => toast('刷新失败：' + e.message, 'bad'));
+    });
+    $('hwkReindex').addEventListener('click', hkReindex);
+  }
+
   /* ═══════════ #8 启动 / 路由 / 刷新 ═══════════ */
 
-  const VIEWS = ['write', 'manage', 'preview', 'manifest', 'archive', 'assets', 'deploy', 'cloud', 'check', 'compare', 'settings'];
+  const VIEWS = ['write', 'manage', 'preview', 'manifest', 'hwk', 'archive', 'assets', 'deploy', 'cloud', 'check', 'compare', 'settings'];
 
   function setView(name, { focusTab } = {}) {
     if (!VIEWS.includes(name)) name = 'write';
@@ -2806,6 +3109,7 @@
     if (name === 'manage') renderManage();
     if (name === 'preview') pvEnter();
     if (name === 'manifest') { refreshManifest(); fillManifestHints(); }
+    if (name === 'hwk') hkLoad().catch((e) => toast('读不到作业数据：' + e.message, 'bad'));
     if (name === 'archive') renderArchive();
     if (name === 'assets') renderAssets();
     if (name === 'deploy') refreshDeploy();
@@ -2921,6 +3225,7 @@
     initManage();
     initPreview();
     initManifest();
+    initHwk();
     initArchive();
     initAssets();
     initDeploy();

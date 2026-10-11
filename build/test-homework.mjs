@@ -5,12 +5,18 @@
  *                是否齐全、能不能原样拼回旧的 homework.json；迁移脚本幂等
  * B 段（jsdom）：主页在「新结构」和「旧 homework.json 兜底」两种情况下都渲染得一模一样，
  *                勾选键（localStorage 的 key）不能变
- * C 段（jsdom）：时光机三级降级（GitHub API → CDN index.json → 同源）、超时、缓存 5 分钟、
- *                并发 ≤8、50 条分页 + 加载更多、键盘 Esc / 焦点归还、不支持 fetch 时隐藏按钮
+ * C 段（jsdom）：时光机多级降级（GitHub API → CDN 生产清单 index-produce.json → CDN index.json
+ *                → 同源生产清单 → 同源 index.json）、超时 3 秒、缓存 5 分钟、并发 ≤8、
+ *                一次 5 天 + 加载更多（每次只再要 5 天的正文）、键盘 Esc / 焦点归还、
+ *                不支持 fetch 时隐藏按钮
+ * D 段（纯 Node）：作业清单生成器（build/lib/hwk-index.mjs）：目录 / 生产清单的内容、幂等、
+ *                --check、坏文件不拖垮整份清单
+ * E 段（静态装配）：控制台与 CI 那条链有没有接上（生成器 → 模板 → push-github → dist/.github）
  *
  * 跑法：node build/test-homework.mjs
  */
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { JSDOM, VirtualConsole } from 'jsdom';
@@ -264,6 +270,7 @@ console.log('\n── C1. 时光机：GitHub API 正常（raw 拉文件） ─�
 const RAW_BASE = 'https://raw.githubusercontent.com/JinSuperOfficial/jinsuperofficial.github.io/main/class/data/hwk/';
 const CDN_BASE = 'https://cdn.jsdelivr.net/gh/JinSuperOfficial/jinsuperofficial.github.io@main/class/data/hwk/';
 const API_URL = 'https://api.github.com/repos/JinSuperOfficial/jinsuperofficial.github.io/contents/class/data/hwk';
+const PRODUCE_URL = 'https://cdn.jsdelivr.net/gh/JinSuperOfficial/jinsuperofficial.github.io@main/class/data/index-produce.json';
 {
   const A = boot({
     fetchPlan: (u) => {
@@ -287,6 +294,8 @@ const API_URL = 'https://api.github.com/repos/JinSuperOfficial/jinsuperofficial.
   check('时光机按钮能打开，列表按 index 渲染', listed.length === idx.length, listed.length + ' 条');
   check('列表里没有 index.json 这种非作业文件（只认 hwk-*.json）',
     A.reqs.filter((u) => u.endsWith('index.json') && u.startsWith(RAW_BASE)).length === 0);
+  check('GitHub API 通了就不去读 CDN 的生产清单（主力路径最省）',
+    !A.reqs.some((u) => u.includes('index-produce.json')), A.reqs.length + ' 个请求');
   check('计数标签显示条数', /1 条/.test(doc.getElementById('tmCount').textContent), doc.getElementById('tmCount').textContent);
   const detail = doc.getElementById('tmDetail');
   check('第一天详情：标题 + 科目 + 条目都在',
@@ -325,14 +334,67 @@ console.log('\n── C2. 时光机：GitHub API 超时（3 秒）→ CDN 索引
   doc.getElementById('tmBtn').click();
   await wait(3600);                                                   /* 3 秒超时 + 余量 */
   const el = Date.now() - t0;
-  check('GitHub 超时后退回 CDN 的 index.json',
-    A.reqs.includes(CDN_BASE + 'index.json'), A.reqs.filter((u) => u.includes('index.json')).join(' , '));
+  check('GitHub 超时后先试 CDN 的生产清单，再退到 index.json',
+    A.reqs.includes(PRODUCE_URL) &&
+    A.reqs.indexOf(PRODUCE_URL) < A.reqs.indexOf(CDN_BASE + 'index.json'),
+    A.reqs.filter((u) => u.includes('index.json') || u.includes('index-produce')).join(' , '));
   check('每份文件改从 CDN 拉（raw 失败自动下一档）',
     A.reqs.some((u) => u.startsWith(CDN_BASE) && u.endsWith('hwk-n261010.json')));
   check('超时到回退的总耗时在 3 秒量级', el > 2900 && el < 6000, el + ' ms');
   check('CDN 回退后照样能看详情',
     doc.getElementById('tmDetail').textContent.includes('语文'),
     (doc.getElementById('tmDetail').textContent || '').slice(0, 30).replace(/\s+/g, ' '));
+  check('这条路上也没有报错', A.errors.length === 0, A.errors.join(' | ') || '干净');
+}
+
+console.log('\n── C2b. 时光机：API 挂了 → CDN 生产清单（目录 + 最近 5 天正文，一个请求） ──');
+{
+  /* 8 天：清单里带最新的 5 天正文，剩下的要「加载更多」时再按目录取 */
+  const days = [];
+  for (let i = 0; i < 8; i++) days.push({ id: 'n2611' + String(10 + i), name: 'hwk-n2611' + String(10 + i) + '.json', date: '2026-11-' + String(10 + i), title: '第 ' + i + ' 天' });
+  const entries = days.slice().sort((a, b) => b.date.localeCompare(a.date));
+  const preview = {};
+  entries.slice(0, 5).forEach((e) => {
+    preview[e.name] = { id: e.id, date: e.date, title: e.title, bg: { value: 'default' }, 语文: '1. 生产清单里的 ' + e.id };
+  });
+  const produce = JSON.stringify({ source: 'class/data/hwk', count: 8, previewCount: 5, entries: entries, preview: preview });
+
+  const A = boot({
+    fetchPlan: (u) => {
+      if (u === API_URL) return { ok: false, status: 403, body: '{"message":"rate limit"}' };
+      if (u === PRODUCE_URL) return { ok: true, status: 200, body: produce };
+      return { ok: false, status: 404, body: '' };                 /* 逐份文件与 index.json 都不给 */
+    }
+  });
+  await wait(500);
+  const doc = A.doc;
+  doc.getElementById('tmBtn').click();
+  await wait(600);
+
+  const listed = qa(A.win, '#tmList .log-item');
+  check('CDN 生产清单读通了（只这一个请求就够）', A.reqs.includes(PRODUCE_URL));
+  check('列表直接拿到 5 天', listed.length === 5, listed.length + ' 条');
+  check('日期 / 标题都来自清单（不用再拉正文）',
+    /2026-11-1[0-7]/.test(listed[0].textContent) && /第 /.test(listed[0].textContent), listed[0].textContent.replace(/\s+/g, ' ').trim());
+  check('这 5 天一个逐份请求都没发', A.reqs.filter((u) => /hwk-.*\.json$/.test(u)).length === 0,
+    A.reqs.filter((u) => /hwk-/.test(u)).join(' , ') || '0 个');
+  check('详情直接来自清单里的正文',
+    doc.getElementById('tmDetail').textContent.includes('生产清单里的'), (doc.getElementById('tmDetail').textContent || '').slice(0, 40).replace(/\s+/g, ' '));
+
+  const more = doc.getElementById('tmMore');
+  check('「加载更多」写清还剩 3 天', !more.hidden && /还有 3 条/.test(more.textContent), more.textContent);
+  more.click();
+  await wait(300);
+  check('点一次把剩下的 3 天补上，按钮藏起来',
+    qa(A.win, '#tmList .log-item').length === 8 && more.hidden,
+    qa(A.win, '#tmList .log-item').length + ' 条');
+  const daysFetched = new Set(A.reqs.map((u) => (/hwk-n2611(\d\d)\.json$/.exec(u) || [])[1]).filter(Boolean));
+  check('只有新露出来的那几天才去取文件（基准就是数据目录，没有白打的 404）',
+    daysFetched.size === 3 && ['10', '11', '12'].every((d) => daysFetched.has(d)),
+    [...daysFetched].join(',') || '0 天');
+  check('同一个地址不重复请求（去重过的降级链）',
+    A.reqs.length === new Set(A.reqs).size,
+    A.reqs.length + ' 个请求 / ' + new Set(A.reqs).size + ' 个不同的');
   check('这条路上也没有报错', A.errors.length === 0, A.errors.join(' | ') || '干净');
 }
 
@@ -348,12 +410,43 @@ console.log('\n── C3. 时光机：GitHub 403 / CDN 挂 → 同源兜底 ─�
   });
   await wait(500);
   const doc = A.doc;
+  const mark = A.reqs.length;                    /* 只看点开时光机之后的请求：页面自己也会读同源数据 */
   doc.getElementById('tmBtn').click();
   await wait(600);
-  check('403 时不硬刚，直接走下一档', A.reqs.filter((u) => u === API_URL).length === 1);
-  check('同源 ./data/hwk/index.json 也能当目录用',
-    A.reqs.some((u) => u === './data/hwk/index.json'), A.reqs.filter((u) => u.includes('index.json')).join(' , '));
+  const tm = A.reqs.slice(mark);
+  check('403 时不硬刚，直接走下一档', tm.filter((u) => u === API_URL).length === 1);
+  check('同源的 index.json 也能当目录用（本地没推 GitHub 时就是它）',
+    tm.some((u) => u === './data/hwk/index.json'), tm.filter((u) => u.includes('index.json')).join(' , '));
+  check('同源那两档也是「先生产清单、后 index.json」',
+    tm.indexOf('./data/index-produce.json') >= 0 &&
+    tm.indexOf('./data/index-produce.json') < tm.indexOf('./data/hwk/index.json'),
+    tm.filter((u) => u.startsWith('./')).join(' , '));
   check('同源这条路也渲染出了详情', doc.getElementById('tmDetail').textContent.includes('语文'));
+}
+
+console.log('\n── C3b. 时光机：全走同源时，生产清单优先于 index.json ──');
+{
+  const A = boot({
+    fetchPlan: (u) => {
+      if (u === API_URL) return { ok: false, status: 403, body: '' };
+      if (u.startsWith('https://cdn.jsdelivr.net/')) return { ok: false, status: 404, body: '' };
+      if (u === './data/index-produce.json') return serveFile('class/data/index-produce.json');
+      if (u.startsWith('./data/hwk/')) return serveFile('class/data/hwk/' + u.slice('./data/hwk/'.length));
+      return { ok: false, status: 404, body: '' };
+    }
+  });
+  await wait(500);
+  const doc = A.doc;
+  const mark = A.reqs.length;
+  doc.getElementById('tmBtn').click();
+  await wait(400);
+  const tm = A.reqs.slice(mark);
+  check('同源的生产清单被用上了（站里那份 index-produce.json）',
+    tm.includes('./data/index-produce.json'), tm.filter((u) => u.startsWith('./')).join(' , '));
+  check('用上生产清单之后，连同源 index.json 都不用再读',
+    !tm.includes('./data/hwk/index.json'), tm.filter((u) => u.includes('index.')).join(' , ') || '没有');
+  check('照样渲染出详情', doc.getElementById('tmDetail').textContent.includes('语文'),
+    (doc.getElementById('tmDetail').textContent || '').slice(0, 40).replace(/\s+/g, ' '));
 }
 
 console.log('\n── C4. 时光机：三个来源全挂 → 迷路提示，主页不受影响 ──');
@@ -370,11 +463,11 @@ console.log('\n── C4. 时光机：三个来源全挂 → 迷路提示，主�
   check('全挂时也不报错（只有 console.warn）', A.errors.length === 0, A.errors.join(' | ') || '干净');
 }
 
-console.log('\n── C5. 缓存 5 分钟 / 并发 ≤8 / 50 条分页 ──');
+console.log('\n── C5. 缓存 5 分钟 / 并发 ≤8 / 一次 5 天 ──');
 {
-  /* 60 份作业：看分页与并发 */
+  /* 12 份作业：看「一次 5 天」的分页、并发，以及每次只多要 5 天的正文 */
   const many = [];
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 12; i++) {
     const id = 'n26' + String(1000 + i);
     many.push({ id, name: 'hwk-' + id + '.json', date: '2026-0' + (1 + (i % 9)) + '-01', title: '历史的作业 ' + i });
   }
@@ -382,7 +475,7 @@ console.log('\n── C5. 缓存 5 分钟 / 并发 ≤8 / 50 条分页 ──');
   many.forEach((e) => {
     bodies[e.name] = JSON.stringify({
       id: e.id, date: e.date, title: e.title, bg: { value: 'default' },
-      notesId: null, eggId: null, subjects: { 语文: 'hwc-041c72f1' }
+      语文: '1. 第 ' + e.id + ' 天',
     });
   });
   const A = boot({
@@ -402,29 +495,37 @@ console.log('\n── C5. 缓存 5 分钟 / 并发 ≤8 / 50 条分页 ──');
   await wait(600);
   const doc = A.doc;
   doc.getElementById('tmBtn').click();
-  await wait(900);
+  await wait(800);
+
+  const shown = () => qa(A.win, '#tmList .log-item').length;
+  const fetched = () => A.reqs.filter((u) => u.startsWith(RAW_BASE) && /hwk-/.test(u)).length;
 
   check('并发不超过 8', A.stats().maxInflight <= 8, '峰值 ' + A.stats().maxInflight);
-  check('列表先画 50 条（不一次性堆 60 条）', qa(A.win, '#tmList .log-item').length === 50,
-    qa(A.win, '#tmList .log-item').length + ' 条');
+  check('列表先画 5 天（不是 12 天全铺开）', shown() === 5, shown() + ' 条');
+  check('只把要显示的那 5 天正文取回来',
+    fetched() === 5, fetched() + ' 次文件请求');
   const more = doc.getElementById('tmMore');
   check('「加载更多」出现并写清还剩多少',
-    !more.hidden && /还有 10 条/.test(more.textContent), more.textContent);
+    !more.hidden && /还有 7 条/.test(more.textContent), more.textContent);
   more.click();
-  await wait(100);
-  check('点了之后 60 条全在，按钮自己藏起来',
-    qa(A.win, '#tmList .log-item').length === 60 && more.hidden,
-    qa(A.win, '#tmList .log-item').length + ' 条');
+  await wait(500);
+  check('点一次再多 5 天，并且只多要这 5 天的正文',
+    shown() === 10 && fetched() === 10, shown() + ' 条 / ' + fetched() + ' 次请求');
+  more.click();
+  await wait(500);
+  check('点到底：12 天全在，按钮自己藏起来',
+    shown() === 12 && more.hidden, shown() + ' 条');
 
-  /* 缓存：关掉再开，不该再打 API / index.json */
+  /* 缓存：关掉再开，目录与正文都不该再请求 */
   const before = A.reqs.length;
   doc.dispatchEvent(new A.win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
   doc.getElementById('tmBtn').click();
-  await wait(200);
+  await wait(300);
   const added = A.reqs.slice(before);
-  check('5 分钟内再打开不再请求目录（用 localStorage 缓存）',
-    !added.some((u) => u === API_URL || u.endsWith('index.json')), added.length + ' 个新请求');
+  check('5 分钟内再打开不再请求目录与正文（localStorage 缓存）',
+    !added.some((u) => u === API_URL || /hwk-/.test(u)), added.length + ' 个新请求');
   check('计数标签标出这是缓存', /缓存/.test(doc.getElementById('tmCount').textContent), doc.getElementById('tmCount').textContent);
+  check('缓存键换成了带生产清单的那一代', /cacheKey:\s*'hwk-index-v3'/.test(HTML));
 }
 
 console.log('\n── C6. 降级：没有 fetch 的浏览器 ──');
@@ -440,9 +541,17 @@ console.log('\n── C6. 降级：没有 fetch 的浏览器 ──');
 console.log('\n── C7. 静态约定（超时 / 缓存 / CDN / CORS / reduced-motion） ──');
 {
   check('超时 3 秒写在常量里', /timeout:\s*3000/.test(HTML));
-  check('缓存 TTL 5 分钟 + localStorage 键名', /ttl:\s*5\s*\*\s*60\s*\*\s*1000/.test(HTML) && /cacheKey:\s*'hwk-index-v2'/.test(HTML));
-  check('并发 8 / 分页 50 写在常量里', /concurrency:\s*8/.test(HTML) && /page:\s*50/.test(HTML));
+  check('缓存 TTL 5 分钟 + localStorage 键名', /ttl:\s*5\s*\*\s*60\s*\*\s*1000/.test(HTML) && /cacheKey:\s*'hwk-index-v3'/.test(HTML));
+  check('并发 8 / 一次 5 天写在常量里', /concurrency:\s*8/.test(HTML) && /page:\s*5,/.test(HTML));
   check('CDN 前缀按 仓库@分支/路径 拼', /cdn\.jsdelivr\.net\/gh\/\$\{TM\.owner\}\/\$\{TM\.repo\}@\$\{TM\.branch\}\/\$\{TM\.path\}\//.test(HTML));
+  check('生产清单的路径 / CDN 地址是拼出来的常量',
+    /producePath:\s*'class\/data\/index-produce\.json'/.test(HTML) &&
+    /const TM_CDN_PRODUCE = `https:\/\/cdn\.jsdelivr\.net\/gh\/\$\{TM\.owner\}\/\$\{TM\.repo\}@\$\{TM\.branch\}\/\$\{TM\.producePath\}`/.test(HTML));
+  check('同源那条线也是先生产清单、后 index.json',
+    /if\(!data\) data = await tmProduceFrom\(TM\.localProduce/.test(HTML) &&
+    /if\(!data\) data = await tmIndexFrom\(TM\.local/.test(HTML));
+  check('加载更多每次只加 TM.page 天，并顺手把那几天取回来',
+    /tmShown = Math\.min\(tmShown \+ TM\.page, list\.length\)/.test(HTML) && /await tmEnsure\(tmShown\)/.test(HTML));
   check('Contents API 只列第一层、且带 Accept 头',
     /api\.github\.com\/repos\/\$\{TM\.owner\}\/\$\{TM\.repo\}\/contents\/\$\{TM\.path\}/.test(HTML) &&
     /'Accept':'application\/vnd\.github\+json'/.test(HTML));
@@ -455,6 +564,119 @@ console.log('\n── C7. 静态约定（超时 / 缓存 / CDN / CORS / reduced-
   check('骨架复用更新日志那套（Esc / 焦点 / 遮罩点击）',
     /tmWin\.classList\.add\('show'\)/.test(HTML) && /closeTimeline\(\)/.test(HTML) &&
     /e\.target === tmWin/.test(HTML));
+}
+
+/* ═══════════════════════ D. 清单生成器 ═══════════════════════ */
+console.log('\n── D1. 生成器：目录 + 生产清单（内容、确定性） ──');
+const { buildAll } = await import('./lib/hwk-index.mjs');
+{
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'hwk-gen-'));
+  const dir = path.join(tmp, 'class', 'data', 'hwk');
+  fs.mkdirSync(dir, { recursive: true });
+  const dump = (o) => JSON.stringify(o, null, '\t') + '\n';
+  for (let i = 0; i < 7; i++) {
+    const id = 'n2610' + String(10 + i);
+    fs.writeFileSync(path.join(dir, 'hwk-' + id + '.json'), dump({
+      id, date: '2026-10-' + String(10 + i), title: '作业 ' + id, bg: { value: 'default' }, 语文: '1. 第 ' + i + ' 天',
+    }));
+  }
+  /* 一份坏的：不该拖垮整份清单 */
+  fs.writeFileSync(path.join(dir, 'hwk-broken.json'), '{ 这不是 JSON');
+
+  const first = buildAll(tmp);
+  check('目录 7 天（坏文件被跳过并报出来）',
+    first.entries.length === 7 && first.problems.some((p) => /hwk-broken\.json/.test(p)),
+    first.entries.length + ' 天 / ' + first.problems.length + ' 条提示');
+  check('一次写两个文件', first.writes.map((w) => w.rel).join(',') === 'class/data/hwk/index.json,class/data/index-produce.json',
+    first.changed.join(' , '));
+
+  const idx = JSON.parse(fs.readFileSync(path.join(dir, 'index.json'), 'utf8'));
+  check('index.json 是裸数组，新的在前',
+    Array.isArray(idx) && idx.length === 7 && idx[0].date === '2026-10-16',
+    idx[0].date + ' → ' + idx[6].date);
+  check('index.json 的字段就 id/name/date/title 四个',
+    JSON.stringify(Object.keys(idx[0])) === JSON.stringify(['id', 'name', 'date', 'title']), Object.keys(idx[0]).join(','));
+
+  const prod = JSON.parse(fs.readFileSync(path.join(tmp, 'class', 'data', 'index-produce.json'), 'utf8'));
+  check('生产清单：count 是全量，preview 只带 5 天',
+    prod.count === 7 && prod.previewCount === 5 && Object.keys(prod.preview).length === 5,
+    'count=' + prod.count + ' preview=' + prod.previewCount);
+  check('preview 是目录里最新的那 5 天，键是文件名',
+    Object.keys(prod.preview).join(',') === prod.entries.slice(0, 5).map((e) => e.name).join(','),
+    Object.keys(prod.preview)[0]);
+  check('preview 里的记录是原样搬过来的（正文一个字没动）',
+    prod.preview[prod.entries[0].name].语文 === '1. 第 6 天');
+  check('不写时间戳（同样的输入要一样的字节）',
+    !/generated|generatedAt|timestamp/.test(fs.readFileSync(path.join(tmp, 'class', 'data', 'index-produce.json'), 'utf8')));
+
+  const again = buildAll(tmp);
+  check('幂等：第二遍一个文件都不用写', again.changed.length === 0, again.changed.join(' , ') || '没有变化');
+  const checked = buildAll(tmp, { check: true });
+  check('--check 不改盘', checked.changed.length === 0 && fs.readFileSync(path.join(dir, 'index.json'), 'utf8') === JSON.stringify(idx, null, '\t') + '\n');
+  /* 手改坏了再 --check：必须报出来 */
+  fs.writeFileSync(path.join(dir, 'index.json'), '[]\n');
+  check('--check 发现过期就报（退回的 changed 非空）', buildAll(tmp, { check: true }).changed.includes('class/data/hwk/index.json'));
+  fs.rmSync(tmp, { recursive: true, force: true });
+}
+
+console.log('\n── D2. 真站点上的两份清单 ──');
+{
+  const indexFile = path.join(HWK_DIR, 'index.json');
+  const produceFile = path.join(SITE, 'class/data/index-produce.json');
+  check('仓里现在就有 index-produce.json（提交进仓库，CDN 才读得到）', fs.existsSync(produceFile));
+  const prod = JSON.parse(fs.readFileSync(produceFile, 'utf8'));
+  const idx = JSON.parse(fs.readFileSync(indexFile, 'utf8'));
+  check('生产清单和现场一致（跑 node build/gen-hwk-index.mjs --check 也是这么判的）',
+    JSON.stringify(prod.entries) === JSON.stringify(idx), prod.entries.length + ' 天');
+  check('生产清单的 preview 不超过 5 天', prod.previewCount === Math.min(5, prod.count), 'preview=' + prod.previewCount);
+  check('页面能直接拿它当目录读（entries + 文件名形状）',
+    prod.entries.every((e) => /^hwk-.+\.json$/.test(e.name)));
+}
+
+/* ═══════════════════════ E. 装配契约 ═══════════════════════ */
+console.log('\n── E1. 控制台 / CI 那条链接上了没有 ──');
+{
+  const CONSOLE = path.join(PROJECT, 'console');
+  const cli = path.join(CONSOLE, 'hwk-cli.mjs');
+  const lib = path.join(CONSOLE, 'lib/hwk.mjs');
+  check('控制台有作业录入实现（网页与终端共用）', fs.existsSync(lib) && fs.existsSync(cli));
+  const cliSrc = fs.readFileSync(cli, 'utf8');
+  check('终端入口 import 的是同一份实现（不另写一套读写）',
+    /from '\.\/lib\/hwk\.mjs'/.test(cliSrc) && !/fs\.writeFileSync/.test(cliSrc));
+  const libSrc = fs.readFileSync(lib, 'utf8');
+  check('控制台保存时会调生成器（本地清单 + 生产清单一起对齐）',
+    /rebuildManifests/.test(libSrc) && /build\/lib\/hwk-index\.mjs/.test(libSrc));
+  check('保留字表三处一致：页面 / 控制台 / 生成器不打架',
+    /INLINE_RESERVED/.test(HTML) && /RESERVED/.test(libSrc));
+
+  const server = fs.readFileSync(path.join(CONSOLE, 'server.mjs'), 'utf8');
+  check('server.mjs 有 hwk 子命令（控制台.cmd hwk 靠它）', /COMMAND === 'hwk'/.test(server));
+  check('server.mjs 有 /api/hwk 这几条路由',
+    /'GET \/api\/hwk'/.test(server) && /'POST \/api\/hwk\/save'/.test(server) && /'POST \/api\/hwk\/reindex'/.test(server));
+
+  const deploy = fs.readFileSync(path.join(PROJECT, 'build/deploy-cli.mjs'), 'utf8');
+  check('部署 CLI 也有 hwk 命令（部署.cmd hwk）', /hwk:\s*\{ desc:/.test(deploy) && /hwk-cli\.mjs/.test(deploy));
+
+  const wf = path.join(PROJECT, 'build/template/github/workflows/hwk-index.yml');
+  check('GitHub Actions 模板在（构建时自动重建清单）', fs.existsSync(wf));
+  const wfSrc = fs.readFileSync(wf, 'utf8');
+  check('workflow：push 到 main 且作业数据变了就重建，并提交回去',
+    /paths:/.test(wfSrc) && /class\/data\/hwk\/\*\*/.test(wfSrc) &&
+    /node \.github\/scripts\/hwk-index\.mjs/.test(wfSrc) && /git push/.test(wfSrc) &&
+    /skip ci/.test(wfSrc));
+  check('workflow 只提交那两个清单文件（不越界改别的东西）',
+    /git add class\/data\/hwk\/index\.json class\/data\/index-produce\.json/.test(wfSrc));
+
+  const push = fs.readFileSync(path.join(PROJECT, 'build/push-github.mjs'), 'utf8');
+  check('推 GitHub 前把 workflow + 脚本放进 dist/.github（热铁盒不受影响）',
+    /hwk-index\.yml/.test(push) && /hwk-index\.mjs/.test(push) && /GITHUB_FILES/.test(push));
+  const files = fs.readFileSync(path.join(PROJECT, 'build/lib/deploy-files.mjs'), 'utf8');
+  check('组装不会把 dist/.github 清掉（KEEP_ROOT 里保住了）',
+    /KEEP_ROOT = new Set\(\['CNAME', '\.nojekyll', '\.gitignore', '\.github'\]\)/.test(files));
+  const build = fs.readFileSync(path.join(PROJECT, 'build/build.mjs'), 'utf8');
+  check('构建步骤会重建作业清单（手拷一份文件也能被收进目录）', /hwk-index\.mjs/.test(build));
+  const verify = fs.readFileSync(path.join(PROJECT, 'build/verify-manifests.mjs'), 'utf8');
+  check('自检里查作业清单新不新鲜', /buildHwkIndex/.test(verify));
 }
 
 console.log('\n合计 ' + (pass + fail) + ' 项：通过 ' + pass + '，失败 ' + fail + (warn ? '，提示 ' + warn : ''));

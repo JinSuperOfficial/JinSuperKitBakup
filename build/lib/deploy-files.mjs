@@ -27,8 +27,11 @@ export const EXCLUDE = new Set([
   '.deploy-logs',
 ]);
 
-/** dist 根部要保住的手工文件（GitHub Pages 的配置，不属于源站内容） */
-export const KEEP_ROOT = new Set(['CNAME', '.nojekyll', '.gitignore']);
+/** dist 根部要保住的文件 / 目录（GitHub Pages 与仓库的配置，不属于源站内容）
+    `.github/`：给仓库用的 GitHub Actions（作业清单）。它不在源站目录里，
+    由 `build/push-github.mjs` 在推送前从 `build/template/github/` 写进 dist；
+    组装既不生成它、也不删它（否则每次 prep 都把 CI 一起清掉）。 */
+export const KEEP_ROOT = new Set(['CNAME', '.nojekyll', '.gitignore', '.github']);
 
 /** 上次组装「真正变了什么」的清单文件（在项目根，不在 dist 里） */
 export const CHANGED_FILE = '.deploy-changed.txt';
@@ -124,6 +127,8 @@ export function mirrorInto(distDirAbs, { siteRootAbs, assetDirAbs, onFile = null
 
       if (entry.isDirectory()) {
         if (entry.name === '.git') continue;
+        /* 根部的保留目录（.github）不删也不往下走 —— 见 KEEP_ROOT 的注释 */
+        if (!rel && KEEP_ROOT.has(entry.name)) continue;
         removed.push(...prune(childAbs, childRel));
         try {
           if (fs.readdirSync(childAbs).length === 0) fs.rmdirSync(childAbs);
@@ -150,13 +155,14 @@ export function mirrorInto(distDirAbs, { siteRootAbs, assetDirAbs, onFile = null
   return { added, updated, identical, changed, pruned };
 }
 
-/** 数文件（跳过 dist/.git）：部署工具报的数要和核对的数一致 */
+/** 数文件（跳过 dist/.git 和仓库用的 .github）：
+    部署工具报的数是「上传了几个站点文件」，CI 那两个文件不是站点内容，不该算进去 */
 export function countFiles(dirAbs) {
   let n = 0;
   if (!fs.existsSync(dirAbs)) return 0;
   const walk = (d) => {
     for (const e of fs.readdirSync(d, { withFileTypes: true })) {
-      if (e.name === '.git') continue;
+      if (e.name === '.git' || e.name === '.github') continue;
       if (e.isDirectory()) walk(path.join(d, e.name));
       else n++;
     }
