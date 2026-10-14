@@ -543,6 +543,10 @@ npm run dist:win   # 打 Windows 免安装 exe → desktop\release\
   **不能走 `file://`** —— 站点清单是 `fetch` 出来的，`file://` 下会被 CORS 拦掉。
 - **设置**落在 `userData\settings.json`（主站/来源、两档回落、缩放、窗口位置）。
   开发机上挂了本地代理时用 `JSD_PROXY=… npm start` 指给 Chromium；打包版不读它。
+- **产物与发布**：`release\` 下的 `JinSuper-<版本>-portable.exe` 是 Windows 免安装版，
+  分别挂到 **`JinSuper.github.io`**（tag `desktop-v1.0.0`）与 **`JinSuperKitBakup`**（跟源码 tag）的
+  Releases 上；`win-unpacked\` / `linux-unpacked\` **不要删** —— 下一版打包要复用，
+  后者还能在本机 `--smoke` 验一遍打包后的路径（`resources\site` 那份离线副本）。
 - **改站点样式不用管桌面版**：topbar / 设置 / 错误页的样式全在 `desktop\src\ui\` 里，
   和站点 CSS 完全隔离。
 

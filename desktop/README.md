@@ -43,6 +43,29 @@ npm run pack:win     # 只出免安装目录 release/win-unpacked/，调试更�
 node build/make-icon.mjs
 ```
 
+### 发布到 GitHub Releases
+
+打好的 exe 挂在两个仓库的 Releases 上（同一个文件，两处都能下）：
+
+| 仓库 | tag | 说明 |
+|:--|:--|:--|
+| `JinSuperOfficial/JinSuper.github.io` | `desktop-v1.0.0` | 站点仓库，用户最可能从这儿下 |
+| `JinSuperOfficial/JinSuperKitBakup` | 跟源码 tag（`v1.6.0`） | 备份仓库，release 和源码快照同一个 tag |
+
+```bash
+cd ..                                    # 回到项目根
+./部署.sh bakup -y --tag v1.6.0 --tag-message "…"   # 源码快照 + tag（Windows 上是 部署.cmd）
+gh release create desktop-v1.0.0 --repo JinSuperOfficial/JinSuper.github.io --target main \
+  --title "JinSuper 百宝箱 · 桌面版 v1.0.0（Windows 免安装）" \
+  --notes-file /tmp/rel-app.md desktop/release/JinSuper-1.0.0-portable.exe
+gh release create v1.6.0 --repo JinSuperOfficial/JinSuperKitBakup \
+  --title "v1.6.0 · 桌面版首发 + 运动会赛程" \
+  --notes-file /tmp/rel-bakup.md desktop/release/JinSuper-1.0.0-portable.exe
+```
+
+**`release/` 里的产物不要手删**：`win-unpacked/`、`linux-unpacked/` 是下一版增量打包要复用的东西，
+`linux-unpacked/` 还能在本机直接 `--smoke` 验一遍打包后的路径（`resources/site` 那份离线副本）。
+
 ---
 
 ## 目录
