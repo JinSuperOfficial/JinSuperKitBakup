@@ -1,0 +1,63 @@
+name: 桌面版安装包（Windows）
+
+# 为什么在 Actions 上打：安装版（NSIS）需要「能跑 Windows 可执行文件」的环境 ——
+# Linux / WSL 上 electron-builder 要借 wine 先烘一个卸载器，本机没有 wine 就打不出来。
+# windows-latest 上原生命中，什么都不用装。
+#
+# 触发方式：
+#   · 手动：Actions 页面点「Run workflow」，或 `gh workflow run desktop-win.yml --repo JinSuperOfficial/JinSuperKitBakup`
+#   · 打 tag：推 `desktop-v*` 会顺带跑一次
+#
+# 产物在 workflow 的 Artifacts 里（JinSuper-win-x64）：
+#   JinSuper-<版本>-portable.exe   免安装版
+#   JinSuper-Setup-<版本>.exe      安装版（装新版会先卸旧版）
+# 传上 GitHub Releases 用 `desktop/build/upload-release.mjs`。
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'desktop-v*'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: electron-builder --win
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: desktop
+
+    steps:
+      - name: 取源码
+        uses: actions/checkout@v4
+
+      - name: 装 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+
+      - name: 装依赖
+        run: npm ci
+
+      - name: 打包（免安装 + 安装版）
+        run: npx electron-builder --win --x64
+        env:
+          # 没有代码签名证书：别去找证书、也别去碰签名工具
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: 清点产物
+        shell: pwsh
+        run: Get-ChildItem release -Filter *.exe | Select-Object Name, Length
+
+      - name: 上传产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: JinSuper-win-x64
+          path: desktop/release/*.exe
+          if-no-files-found: error
+          retention-days: 30

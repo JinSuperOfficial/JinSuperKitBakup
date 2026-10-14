@@ -9,7 +9,10 @@
     "dev": "electron . --dev",
     "smoke": "electron . --smoke",
     "pack:win": "electron-builder --win dir --x64",
-    "dist:win": "electron-builder --win portable --x64",
+    "dist:win": "electron-builder --win --x64",
+    "dist:portable": "electron-builder --win portable --x64",
+    "dist:setup": "electron-builder --win nsis --x64",
+    "release:upload": "node build/upload-release.mjs",
     "test": "node --test"
   },
   "author": "JinSuper",
@@ -51,15 +54,37 @@
           "arch": [
             "x64"
           ]
+        },
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
         }
       ],
-      "icon": "build/icon.ico",
-      "artifactName": "JinSuper-${version}-portable.exe"
+      "icon": "build/icon.ico"
     },
     "portable": {
       "artifactName": "JinSuper-${version}-portable.exe",
       "requestExecutionLevel": "user",
       "unpackDirName": "JinSuperDesktop"
+    },
+    "nsis": {
+      "artifactName": "JinSuper-Setup-${version}.exe",
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "JinSuper 百宝箱",
+      "uninstallDisplayName": "JinSuper 百宝箱 ${version}",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "differentialPackage": false
     },
     "compression": "normal"
   }

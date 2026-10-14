@@ -25,15 +25,40 @@ node --test          # 纯逻辑单测（来源表 / 回落链 / 本地服务路
 > `npm install` 之后如果 `node_modules/electron/dist/` 是空的（下载被墙或被代理拦了），
 > 手动补一次：`node node_modules/electron/install.js`。
 
-## 打 Windows 免安装 exe
+## 打 Windows 安装包（两个格式）
 
 ```bash
-npm run dist:win     # → release/JinSuper-<版本>-portable.exe
-npm run pack:win     # 只出免安装目录 release/win-unpacked/，调试更快
+npm run dist:win        # 两个都出：release/JinSuper-<版本>-portable.exe + JinSuper-Setup-<版本>.exe
+npm run dist:portable   # 只要免安装版
+npm run dist:setup      # 只要安装版
+npm run pack:win        # 只出目录 release/win-unpacked/，调试最快，不打包
 ```
 
+两个格式各有各的用处，**装的是同一个应用、同一个 appId，用户装哪个都行**：
+
+| 产物 | 形态 | 启动 | 卸载 |
+|:--|:--|:--|:--|
+| `JinSuper-1.0.0-portable.exe`（约 120 MB） | 免安装，就一个 exe | 每次启动先解压到 `%TEMP%\JinSuperDesktop`（几秒） | 删掉 exe 即可，不留注册表 |
+| `JinSuper-Setup-1.0.0.exe`（约 120 MB） | 安装版（NSIS，中文界面） | 秒开 | 控制面板「JinSuper 百宝箱」或开始菜单里的卸载 |
+
+### 安装版就是「更新」：装新版会先把旧版卸掉
+
+安装版的身份是 `build.appId`（`xyz.jinsuper.desktop`），NSIS 模板据此在注册表里找旧版本
+（`HKCU/HKLM\Software\Microsoft\Windows\CurrentVersion\Uninstall\{appId 的 GUID}`），
+安装新版本时**先静默调用旧版的卸载程序，再装新的** —— 不会出现两份并存的副本。
+更新时 NSIS 还会跳过许可页与安装目录页（`skipPageIfUpdated`），沿用上次的安装位置，
+装完自动启动（带 `--updated`）。
+
+- **`appId` 是升级身份，一旦发布就不许改** —— 改了等于换了一个应用：新版认不出旧版，
+  会并排装第二份，控制面板里也会出现两个条目。
+- `nsis.deleteAppDataOnUninstall: false`：卸载/升级都**不动** `%APPDATA%\JinSuper`
+  （设置、缓存、站点 localStorage 都留着），只有用户主动卸载且想清干净时才手动删。
+- 安装模式：默认「仅为我安装」（装到 `%LOCALAPPDATA%\Programs\JinSuper`，不弹 UAC）；
+  安装器里可以选「为所有用户安装」。
+- **免安装版没有注册表痕迹，安装版管不着它**：用户之前用的是 portable，得自己把那个 exe 删掉。
+
 产物体积主要来自两件事：Electron 运行时（约 100 MB）与整站离线副本（约 46 MB，
-其中 `class/data/english` 的听力音频占了 36 MB）。想让 exe 瘦下来，改
+其中 `class/data/english` 的听力音频占了 36 MB）。想让安装包瘦下来，改
 `package.json` 里 `build.extraResources` 的 `filter`，把离线副本裁小即可。
 
 图标由 `build/make-icon.mjs` 生成（站点 favicon + 底色块 → `build/icon.ico`），
@@ -45,23 +70,24 @@ node build/make-icon.mjs
 
 ### 发布到 GitHub Releases
 
-打好的 exe 挂在两个仓库的 Releases 上（同一个文件，两处都能下）：
+打好的两个包挂在两个仓库的 Releases 上（同一批文件，两处都能下）：
 
 | 仓库 | tag | 说明 |
 |:--|:--|:--|
 | `JinSuperOfficial/JinSuper.github.io` | `desktop-v1.0.0` | 站点仓库，用户最可能从这儿下 |
 | `JinSuperOfficial/JinSuperKitBakup` | 跟源码 tag（`v1.6.0`） | 备份仓库，release 和源码快照同一个 tag |
 
+第一次建 Release 用 `gh release create`，之后每次出新版本（版本号在 `package.json` 里）：
+
 ```bash
-cd ..                                    # 回到项目根
-./部署.sh bakup -y --tag v1.6.0 --tag-message "…"   # 源码快照 + tag（Windows 上是 部署.cmd）
-gh release create desktop-v1.0.0 --repo JinSuperOfficial/JinSuper.github.io --target main \
-  --title "JinSuper 百宝箱 · 桌面版 v1.0.0（Windows 免安装）" \
-  --notes-file /tmp/rel-app.md desktop/release/JinSuper-1.0.0-portable.exe
-gh release create v1.6.0 --repo JinSuperOfficial/JinSuperKitBakup \
-  --title "v1.6.0 · 桌面版首发 + 运动会赛程" \
-  --notes-file /tmp/rel-bakup.md desktop/release/JinSuper-1.0.0-portable.exe
+npm run dist:win
+cd .. && ./部署.sh bakup -y --tag v1.7.0 --tag-message "…"   # 源码快照 + tag（Windows 上是 部署.cmd）
+cd desktop && npm run release:upload                          # 两个包 → 两个 Release
 ```
+
+`build/upload-release.mjs` 会自动认版本号、找 `release/` 里的两个包、传上去（`--dry-run` 先看要传什么，
+备份仓库那边的 tag 默认取本仓库最近一个 tag，也能 `--bakup-tag v1.7.0` 指定）。
+新版本上线后，老用户下载新的安装版双击覆盖即完成更新。
 
 **`release/` 里的产物不要手删**：`win-unpacked/`、`linux-unpacked/` 是下一版增量打包要复用的东西，
 `linux-unpacked/` 还能在本机直接 `--smoke` 验一遍打包后的路径（`resources/site` 那份离线副本）。
