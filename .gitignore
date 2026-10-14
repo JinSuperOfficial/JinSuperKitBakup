@@ -38,3 +38,6 @@ desktop/.smoke/
 Thumbs.db
 desktop.ini
 *.log
+
+# Windows 下载标记（ADS 泄漏成真文件，带冒号，Windows 上根本签不出来）
+*:Zone.Identifier
