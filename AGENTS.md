@@ -69,6 +69,18 @@ F:\@AI\skills\theme-plus\references\circle_angle.md
 
 修完用规范里的审查清单自查一遍，不要机械全局替换 `border-radius` / `rounded-full`（头像、开关、状态点合法）。
 
+## 桌面版（`desktop/`）
+
+整站还打包成一个 Electron 桌面应用（**不发布**，源码留在 `desktop/`）：默认开云端主站，
+连不上依次退到热铁盒 / GitHub Pages / 内置离线副本，顶上有一条所有页面共用的 topbar
+（上一页 / 主页 / 工具站 / 班级工具箱 / 博客 / 设置 / 退出）。
+
+- **窗口是两三层 `WebContentsView`，网页源码一行都不改** —— 不许为了桌面版往站点页面注入 DOM
+  或加样式钩子；topbar / 设置 / 错误页的界面全在 `desktop/src/ui/` 里，和站点 CSS 隔离
+- 来源表与回落链只有一份：`desktop/src/origins.js`（纯逻辑，`cd desktop && node --test`）
+- 离线副本走本地 `http://127.0.0.1`，**不是 `file://`** —— 清单是 `fetch` 出来的，`file://` 下会被 CORS 拦掉
+- 用法 / 打包 / 快捷键见 **`desktop/README.md`**，要点见 `project.md` §4.8
+
 ## 提交与备份（改完代码之后）
 
 **只有用户明确要求时**才提交 / 备份 / 打 tag，不要自己顺手推。用户一旦要求

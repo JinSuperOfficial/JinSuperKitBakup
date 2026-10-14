@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>设置 · JinSuper 百宝箱</title>
+<link rel="stylesheet" href="../base.css">
+<link rel="stylesheet" href="settings.css">
+</head>
+<body>
+  <div class="scrim" id="scrim"></div>
+
+  <section class="panel" role="dialog" aria-modal="true" aria-label="设置">
+    <header class="ph">
+      <h1>设置</h1>
+      <button class="x" data-act="closeSettings" aria-label="关闭设置" title="关闭（Esc）">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg>
+      </button>
+    </header>
+
+    <div class="pb">
+      <section class="grp">
+        <h2>网页来源</h2>
+        <p class="hint">应用默认打开主站；主站连不上会按下面的顺序往下退，最后一个永远是内置的离线副本。</p>
+        <div class="opts" id="opts"></div>
+      </section>
+
+      <section class="grp">
+        <h2>回落</h2>
+        <label class="row">
+          <span class="row-main">
+            <b>云端之间互相顶替</b>
+            <em>主站打不开时，依次试热铁盒、GitHub Pages。</em>
+          </span>
+          <input type="checkbox" id="autoFallback">
+          <span class="sw" aria-hidden="true"></span>
+        </label>
+        <label class="row">
+          <span class="row-main">
+            <b>云端全都打不开就用离线副本</b>
+            <em>随应用打包的整站快照，断网也能翻。</em>
+          </span>
+          <input type="checkbox" id="offlineFallback">
+          <span class="sw" aria-hidden="true"></span>
+        </label>
+      </section>
+
+      <section class="grp">
+        <h2>页面缩放</h2>
+        <div class="zoom">
+          <button class="zb" data-zoom="-0.1" title="缩小（Ctrl+-）">−</button>
+          <span class="zval" id="zoomVal">100%</span>
+          <button class="zb" data-zoom="0.1" title="放大（Ctrl+=）">＋</button>
+          <button class="zr" data-zoom-reset title="恢复 100%（Ctrl+0）">重置</button>
+        </div>
+      </section>
+
+      <section class="grp">
+        <h2>关于</h2>
+        <dl class="kv">
+          <dt>当前地址</dt>
+          <dd class="mono" id="curUrl">—</dd>
+          <dt>版本</dt>
+          <dd id="ver">—</dd>
+          <dt>快捷键</dt>
+          <dd class="keys">
+            <kbd>Alt</kbd>+<kbd>←</kbd> 上一页 ·
+            <kbd>Ctrl</kbd>+<kbd>R</kbd> 重载 ·
+            <kbd>Ctrl</kbd>+<kbd>,</kbd> 设置 ·
+            <kbd>F11</kbd> 全屏 ·
+            <kbd>Ctrl</kbd>+<kbd>Q</kbd> 退出
+          </dd>
+        </dl>
+      </section>
+    </div>
+
+    <footer class="pf">
+      <button class="btn" data-act="reset" title="回到默认：主站 + 自动回落 + 100%">恢复默认</button>
+      <span class="grow"></span>
+      <button class="btn" data-act="reload">重新载入当前页</button>
+      <button class="btn danger" data-act="quit">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.8v7.4"/><path d="M7.4 6.6a6.6 6.6 0 1 0 9.2 0"/></svg>
+        退出应用
+      </button>
+    </footer>
+  </section>
+
+  <script src="settings.js"></script>
+</body>
+</html>

@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>连不上 · JinSuper 百宝箱</title>
+<link rel="stylesheet" href="../base.css">
+<style>
+  body {
+    display: grid;
+    place-items: center;
+    padding: 32px;
+    background: radial-gradient(120% 90% at 50% 0%, #1d1a15 0%, #14120e 60%);
+  }
+  .card {
+    width: min(520px, 100%);
+    padding: 26px 26px 20px;
+    background: var(--sf-1);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-xl);
+    box-shadow: 0 24px 60px -26px rgba(0, 0, 0, 0.8);
+  }
+  .kicker {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--danger);
+  }
+  .kicker::before {
+    content: "";
+    width: 22px;
+    height: 1px;
+    background: var(--danger);
+  }
+  h1 {
+    margin: 10px 0 8px;
+    font-size: 19px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  p {
+    font-size: 13px;
+    color: var(--ink-3);
+    line-height: 1.75;
+  }
+  .mono {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--accent);
+    overflow-wrap: anywhere;
+  }
+  .detail {
+    margin-top: 14px;
+    padding: 10px 12px;
+    background: var(--sf-2);
+    border: 1px solid var(--line-2);
+    border-radius: var(--radius-md);
+    font-size: 12px;
+    color: var(--ink-3);
+  }
+  .acts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 18px;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 14px;
+    font-size: 12.5px;
+    color: var(--ink-2);
+    background: var(--sf-2);
+    border: 1px solid var(--line-2);
+    border-radius: var(--radius-md);
+  }
+  .btn:hover {
+    color: var(--ink);
+    background: var(--sf-3);
+    border-color: var(--line);
+  }
+  .btn.primary {
+    color: #1a1611;
+    background: var(--accent);
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+  .btn.primary:hover {
+    color: #140f0b;
+    filter: brightness(1.06);
+  }
+  .tips {
+    margin-top: 16px;
+    font-size: 12px;
+    color: var(--ink-4);
+  }
+  .tips li {
+    margin-left: 16px;
+    line-height: 1.9;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <p class="kicker">Offline</p>
+    <h1>云端和离线副本都没打开</h1>
+    <p id="lead">应用已经依次试过主站、热铁盒、GitHub Pages 和内置的离线副本，都没能加载成功。</p>
+    <div class="detail">
+      <div id="detail">—</div>
+      <div class="mono" id="target"></div>
+    </div>
+    <div class="acts">
+      <button class="btn primary" data-act="retry">重试一次</button>
+      <button class="btn" data-act="openSettings">打开设置</button>
+      <button class="btn" data-act="quit">退出应用</button>
+    </div>
+    <ul class="tips">
+      <li>断网时把「网页来源」切到「内置离线副本」，整站快照就在应用里。</li>
+      <li>公司网络 / 代理拦了域名，也会出现这一页。</li>
+    </ul>
+  </div>
+
+  <script>
+    (function () {
+      var q = new URLSearchParams(location.search);
+      var desc = q.get('desc') || '';
+      var code = q.get('code') || '';
+      var url = q.get('url') || '';
+      document.getElementById('detail').textContent = desc ? desc + (code ? '（' + code + '）' : '') : '未知错误';
+      document.getElementById('target').textContent = url;
+      document.addEventListener('click', function (e) {
+        var el = e.target.closest('[data-act]');
+        if (el) window.jsd.action(el.dataset.act);
+      });
+    })();
+  </script>
+</body>
+</html>

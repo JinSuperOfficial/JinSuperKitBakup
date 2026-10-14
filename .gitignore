@@ -28,6 +28,10 @@ F\:\\@Project*/
 # 测试留下的临时站点（build/test-dom.mjs 搭的）
 build/.tmp-site/
 
+# 桌面版（desktop/）：打包产物与冒烟截图都不进备份
+desktop/release/
+desktop/.smoke/
+
 # 编辑器 / 系统
 .vscode/
 .idea/

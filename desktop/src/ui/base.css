@@ -1,0 +1,87 @@
+/* ─────────────────────────────────────────────────────────────
+   ui/base.css —— 桌面版自带界面（topbar / 设置 / 错误页）共用的地基
+   颜色、圆角一律走 token；圆角按仓库规范：控件 6–8px、面板 10–12px，
+   不许 rounded-2xl，不许按钮用胶囊。
+   ───────────────────────────────────────────────────────────── */
+
+:root {
+  color-scheme: dark;
+  --bg: #14120e;
+  --sf-1: #1b1814;
+  --sf-2: #221e19;
+  --sf-3: #2a251f;
+  --ink: #ede7df;
+  --ink-2: #c9c1b6;
+  --ink-3: #a29a8e;
+  /* --ink-4 是对比度下限：在 --bg / --sf-2 / --sf-3 上都 ≥ 4.5:1（WCAG AA） */
+  --ink-4: #948b7f;
+  --line: rgba(237, 231, 223, 0.12);
+  --line-2: rgba(237, 231, 223, 0.07);
+  --accent: #d97757;
+  --accent-soft: rgba(217, 119, 87, 0.14);
+  --accent-line: rgba(217, 119, 87, 0.34);
+  --ok: #7fa06a;
+  --warn: #c9a84c;
+  --danger: #c9603f;
+  --danger-soft: rgba(201, 96, 63, 0.14);
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+
+  --font: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, -apple-system,
+    "Segoe UI", sans-serif;
+  --mono: "SF Mono", "Cascadia Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  overflow: hidden;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+svg {
+  display: block;
+  flex: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

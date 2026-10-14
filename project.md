@@ -112,6 +112,17 @@ F:\@Project\node\
 │   ├── lib\git-backup.mjs    ← 上面那个用的源码仓库封装（和 lib\git-dist.mjs 分开）
 │   └── test-render / verify / test-dom .mjs   ← 另三套测试
 │
+├── desktop\                  ← ★ 桌面版（Electron），**不发布**：把整站装进一个窗口（见 §4.8）
+│   ├── package.json          ← 依赖 / 脚本 / electron-builder 配置（整站离线副本走 extraResources）
+│   ├── README.md             ← 用法、回落规则、打包、快捷键、排障
+│   ├── src\main.js           ← 主进程：窗口 + topbar / 页面两层 WebContentsView、回落链、快捷键
+│   ├── src\origins.js        ← 来源表 + 回落链（纯逻辑，单测直接跑它）
+│   ├── src\local-server.js   ← 离线副本的本地静态服务（127.0.0.1 随机端口，支持 Range）
+│   ├── src\ui\               ← 统一 topbar / 设置面板 / 错误页（自带界面，和站点 CSS 无关）
+│   ├── build\make-icon.mjs   ← 从站点 favicon 生成 build\icon.ico
+│   ├── test\                 ← node:test 16 条
+│   └── release\              ← 打包产物（不进版本库）
+│
 └── dist\                     ← 组装产物 + GitHub Pages 仓库（.git 在这一层）
 ```
 
@@ -507,6 +518,34 @@ node build\gen-hwk-index.mjs                  # 按目录实际内容重建 inde
   点遮罩也关。读不到索引 / 条目时窗口里明说是哪个路径读不到
   （`file://` 直接打开读不到，要 `部署.cmd serve` 或线上）。
 
+### 4.8 桌面版（Electron，`desktop\`）
+
+把整站装进一个窗口：默认开云端主站，连不上自动回落，顶上永远有一条统一 topbar
+（上一页 / 主页 / 工具站 / 班级工具箱 / 博客 / 设置 / 退出）。**不发布**，跟 `build\`、`console\` 一样
+只待在源码里。用法见 `desktop\README.md`，这里只记要点：
+
+```bash
+cd desktop
+npm install
+npm start          # 开发运行
+npm run smoke      # 开窗→翻两页→截图到 desktop\.smoke\→退出
+npm run dist:win   # 打 Windows 免安装 exe → desktop\release\
+```
+
+- **窗口 = 两个 `WebContentsView`**（`src\main.js`）：上面 46px 是 topbar，下面是网页本体；
+  设置面板是第三层，叠在网页上。**网页源码一行都没改** —— 不往站点页面注入任何 DOM，
+  所以「每个页面都有退出按钮」是结构性的，不是每个页面写一遍。
+- **来源与回落**（`src\origins.js`，纯逻辑 + 单测）：
+  `cn` 主站 `www.jinsuper.cn`（默认）→ `rth` 热铁盒 → `gh` GitHub Pages → `local` 内置离线副本。
+  判失败 = 主框架 `did-fail-load`（忽略 `ERR_ABORTED`）+ 15 秒看门狗；回落时**尽量落到同一个页面**。
+- **离线副本**：打包时用 `extraResources` 把 `jinsuper.rth1.xyz\` 拷进 `resources\site`，
+  运行时由 `src\local-server.js` 在 `127.0.0.1` 随机端口起静态服务（支持 Range）。
+  **不能走 `file://`** —— 站点清单是 `fetch` 出来的，`file://` 下会被 CORS 拦掉。
+- **设置**落在 `userData\settings.json`（主站/来源、两档回落、缩放、窗口位置）。
+  开发机上挂了本地代理时用 `JSD_PROXY=… npm start` 指给 Chromium；打包版不读它。
+- **改站点样式不用管桌面版**：topbar / 设置 / 错误页的样式全在 `desktop\src\ui\` 里，
+  和站点 CSS 完全隔离。
+
 ---
 
 ## 5. 发布链路
@@ -708,6 +747,7 @@ CommonMark、GFM 表格/任务列表/删除线/自动链接/脚注、Emoji、上
 | `build\test-tui.mjs` | ink TUI：用假终端渲染，验菜单 / 计划开关 / 状态页 / 执行→结果 / Ctrl+C 中止 | ~8s |
 | `build\test-homework.mjs` | 作业页：811→class 改名与迁移、主页新旧两种数据、时光机多级降级（API → 生产清单 → index.json → 同源）、超时/缓存/并发、一次 5 天分页、清单生成器、控制台与 CI 的装配契约（115 项） | ~12s |
 | `console\test\` | 控制台：文章 / 归档 / 队列 / 片段预览 / 深链接 20 条 + 预览面板 3 条 + 部署作业 9 条 + **作业数据 14 条**（一天一文件、顶目录、备份、JSON 源码、重建清单） | ~6s |
+| `desktop\test\` | 桌面版纯逻辑 16 条：来源表、回落链（默认 / 关档 / 指定来源 / 选离线）、设置归一、URL 归属、离线服务的路径归一与 MIME | ~1s |
 
 ```bash
 部署.cmd check        # 上面全部
@@ -926,6 +966,7 @@ Windows 上装个系统 Deno（`winget install DenoLand.Deno`），脚本优先�
 | 时光机里看不到刚写的那天 | 时光机读的是**仓库上**那份。本地 / 热铁盒走同源那两级，写了马上就能看；要 GitHub 与 CDN 也有，得 `部署.cmd full -y` 把数据推上去。CI（`hwk-index.yml`）会在收到推送后自己重建清单并提交 |
 | GitHub 仓库里没跑「作业清单」这个 workflow | 它住在 **dist 仓库**（`jinsuperofficial.github.io`），不在源码备份仓库。第一次推送后去仓库的 Actions 标签页看；本地 `dist/.github/` 是 `push-github.mjs` 复制进去的，组装时会按 `KEEP_ROOT` 保留 |
 | `部署.cmd hwk` / `控制台.cmd hwk` 说没这个命令 | 终端入口在 Node 里（`console/hwk-cli.mjs`）：先确认文件在、再确认参数没写错（`hwk --list`、`hwk --json`、`hwk --help`） |
+| 桌面版（`desktop\`）起不来 / 打包报错 | 八成是 Electron 二进制没下下来：`node desktop\node_modules\electron\install.js`；开发机上挂了本地代理用 `JSD_PROXY=http://127.0.0.1:7890 npm start`。详见 `desktop\README.md`（§4.8） |
 
 ---
 
@@ -936,6 +977,7 @@ Windows 上装个系统 Deno（`winget install DenoLand.Deno`），脚本优先�
 | `AGENTS.md` | **项目级约定**：硬规则 + UI 圆角规范（按 `theme-plus` 全局技能的 `references/circle_angle.md`） |
 | `MANIFEST.md` | **清单规范**：加工具只改 json、字段表、三条硬规则、校验命令 |
 | `build\README.md` | **构建系统详解**：打包器、预渲染、样式合并、对比度脚本、图标生成、部署细节 |
+| `desktop\README.md` | **桌面版（Electron）**：来源与回落规则、两个 WebContentsView 的窗口结构、离线副本、打包与快捷键；要点见 §4.8 |
 | `console\lib\store.mjs` / `api.mjs` / `render.mjs` | **发布控制台**的实现（sk.json 保形读写、归档流程、预渲染器与「重刷外壳」、接口）；用法见 §4.5 |
 | `console\lib\hwk.mjs` / `console\hwk-cli.mjs` | **作业数据读写**：网页面板与终端入口共用这一份（写一天、顶目录、备份、重建清单）；数据格式见 §4.7 |
 | `build\lib\hwk-index.mjs` / `build\gen-hwk-index.mjs` | **作业清单生成**：`hwk\index.json` + `class\data\index-produce.json`；GitHub Actions 里跑的是它的拷贝，见 §4.7 |
