@@ -29,6 +29,10 @@ import * as links from './links.mjs';
 import * as pages from './pages.mjs';
 import * as preview from './preview.mjs';
 import * as hwk from './hwk.mjs';
+import { loadConfig, describeConfig, INBOX_ROOTS } from '../../sync/lib/config.mjs';
+import { createTransport } from '../../sync/lib/transport.mjs';
+import { collectState, versionOf } from '../../sync/lib/state.mjs';
+import { collectDir, collectFiles, defaultStamp, pullInbox, pushInbox, applyInbox } from '../../sync/lib/inbox.mjs';
 
 const err = (msg, status = 400) => { const e = new Error(msg); e.status = status; return e; };
 
@@ -916,6 +920,257 @@ export function postPublishAll(body = {}) {
   const started = jobs.startJob({ pipeline: 'full', flags: body.flags || {}, label: body.label || '发布全部并部署' });
   phases.push({ name: '构建并部署', state: 'running', detail: '已开始，看下面的实时日志' });
   return { ok: true, phases, jobId: started.id };
+}
+
+/* ═══════════════════════════════════════════════════
+   跨网同步（Gitee 镜像 + 收件箱）
+   ---------------------------------------------------
+   这是「另一条线」：发布走热铁盒 / GitHub，同步走 Gitee —— 学校那台机器
+   只能上 Gitee，所以它取件靠镜像分支、回传靠收件箱分支。实现全在
+   `sync/lib/**`（和 `部署.cmd sync` 是同一份），这里只做「接口形状」的转换：
+     · 家里这一侧的状态（云端版本 / 本地 dist / 收件箱 / 仓库改动）
+     · 收件箱的拉取与应用（应用默认只预览，写仓库要显式带 write）
+     · 往收件箱传东西
+     · 推镜像走的是**作业**（push 会重新组装 dist、推两个远端，几十秒起步）
+   规矩：配置不全**不抛异常** —— 面板拿 {ok:false, problems} 把「缺什么、
+   去哪儿配」说清楚，比甩一个 500 白屏有用。令牌只从 .env 读，不出这个进程。
+   ═══════════════════════════════════════════════════ */
+
+const syncDistDir = path.join(workspaceRoot, 'dist');
+const syncInboxDir = path.join(workspaceRoot, 'sync', 'inbox');
+const syncCliFile = path.join(workspaceRoot, 'build', 'sync-cli.mjs');
+
+/**
+ * 读一份能用的通道。配置不全时返回 {error}（不抛），
+ * 上层把它原样交给前端 —— 面板照着 problems 提示怎么配。
+ */
+function syncContext() {
+  const { config, problems, sources } = loadConfig({ root: workspaceRoot });
+  if (problems.length) {
+    return {
+      error: `同步还没配好：${problems.join('；')}`,
+      problems,
+      sources,
+      channel: describeConfig(config),
+      config,
+    };
+  }
+  try {
+    return { config, problems, sources, channel: describeConfig(config), transport: createTransport(config, {}) };
+  } catch (e) {
+    return {
+      error: `通道起不来：${e && e.message ? e.message : e}`,
+      problems,
+      sources,
+      channel: describeConfig(config),
+      config,
+    };
+  }
+}
+
+/** 收件箱分支名：本地目录通道也认这个字段（transport 会补默认值） */
+function syncInboxBranch(ctx) {
+  return ctx.transport.inboxBranch || ctx.config.gitee.inboxBranch;
+}
+
+/** 仓库相对路径（面板上显示 / apply 结果里的 to 都用这一种） */
+function repoRel(abs) {
+  return path.relative(workspaceRoot, abs).split(path.sep).join('/');
+}
+
+/**
+ * 「云端还没有镜像」在三条通道上的说法不一样：
+ *   · Gitee 是 404（见 sync/lib/gitee.mjs）
+ *   · 本地目录后端是原始 ENOENT（sync/lib/fs.mjs 直接 throw 的 fs 错误）
+ * `collectState()` 只把 404 当「没有清单」，别的都算「通道有问题」——
+ * 不归一的话，第一次用本地通道的人会看到一句莫名其妙的 ENOENT。
+ * 这里补上这一层：ENOENT → status 404。
+ */
+function syncTransportOf(ctx) {
+  const t = ctx.transport;
+  if (t.kind !== 'fs' || typeof t.get !== 'function') return t;
+  const rawGet = t.get.bind(t);
+  t.get = async (key, opts) => {
+    try {
+      return await rawGet(key, opts);
+    } catch (e) {
+      if (e && (e.code === 'ENOENT' || /ENOENT/.test(String(e.message)))) e.status = 404;
+      throw e;
+    }
+  };
+  return t;
+}
+
+/**
+ * 现在是什么情况。
+ * 成功时和 `collectState()` 一个形状，只把 cloud 收敛成面板要的那几个字段、
+ * 把收件箱的 files 数出来；失败时 {ok:false, error, problems}。
+ */
+export async function getSyncState() {
+  const ctx = syncContext();
+  if (ctx.error) return { channel: ctx.channel, ok: false, error: ctx.error, problems: ctx.problems || [] };
+
+  let state;
+  try {
+    state = await collectState({
+      transport: syncTransportOf(ctx),
+      branch: ctx.transport.branch || ctx.config.gitee.branch,
+      distDir: syncDistDir,
+      projectRoot: workspaceRoot,
+      inboxDir: syncInboxDir,
+      version: versionOf(workspaceRoot),
+    });
+  } catch (e) {
+    /* 通道能建起来但一读就炸（网络 / 权限）：也当「状态读不到」，不白屏 */
+    return { channel: ctx.channel, ok: false, error: String(e && e.message ? e.message : e), problems: ctx.problems || [] };
+  }
+
+  const cloud = state.cloud;
+  const remote = (state.inbox && state.inbox.remote) || [];
+  return {
+    channel: ctx.channel,
+    ok: !!state.ok,
+    error: state.error || null,
+    problems: ctx.problems || [],
+    cloud: cloud
+      ? { version: cloud.version || '', count: cloud.count || 0, builtAt: cloud.builtAt || '' }
+      : null,
+    local: (state.local && { count: state.local.count || 0, version: state.local.version || '' }) || { count: 0, version: '' },
+    diff: state.diff
+      ? { toDownload: Number(state.diff.toDownload) || 0, extra: Number(state.diff.extra) || 0, changed: !!state.diff.changed }
+      : null,
+    inbox: {
+      remote: remote.map((x) => ({
+        stamp: x.stamp,
+        root: x.root || '',
+        from: x.from || '',
+        createdAt: x.createdAt || '',
+        files: (x.files || []).length,
+        complete: !!x.complete,
+      })),
+      local: (state.inbox && state.inbox.local) || [],
+      pending: (state.inbox && state.inbox.pending) || [],
+    },
+    git: state.git || { dirty: 0, last: '' },
+  };
+}
+
+/** 把收件箱拉到 sync/inbox/（不写仓库） */
+export async function postSyncPull(body = {}) {
+  const ctx = syncContext();
+  if (ctx.error) throw err(ctx.error);
+  const stamp = String((body && body.stamp) || '').trim();
+  const done = await pullInbox(ctx.transport, {
+    into: syncInboxDir,
+    stamp,
+    branch: syncInboxBranch(ctx),
+    log: (m) => console.log('  [sync]', m),
+  });
+  return { ok: true, stamps: done.map((d) => d.stamp), pulled: done };
+}
+
+/**
+ * 把已拉下来的收件箱落进仓库。
+ * 默认只预览（dryRun），要真写必须显式 write:true —— 和 CLI 一个规矩。
+ * stamp 不传就用最新那份。
+ */
+export async function postSyncApply(body = {}) {
+  const ctx = syncContext();
+  if (ctx.error) throw err(ctx.error);
+  const write = !!(body && body.write);
+
+  const want = String((body && body.stamp) || '').trim();
+  const pick = want || listSyncStamps()[0];
+  if (!pick) throw err('sync/inbox/ 里还没有东西 —— 先拉一次收件箱', 409);
+
+  const stampDir = path.join(syncInboxDir, pick);
+  if (!isDir(stampDir)) throw err('没有这份收件箱：' + pick, 404);
+
+  const { actions, counts } = applyInbox({
+    stampDir,
+    roots: ctx.config.roots,
+    repoRoot: workspaceRoot,
+    dryRun: !write,
+    only: String((body && body.only) || '').trim() || null,
+  });
+  return {
+    ok: true,
+    stamp: pick,
+    dryRun: !write,
+    counts,
+    actions: actions.map((a) => ({ root: a.root, rel: a.rel, state: a.state, to: repoRel(a.to) })),
+  };
+}
+
+/** 上传：把仓库里的文件 / 目录塞进收件箱（root 限 INBOX_ROOTS，默认 misc） */
+export async function postSyncUpload(body = {}) {
+  const ctx = syncContext();
+  if (ctx.error) throw err(ctx.error);
+
+  /* root 只认那几个：不认识的直接归 misc，不报错（和 inbox.mjs 一个宽容度） */
+  const asked = String((body && body.root) || '').trim();
+  const root = INBOX_ROOTS.includes(asked) ? asked : 'misc';
+
+  const list = (Array.isArray(body && body.paths) ? body.paths : [body && body.paths])
+    .map((p) => String(p == null ? '' : p).trim())
+    .filter(Boolean);
+  if (!list.length) throw err('要传什么？给一个或多个文件 / 目录路径');
+
+  const entries = [];
+  for (const raw of list) {
+    /* 仓库相对路径和绝对路径都收；越界的（比如 C:\Windows）不给读 */
+    const abs = path.resolve(workspaceRoot, raw);
+    const inside = assertInside(abs, workspaceRoot);
+    if (!exists(inside)) throw err('没有这个路径：' + raw);
+    if (isDir(inside)) entries.push(...collectDir(inside));
+    else entries.push({ name: path.basename(inside), data: fs.readFileSync(inside) });
+  }
+  if (!entries.length) throw err('这些路径里没有可传的文件（空目录？）');
+
+  const res = await pushInbox(ctx.transport, {
+    root,
+    entries,
+    stamp: defaultStamp(),
+    branch: syncInboxBranch(ctx),
+    from: deviceName(),
+  });
+  return { ...res, where: `收件箱 ${root} · ${res.stamp} · ${res.count} 个文件` };
+}
+
+/**
+ * 推镜像：长任务，走作业子进程（和部署面板同一套日志呈现）。
+ * 脚本用 build/sync-cli.mjs，而不是 run-pipeline —— 所以手工拼 argv 交给
+ * jobs.startJob 的 deps 注入口（它只负责起进程、收日志、维护作业列表）。
+ */
+export function postSyncPush(body = {}) {
+  const dryRun = !!(body && body.dryRun);
+  if (!fs.existsSync(syncCliFile)) throw err('缺文件：build/sync-cli.mjs', 500);
+  const started = jobs.startJob(
+    {
+      pipeline: 'sync',
+      label: dryRun ? '同步：推镜像（只算不推）' : '同步：推 Gitee 镜像',
+      flags: {},
+    },
+    { argv: [syncCliFile, 'push', ...(dryRun ? ['--dry-run'] : [])] },
+  );
+  return { ok: true, ...started, dryRun };
+}
+
+/** sync/inbox/ 下已有的时间戳（倒序） */
+function listSyncStamps() {
+  try {
+    return fs.readdirSync(syncInboxDir, { withFileTypes: true })
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name)
+      .sort((a, b) => b.localeCompare(a));
+  } catch {
+    return [];
+  }
+}
+
+/** 这台机器叫什么（收件箱清单里的 from） */
+function deviceName() {
+  return process.env.COMPUTERNAME || process.env.HOSTNAME || '本机（控制台）';
 }
 
 /* ═══════════════════════════════════════════════════

@@ -551,6 +551,29 @@ npm run bakup / bakup:check         :: 同上的 npm 写法
   带 token 的 URL 会先被抹掉再打印，免得把密钥写进日志。
 - tag 没推成功**不算整体失败**：本地 tag 还在，重跑一次 `部署.cmd bakup --tag <同名>` 会补推。
 
+### 跨网同步（`部署.cmd sync`，第三条线）
+
+学校那台机器只能上 Gitee，所以发布完之后还得把产物同步过去；学校录的作业也要回来。
+它和发布、备份都无关：`full` 里没有它，`bakup` 也不会顺手同步。
+
+```bat
+部署.cmd sync check      :: 探通道 + 看云端是什么版本（学校第一次用之前先跑）
+部署.cmd sync push       :: 组装 dist → 写 _sync.json → 推 GitHub Pages + Gitee 镜像
+部署.cmd sync pull       :: 拉收件箱（学校传上来的）到 sync\inbox\
+部署.cmd sync apply      :: 落进仓库（默认只预览，--write 才写）
+部署.cmd sync home       :: 到家一条龙：pull → apply（确认）→ full
+部署.cmd sync push --to I:\jsd-out   :: 不发网络，直接镜像到 U 盘目录
+```
+
+- 实现在 **`build/sync-cli.mjs`**，同步核心在 **`sync/lib/*.mjs`**（家里、控制台、桌面版共用一份）。
+  这里只是把命令接进 `部署.cmd`（和 `hwk` 一样是委托，不重写逻辑）。
+- 站点镜像走的是 `dist/` 那个仓库的**第二个 remote**（`gitee`），复用 `build/lib/git-dist.mjs`
+  里同一套 git 逻辑；Gitee 是国内站，**显式清空代理**（`directArgs()`），别拿 GitHub 的代理去连它。
+- 镜像清单 `_sync.json` 写在 `dist/` 根，`KEEP_ROOT` 里保着它 —— 否则下一次组装就被 prune 掉了。
+- 本地目录 / U 盘通道（`--to <路径>`）是同一套接口的另一个实现，网络全断时的兜底；
+  **不认盘符、不自动探测可移动盘**（U 盘不常住电脑）。
+- 完整说明、配额（单文件 50MB / 仓库 500MB）、收件箱格式、排障表见 **`sync/README.md`**。
+
 ### 部署细节
 
 > 为什么不用 `rth-host.json` 的 `build` 字段来组装：

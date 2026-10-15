@@ -109,6 +109,16 @@
       <span>发布与部署</span>
     </button>
 
+    <button class="nav-item" role="tab" id="tab-sync" data-view="sync" aria-controls="panel-sync" aria-selected="false" tabindex="-1">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M20 11a8 8 0 0 0-13.8-5.4L4 8"/>
+        <path d="M4 4.5V8h3.5"/>
+        <path d="M4 13a8 8 0 0 0 13.8 5.4L20 16"/>
+        <path d="M20 19.5V16h-3.5"/>
+      </svg>
+      <span>跨网同步</span>
+    </button>
+
     <button class="nav-item" role="tab" id="tab-cloud" data-view="cloud" aria-controls="panel-cloud" aria-selected="false" tabindex="-1">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M4 9a4 4 0 0 1 4-4 4.5 4.5 0 0 1 8.6 1.2A3.5 3.5 0 0 1 19 13H7a3 3 0 0 1-3-3Z"/>
@@ -647,6 +657,75 @@
           <div class="hist" id="deployHistory"></div>
         </details>
       </div>
+    </section>
+
+    <!-- 跨网同步（Gitee 镜像 + 收件箱） -->
+    <section class="panel" id="panel-sync" role="tabpanel" aria-labelledby="tab-sync" tabindex="0" hidden>
+      <header class="panel-head">
+        <div class="ph-left">
+          <h1>跨网同步</h1>
+          <p class="ph-sub">走 Gitee 那条线：把站点推成镜像给学校取件，把学校传上来的收件箱搬进仓库。</p>
+        </div>
+        <div class="ph-right">
+          <button class="btn" id="btnSyncCheck">检查</button>
+          <button class="btn" id="btnSyncPush">推送镜像</button>
+          <button class="btn" id="btnSyncPull">拉取收件箱</button>
+          <button class="btn" id="btnSyncApply">预览应用</button>
+          <button class="btn" id="btnSyncWrite">写入仓库</button>
+          <button class="btn primary" id="btnSyncPublish">一键发布</button>
+        </div>
+      </header>
+
+      <div class="stats" id="syncStats"></div>
+
+      <div class="bar deploy-bar">
+        <span class="mono" id="syncWhere">载入中…</span>
+        <span class="tool-spacer"></span>
+        <label class="field">
+          <span>收件箱 root</span>
+          <select class="input" id="syncRoot">
+            <option value="misc">misc · 其他</option>
+            <option value="hwk">hwk · 作业数据</option>
+            <option value="site">site · 站点内容</option>
+          </select>
+        </label>
+        <input class="input mono" id="syncPaths" type="text" spellcheck="false"
+               placeholder="要传的路径，多个用逗号隔开，例如 班级资料/数学" aria-label="要上传的路径">
+        <button class="btn" id="btnSyncUpload">传到收件箱</button>
+      </div>
+
+      <div class="dual">
+        <div class="dual-col">
+          <div class="dual-head">
+            <h2>收件箱 <em class="mono" id="syncInboxCount">0</em></h2>
+            <p class="hint">云端有哪些份、本地拉了哪几份。写入仓库前先「预览应用」。</p>
+          </div>
+          <ul class="alist" id="syncInboxList"></ul>
+        </div>
+        <div class="dual-col">
+          <div class="dual-head">
+            <h2>应用结果 <em class="mono" id="syncApplyStamp">—</em></h2>
+            <p class="hint">每一条是「这份收件箱里的哪个文件会落到仓库哪儿」。</p>
+          </div>
+          <ul class="alist" id="syncApplyList"></ul>
+        </div>
+      </div>
+
+      <div class="panel-sub">
+        <details class="fold" id="syncJobCard" open>
+          <summary>
+            <span>推送镜像的日志</span>
+            <em class="mono" id="syncJobMeta">还没有跑过</em>
+          </summary>
+          <pre class="job-log mono" id="syncLog" aria-live="polite"></pre>
+          <div class="job-foot">
+            <span class="mono" id="syncJobState">空闲</span>
+            <button class="btn ghost" id="btnSyncLogClear">清屏</button>
+          </div>
+        </details>
+      </div>
+
+      <p class="note" id="syncNote" hidden></p>
     </section>
 
     <!-- 同步与合并 -->

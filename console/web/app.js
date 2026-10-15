@@ -3091,9 +3091,290 @@
     $('hwkReindex').addEventListener('click', hkReindex);
   }
 
+  /* ═══════════ #14 跨网同步（Gitee 镜像 + 收件箱） ═══════════
+     面板只调 /api/sync/**，实现在 sync/lib/**（和 `部署.cmd sync` 同一份）。
+     两条规矩：
+       · 配置不全时后端返回 {ok:false, error, problems} 而不是 500 ——
+         这里照着 problems 把「缺什么、去哪儿配」显出来，别白屏；
+       · 「推送镜像」是长任务，走作业子进程，日志呈现和「发布与部署」那条一样。
+     ═══════════ */
+
+  const SYNC = {
+    channel: '',
+    ok: false,
+    error: '',
+    problems: [],
+    cloud: null,
+    local: { count: 0, version: '' },
+    diff: null,
+    inbox: { remote: [], local: [], pending: [] },
+    git: { dirty: 0, last: '' },
+    apply: null,          /* 最近一次预览/写入的结果（写入时拿它的 stamp） */
+    pulled: [],           /* 云端完整的那几份（列表里标「已拉/未拉」用） */
+    loaded: false,
+    job: { id: null, timer: null, offset: 0, running: false },
+  };
+
+  const SYNC_OK = (n) => (Number(n) || 0).toLocaleString('zh-CN');
+
+  /** 「检查」：重新拉一次状态（`/api/sync/check` 不单开路由，就是它） */
+  async function syncLoad(showToast) {
+    let r;
+    try {
+      r = await api('GET', '/api/sync');
+    } catch (e) {
+      /* 老进程没有这条路由 / 服务挂了：给一句能照做的提示 */
+      renderSyncIdle('读不到同步状态：' + e.message, ['确认控制台是刚重启过的（改了代码要重启才生效）']);
+      if (showToast) toast('读不到同步状态：' + e.message, 'bad');
+      return;
+    }
+    syncApplyState(r);
+    if (showToast) toast(r.ok ? '同步状态已刷新' : '同步还没配好，看面板上的提示', r.ok ? 'ok' : 'bad');
+  }
+
+  function syncApplyState(r) {
+    SYNC.loaded = true;
+    SYNC.channel = r.channel || '';
+    SYNC.ok = !!r.ok;
+    SYNC.error = r.error || '';
+    SYNC.problems = r.problems || [];
+    SYNC.cloud = r.cloud || null;
+    SYNC.local = r.local || { count: 0, version: '' };
+    SYNC.diff = r.diff || null;
+    SYNC.git = r.git || { dirty: 0, last: '' };
+    const inbox = r.inbox || {};
+    SYNC.inbox = {
+      remote: inbox.remote || [],
+      local: inbox.local || [],
+      pending: inbox.pending || [],
+    };
+    SYNC.pulled = (inbox.remote || []).filter((x) => x.complete).map((x) => x.stamp);
+    renderSync();
+  }
+
+  /** 状态读不到时：清空各处，只留一句能照做的话 */
+  function renderSyncIdle(msg, problems) {
+    SYNC.loaded = true;
+    SYNC.ok = false;
+    SYNC.error = msg;
+    SYNC.problems = problems || [];
+    SYNC.cloud = null;
+    SYNC.diff = null;
+    SYNC.inbox = { remote: [], local: [], pending: [] };
+    renderSync();
+  }
+
+  function renderSync() {
+    const n = SYNC.inbox.remote.length;
+    const complete = SYNC.inbox.remote.filter((x) => x.complete).length;
+    const pending = SYNC.inbox.pending.length;
+    const need = SYNC.diff ? (SYNC.diff.toDownload || 0) + (SYNC.diff.extra || 0) : 0;
+    const broken = !SYNC.ok && !!(SYNC.error || SYNC.problems.length);
+
+    $('syncStats').innerHTML =
+      `<div class="stat"><b>${SYNC.cloud ? SYNC_OK(SYNC.cloud.count) : '—'}</b><span>云端文件</span></div>` +
+      `<div class="stat"><b>${SYNC_OK(SYNC.local.count)}</b><span>本地 dist</span></div>` +
+      `<div class="stat ${need ? 's-draft' : 's-pub'}"><b>${SYNC.diff ? SYNC_OK(need) : '—'}</b><span>要更新/要删</span></div>` +
+      `<div class="stat ${pending ? 's-draft' : 's-pub'}"><b>${SYNC_OK(pending)}</b><span>待拉收件箱</span></div>` +
+      `<div class="stat ${SYNC.git.dirty ? 's-draft' : 's-pub'}"><b>${SYNC_OK(SYNC.git.dirty)}</b><span>仓库未提交</span></div>`;
+
+    $('syncWhere').textContent = SYNC.channel || '（还没读到通道）';
+    renderSyncNote(broken);
+    renderSyncInbox(complete, n);
+    renderSyncApplyList();
+  }
+
+  function renderSyncNote(broken) {
+    const note = $('syncNote');
+    const lines = [];
+    if (SYNC.channel) lines.push('通道：' + SYNC.channel);
+    if (SYNC.error) lines.push('问题：' + SYNC.error);
+    (SYNC.problems || []).forEach((p) => lines.push('· ' + p));
+    const cl = SYNC.cloud;
+    lines.push(cl
+      ? `云端镜像：${cl.count} 个文件 · ${cl.version || '未标注版本'}${cl.builtAt ? ' · ' + cl.builtAt : ''}`
+      : '云端还没有镜像清单（第一次推完就有了）');
+    lines.push(`本地 dist：${SYNC.local.count} 个文件 · 版本 ${SYNC.local.version || 'dev'}`);
+    lines.push(SYNC.diff
+      ? `差异：要更新 ${SYNC.diff.toDownload || 0} 个 · 云端多出来 ${SYNC.diff.extra || 0} 个`
+      : '差异：还没有可比对的清单');
+    lines.push(`仓库：${SYNC.git.dirty ? SYNC.git.dirty + ' 个文件没提交' : '干净'} · 最后一次提交「${SYNC.git.last || '—'}」`);
+    if (SYNC.pulled.length) lines.push('云端完整：' + SYNC.pulled.join('、'));
+    const extra = SYNC.inbox.local.filter((s) => !SYNC.pulled.includes(s));
+    if (extra.length) lines.push('本地多出来（云端已经没了）：' + extra.join('、'));
+    if (broken) lines.push('配置细节见 sync/README.md。');
+    note.textContent = lines.join('\n');
+    note.hidden = false;
+  }
+
+  function renderSyncInbox(complete, total) {
+    $('syncInboxCount').textContent = complete + '/' + total;
+    const box = $('syncInboxList');
+    box.replaceChildren();
+    if (!total) { box.appendChild(el('p', 'hint', '收件箱是空的。')); return; }
+    SYNC.inbox.remote.forEach((x) => {
+      const li = el('li');
+      const pulled = SYNC.pulled.includes(x.stamp) && SYNC.inbox.local.includes(x.stamp);
+      const badgeSt = !x.complete ? 'orphan' : pulled ? 'published' : 'archived';
+      const badgeText = !x.complete ? '没传完' : pulled ? '已拉' : '未拉';
+      li.appendChild(el('span', 'badge ' + badgeSt, badgeText));
+      const body = el('div', 'a-body');
+      body.appendChild(el('span', 'a-title', `${x.stamp} · ${x.root || 'misc'} · ${x.files} 个文件`));
+      body.appendChild(el('span', 'a-meta',
+        `来自 ${x.from || '未知设备'}${x.createdAt ? ' · ' + fmtTime(Date.parse(x.createdAt) || 0) : ''}`));
+      li.appendChild(body);
+      box.appendChild(li);
+    });
+  }
+
+  function renderSyncApplyList() {
+    const box = $('syncApplyList');
+    box.replaceChildren();
+    $('syncApplyStamp').textContent = SYNC.apply ? SYNC.apply.stamp + (SYNC.apply.dryRun ? '（预览）' : '（已写入）') : '—';
+    if (!SYNC.apply) { box.appendChild(el('p', 'hint', '先「拉取收件箱」，再「预览应用」。')); return; }
+    const rows = SYNC.apply.actions.filter((a) => a.state !== 'identical');
+    const same = SYNC.apply.actions.length - rows.length;
+    if (!rows.length) {
+      box.appendChild(el('p', 'hint', '这份收件箱里的文件仓库里都有，一个字都不用改。'));
+      return;
+    }
+    rows.forEach((a) => {
+      const li = el('li');
+      const cls = a.state === 'added' ? 'published' : a.state === 'updated' ? 'draft' : 'unpublished';
+      li.appendChild(el('span', 'badge ' + cls, a.state === 'added' ? '新增' : a.state === 'updated' ? '覆盖' : a.state));
+      const body = el('div', 'a-body');
+      body.appendChild(el('span', 'a-title', '[' + a.root + '] ' + a.rel));
+      body.appendChild(el('span', 'a-meta', '→ ' + a.to));
+      li.appendChild(body);
+      box.appendChild(li);
+    });
+    if (same) box.appendChild(el('p', 'hint', `另有 ${same} 个文件内容一样，会跳过。`));
+  }
+
+  /** 拉件 →（可选）接着预览一份 */
+  async function syncPullThen(stamp, then) {
+    try {
+      const r = await api('POST', '/api/sync/pull', stamp ? { stamp } : {});
+      const n = (r.stamps || []).length;
+      toast(n ? `拉了 ${n} 份收件箱` : '没有新东西可拉', n ? 'ok' : 'warn');
+      await syncLoad(false);
+      if (then) await then();
+    } catch (e) {
+      toast('拉取失败：' + e.message, 'bad');
+    }
+  }
+
+  async function syncApply(write) {
+    const stamp = (SYNC.apply && SYNC.apply.stamp) || SYNC.pulled[0] || '';
+    if (!stamp) { toast('先拉一次收件箱（sync/inbox/ 还是空的）', 'bad'); return; }
+    try {
+      const r = await api('POST', '/api/sync/apply', { stamp, write });
+      SYNC.apply = r;
+      renderSyncApplyList();
+      const c = r.counts || {};
+      toast(`${r.stamp}：新增 ${c.added || 0} · 覆盖 ${c.updated || 0} · 一样 ${c.identical || 0}`
+        + (r.dryRun ? '（还没写，确认后再点「写入仓库」）' : '（已写进仓库）'), 'ok');
+    } catch (e) {
+      toast('应用失败：' + e.message, 'bad');
+    }
+  }
+
+  function syncPush(dryRun) {
+    api('POST', '/api/sync/push', { dryRun: !!dryRun })
+      .then((r) => {
+        SYNC.job.id = r.id;
+        SYNC.job.offset = 0;
+        SYNC.job.running = true;
+        $('syncLog').textContent = '';
+        $('syncJobMeta').textContent = '跑着…';
+        syncPollStart();
+        toast(dryRun ? '已开始：只算不推' : '已开始推送镜像', 'ok');
+      })
+      .catch((e) => toast('起不来：' + e.message, 'bad'));
+  }
+
+  function syncPollStart() {
+    if (SYNC.job.timer) clearInterval(SYNC.job.timer);
+    syncPoll();
+    SYNC.job.timer = setInterval(syncPoll, 500);
+  }
+
+  /** 和部署面板同一套增量读日志的做法（这里是纯文本，没有 JSON 步骤事件） */
+  async function syncPoll() {
+    if (!SYNC.job.id) return;
+    try {
+      const r = await api('GET', `/api/jobs/one?id=${encodeURIComponent(SYNC.job.id)}&offset=${SYNC.job.offset}`);
+      SYNC.job.offset = r.log.nextOffset;
+      if (r.log.chunk) {
+        const pre = $('syncLog');
+        const atBottom = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 30;
+        pre.textContent += r.log.chunk;
+        if (atBottom) pre.scrollTop = pre.scrollHeight;
+      }
+      $('syncJobMeta').textContent = `${r.job.label} · ${r.job.state}`
+        + (r.job.ms ? ' · ' + (r.job.ms / 1000).toFixed(1) + 's' : '');
+      $('syncJobState').textContent = r.job.state === 'running' ? '跑着' : r.job.state;
+      const running = r.job.state === 'running';
+      if (SYNC.job.running && !running) {
+        SYNC.job.running = false;
+        toast(r.job.state === 'done' ? '推送完成' : `推送结束：${r.job.state}`, r.job.state === 'done' ? 'ok' : 'bad');
+        syncLoad(false);
+      }
+      if (!running && SYNC.job.timer) { clearInterval(SYNC.job.timer); SYNC.job.timer = null; }
+    } catch (e) {
+      if (SYNC.job.timer) { clearInterval(SYNC.job.timer); SYNC.job.timer = null; }
+      SYNC.job.running = false;
+      $('syncJobState').textContent = '读日志失败';
+      toast('读日志失败：' + e.message, 'bad');
+    }
+  }
+
+  async function syncUpload() {
+    const paths = $('syncPaths').value.split(/[,，\n]/).map((s) => s.trim()).filter(Boolean);
+    if (!paths.length) { toast('先写一个要传的路径（文件或目录，仓库相对路径）', 'bad'); return; }
+    const root = $('syncRoot').value || 'misc';
+    try {
+      const r = await api('POST', '/api/sync/upload', { paths, root });
+      toast(`已传 ${r.count} 个文件 → 收件箱 ${r.stamp}`, 'ok');
+      $('syncPaths').value = '';
+      await syncLoad(false);
+    } catch (e) {
+      toast('上传失败：' + e.message, 'bad');
+    }
+  }
+
+  function initSync() {
+    $('btnSyncCheck').addEventListener('click', () => syncLoad(true));
+    $('btnSyncPush').addEventListener('click', async () => {
+      const okd = await confirmBox('推送站点镜像？', '会重新组装 dist/、写 _sync.json，再推 GitHub Pages 与 Gitee 镜像（几十秒，日志在下面刷）。');
+      if (okd) syncPush(false);
+    });
+    $('btnSyncPull').addEventListener('click', () => syncPullThen('', () => syncApply(false)));
+    $('btnSyncApply').addEventListener('click', async () => {
+      if (SYNC.job.running) { toast('推送还跑着，等它结束再看', 'bad'); return; }
+      await syncApply(false);
+    });
+    $('btnSyncWrite').addEventListener('click', async () => {
+      const a = SYNC.apply;
+      if (!a) { toast('先点「预览应用」看一眼会改什么', 'bad'); return; }
+      if (a.dryRun && !((a.counts && a.counts.added) || (a.counts && a.counts.updated))) {
+        toast('没有要改的，不用写', 'ok');
+        return;
+      }
+      const okd = await confirmBox('把这些文件写进仓库？',
+        `${a.stamp}：新增 ${(a.counts && a.counts.added) || 0} 个 · 覆盖 ${(a.counts && a.counts.updated) || 0} 个。写完还要去「发布与部署」跑一次 full 才会出现在站点上。`);
+      if (okd) await syncApply(true);
+    });
+    $('btnSyncPublish').addEventListener('click', () => {
+      toast('一键发布：先在「发布与部署」面板跑 full；要从头来一遍就在终端跑 部署.cmd sync home', 'warn');
+    });
+    $('btnSyncUpload').addEventListener('click', syncUpload);
+    $('btnSyncLogClear').addEventListener('click', () => { $('syncLog').textContent = ''; });
+  }
+
   /* ═══════════ #8 启动 / 路由 / 刷新 ═══════════ */
 
-  const VIEWS = ['write', 'manage', 'preview', 'manifest', 'hwk', 'archive', 'assets', 'deploy', 'cloud', 'check', 'compare', 'settings'];
+  const VIEWS = ['write', 'manage', 'preview', 'manifest', 'hwk', 'archive', 'assets', 'deploy', 'sync', 'cloud', 'check', 'compare', 'settings'];
 
   function setView(name, { focusTab } = {}) {
     if (!VIEWS.includes(name)) name = 'write';
@@ -3116,6 +3397,7 @@
     if (name === 'archive') renderArchive();
     if (name === 'assets') renderAssets();
     if (name === 'deploy') refreshDeploy();
+    if (name === 'sync') syncLoad(false);
     if (name === 'cloud') { refreshCloudDomains(); if (CL.scan) renderCloud(CL.scan); }
     if (name === 'compare') { refreshCloudDomains(); cmpFillDocs(); if ($('cmpDoc').value) cmpLoad(); }
     if (name === 'settings') renderSettings();
@@ -3232,6 +3514,7 @@
     initArchive();
     initAssets();
     initDeploy();
+    initSync();
     initCloud();
     initCheck();
     initCompare();

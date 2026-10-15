@@ -19,9 +19,10 @@
  *   即 ./控制台.sh server
  */
 import http from 'node:http';
+import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { consoleDir, isFile, siteRoot, webDir, workspaceRoot } from './lib/paths.mjs';
 import { resolveStatic as resolveStaticIn, sendFile, sendJson } from './lib/http-static.mjs';
 import { mermaidClientFile } from './lib/md-extras.mjs';
@@ -66,6 +67,13 @@ const ROUTES = {
   'POST /api/cloud/precheck': (q, b) => api.postCloudPrecheck(b),
   'POST /api/links/scan': (q, b) => api.postLinksScan(b),
   'POST /api/publish-all': (q, b) => api.postPublishAll(b),
+  /* 跨网同步（Gitee 镜像 + 收件箱）：和 `部署.cmd sync` 同一份实现（lib/api.mjs）。
+     /api/sync/check 不单开一条 —— 面板「检查」就是重新 GET /api/sync。 */
+  'GET /api/sync': () => api.getSyncState(),
+  'POST /api/sync/pull': (q, b) => api.postSyncPull(b),
+  'POST /api/sync/apply': (q, b) => api.postSyncApply(b),
+  'POST /api/sync/upload': (q, b) => api.postSyncUpload(b),
+  'POST /api/sync/push': (q, b) => api.postSyncPush(b),
   'PUT /api/article': (q, b) => api.putArticle(b),
   'PUT /api/settings': (q, b) => api.putSettings(b),
   'POST /api/article/new': (q, b) => api.postArticleNew(b),
@@ -397,9 +405,37 @@ async function hwkMain() {
   process.exitCode = Number.isFinite(code) ? code : 0;
 }
 
+/**
+ * `node console/server.mjs sync …` —— 跨网同步（和 `部署.cmd sync` 同一份实现）
+ * ---------------------------------------------------
+ * 学校那台机器只能上 Gitee，所以「把站点推成 Gitee 镜像」「把学校传上来的
+ * 收件箱搬进仓库」是另一条线。实现在 `build/sync-cli.mjs`，这里只是终端
+ * 入口 —— 和 `部署.cmd sync` 走同一个 main()，用法/输出/退出码一致。
+ *
+ *   ./控制台.sh sync check            探通道 + 看云端版本
+ *   ./控制台.sh sync push             组装 + 推 GitHub Pages 与 Gitee 镜像
+ *   ./控制台.sh sync pull             拉收件箱
+ *   ./控制台.sh sync apply --dry-run  预览会改仓库里哪些文件
+ *   ./控制台.sh sync home             到家一条龙（pull → apply → full）
+ *
+ * 网页那边是「同步」面板（`#sync`），按钮调的是同一批函数。
+ */
+async function syncMain() {
+  const cli = path.join(workspaceRoot, 'build', 'sync-cli.mjs');
+  if (!fs.existsSync(cli)) {
+    console.log('\n  [X] 缺文件：build/sync-cli.mjs\n');
+    process.exitCode = 1;
+    return;
+  }
+  const { main: runSync } = await import(pathToFileURL(cli).href);
+  const code = await runSync(argv.slice(1));
+  process.exitCode = Number.isFinite(code) ? code : 0;
+}
+
 if (isMain) {
   if (COMMAND === 'server') serverMain();
   else if (COMMAND === 'hwk') hwkMain();
+  else if (COMMAND === 'sync') syncMain();
   else main();
 }
 

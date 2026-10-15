@@ -43,6 +43,61 @@ export function git(args, opts = {}) {
   });
 }
 
+/* ═══════════════════════════════════════════════════
+   第二个 remote（Gitee 镜像）
+   ---------------------------------------------------
+   dist/ 同一个仓库推两个地方：GitHub Pages（origin）和 Gitee 镜像。
+   学校那边只能上 Gitee，所以镜像不是「顺便」——它是跨网同步的取件口。
+   Gitee 在国内，**不能**走 GitHub 那个代理：显式清空 http.proxy。
+   ═══════════════════════════════════════════════════ */
+
+export const GITEE_REMOTE = 'gitee';
+
+/** 走直连（显式清掉可能存在的全局代理），Gitee 才连得上 */
+export function directArgs() {
+  return ['-c', 'http.proxy=', '-c', 'https.proxy='];
+}
+
+/** 带令牌的推送地址：令牌只出现在这次命令行里，不写进 .git/config */
+export function authedUrl(url, { owner, token }) {
+  if (!token) return url;
+  const m = /^https:\/\/([^/]+)\/(.+)$/.exec(url);
+  if (!m) return url;
+  return `https://${encodeURIComponent(owner)}:${encodeURIComponent(token)}@${m[1]}/${m[2]}`;
+}
+
+/** 确保 dist/ 里有个叫 name 的 remote（没有就加，地址不对就改） */
+export function ensureRemote(name, url) {
+  const cur = git(['remote', 'get-url', name]);
+  if (cur.status !== 0 || !cur.stdout.trim()) {
+    const add = git(['remote', 'add', name, url]);
+    return { added: add.status === 0, url };
+  }
+  const now = cur.stdout.trim();
+  if (now !== url) {
+    git(['remote', 'set-url', name, url]);
+    return { added: false, updated: true, url };
+  }
+  return { added: false, updated: false, url };
+}
+
+/** 远程有没有这个分支（直连、带令牌） */
+export function remoteHeads(url, branch, { timeout = 60000 } = {}) {
+  const r = git([...directArgs(), 'ls-remote', '--heads', url, branch], { timeout });
+  if (r.status !== 0) {
+    return { ok: false, error: ((r.stderr || '') + (r.stdout || '')).trim() || 'ls-remote 失败' };
+  }
+  return { ok: true, exists: new RegExp(`refs/heads/${branch}$`, 'm').test(r.stdout || '') };
+}
+
+export function pushTo(url, refspec, { timeout = 600000 } = {}) {
+  return git([...directArgs(), 'push', url, refspec], { timeout, maxBuffer: 16 * 1024 * 1024 });
+}
+
+export function fetchFrom(url, branch, { timeout = 600000 } = {}) {
+  return git([...directArgs(), 'fetch', url, branch], { timeout, maxBuffer: 16 * 1024 * 1024 });
+}
+
 export function hasRepo() {
   return fs.existsSync(path.join(distDir, '.git'));
 }

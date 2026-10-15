@@ -14,4 +14,10 @@ contextBridge.exposeInMainWorld('jsd', {
     ipcRenderer.on('app:state', handler);
     return () => ipcRenderer.removeListener('app:state', handler);
   },
+  /* 「云端同步」下载/上传的进度（设置面板里那行小字） */
+  onSyncProgress: (cb) => {
+    const handler = (_e, p) => cb(p);
+    ipcRenderer.on('sync:progress', handler);
+    return () => ipcRenderer.removeListener('sync:progress', handler);
+  },
 });

@@ -48,11 +48,24 @@ const MIME = {
   '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
 };
 
-/** 离线副本目录：打包后在 resources/site，开发时直接用仓库里的站点源目录 */
+/** 离线副本目录，按这个顺序找：
+ *    1. JSD_SITE_ROOT（排障/冒烟用）
+ *    2. userData/offline-site —— 「云端同步」更新下来的那一份（可写，更新不必重打 exe）
+ *    3. resources/site —— 随包自带的那份（只读，第一次安装时的底子）
+ *    4. 开发态直接用仓库里的站点源目录
+ *  第 2 条要求「有 index.html 才算」，否则半途而废的目录会把站点变成 404。 */
 function siteRoot() {
   if (process.env.JSD_SITE_ROOT) return path.resolve(process.env.JSD_SITE_ROOT);
   const { app } = require('electron');
-  if (app.isPackaged) return path.join(process.resourcesPath, 'site');
+  if (app.isPackaged) {
+    const updated = path.join(app.getPath('userData'), 'offline-site');
+    try {
+      if (fs.existsSync(path.join(updated, 'index.html'))) return updated;
+    } catch {
+      /* 读不到就当没有 */
+    }
+    return path.join(process.resourcesPath, 'site');
+  }
   return path.resolve(__dirname, '..', '..', 'jinsuper.rth1.xyz');
 }
 
@@ -131,6 +144,14 @@ async function handle(req, res) {
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     res.writeHead(405, { Allow: 'GET, HEAD' });
     return res.end('Method Not Allowed');
+  }
+  /* `.php` 一律当不存在：这是本地静态服务，不跑 PHP。
+     站点阅读器取原文的第一选择是 `p/raw.php`，在这里回 404 它才会按设计
+     回落到直接取 `.md`（离线副本里的 `.md` 就是原始 Markdown）。
+     真把 raw.php 原样发回去的话，页面会拿 PHP 源码当正文显示。 */
+  if (/\.php($|\?)/i.test(String(req.url || ''))) {
+    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+    return res.end('404');
   }
   let hit = await pickFile(root, req.url || '/');
   let code = 200;

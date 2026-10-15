@@ -17,6 +17,17 @@ rem  rth / gh / check / serve / status / bakup, and "hwk" (enter
 rem  today's homework; it shares the implementation with the console's
 rem  homework panel). Run "deploy.cmd --help" for the current list.
 rem
+rem  "sync" is the cross-network channel (the school machine can only
+rem  reach Gitee), implemented once in build\sync-cli.mjs and shared
+rem  with console.cmd / console.sh:
+rem    deploy.cmd sync check        probe the channel + show cloud version
+rem    deploy.cmd sync push         dist -> GitHub Pages + Gitee mirror
+rem    deploy.cmd sync pull         fetch the inbox the school uploaded
+rem    deploy.cmd sync apply        land it in the repo (preview by default)
+rem    deploy.cmd sync home         pull -> apply -> full, in one go
+rem  Keep this list, deploy.sh, console.cmd and console.sh in step:
+rem  the four entry points are one feature, so their docs move together.
+rem
 rem  KEEP THIS FILE PURE ASCII.
 rem  cmd.exe decodes a batch file byte-by-byte using the *current*
 rem  code page, and it re-reads the file by byte offset as it goes.

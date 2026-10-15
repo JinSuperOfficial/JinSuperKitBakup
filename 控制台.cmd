@@ -14,8 +14,14 @@ rem    console.cmd hwk            enter today's homework in the terminal
 rem    console.cmd hwk --json     paste the JSON source instead
 rem    console.cmd hwk --list     list the days that exist
 rem    console.cmd hwk --web      open the console on the homework panel
+rem    console.cmd sync <sub>     cross-network sync -- the very same
+rem                               implementation as deploy.cmd sync
+rem                               (check / push / pull / apply / upload / home)
 rem    console.cmd server         headless preview service only
 rem  Same subcommands work on Linux: ./console.sh hwk ...
+rem  Keep this list, the one in console.sh, and the help text of
+rem  deploy.cmd / deploy.sh in step: the four entry points are one
+rem  feature, so their docs move together.
 rem
 rem  KEEP THIS FILE PURE ASCII.
 rem  cmd.exe decodes a batch file byte-by-byte with the current

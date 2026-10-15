@@ -13,7 +13,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import crypto from 'node:crypto';
+import { sha256, sameAs } from '../../sync/lib/hash.mjs';
 
 /** 永远不进部署产物的名字 */
 export const EXCLUDE = new Set([
@@ -30,24 +30,18 @@ export const EXCLUDE = new Set([
 /** dist 根部要保住的文件 / 目录（GitHub Pages 与仓库的配置，不属于源站内容）
     `.github/`：给仓库用的 GitHub Actions（作业清单）。它不在源站目录里，
     由 `build/push-github.mjs` 在推送前从 `build/template/github/` 写进 dist；
-    组装既不生成它、也不删它（否则每次 prep 都把 CI 一起清掉）。 */
-export const KEEP_ROOT = new Set(['CNAME', '.nojekyll', '.gitignore', '.github']);
+    组装既不生成它、也不删它（否则每次 prep 都把 CI 一起清掉）。
+    `_sync.json`：跨网同步的镜像清单（`sync push` 写在 dist 根、随仓库推送）。
+    它同样不是站点内容 —— 源站目录里没有它，prune 必须留着，否则每次组装
+    都会把它删掉，学校那边就比不出「该下哪几个文件」了。 */
+export const KEEP_ROOT = new Set(['CNAME', '.nojekyll', '.gitignore', '.github', '_sync.json']);
 
 /** 上次组装「真正变了什么」的清单文件（在项目根，不在 dist 里） */
 export const CHANGED_FILE = '.deploy-changed.txt';
 
-export function sha256(buf) {
-  return crypto.createHash('sha256').update(buf).digest('hex');
-}
-
-/** 内容一样就不动（增量部署的关键：别刷新时间戳） */
-export function sameAs(fileAbs, buf) {
-  try {
-    return sha256(fs.readFileSync(fileAbs)) === sha256(buf);
-  } catch {
-    return false;
-  }
-}
+/* 内容哈希只有一份实现，住在 sync/lib/hash.mjs（桌面版也要用同一份），
+   这里只是转出去，调用方（prep-deploy / 控制台 / push-github）不用改 */
+export { sha256, sameAs };
 
 /**
  * 算出「这次会上传的文件」：dist 相对路径 → 磁盘绝对路径。

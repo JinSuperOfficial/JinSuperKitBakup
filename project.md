@@ -549,6 +549,30 @@ npm run dist:win   # 打 Windows 免安装 exe → desktop\release\
   后者还能在本机 `--smoke` 验一遍打包后的路径（`resources\site` 那份离线副本）。
 - **改站点样式不用管桌面版**：topbar / 设置 / 错误页的样式全在 `desktop\src\ui\` 里，
   和站点 CSS 完全隔离。
+- **界面固定暗色**：`nativeTheme.themeSource = 'dark'`（`src\main.js` 启动时）。
+  自带界面只有暗色一套，站点却是「跟随系统」；不钉住的话，系统亮色时窗口里是一片亮底。
+  这不算注入样式，只是把「系统是暗的」告诉 Chromium——站点的 `theme.js` 自己会走暗色分支。
+- **冒烟默认不开窗**（跑测试时不要在别人屏幕上闪窗口），只验流程与状态；
+  要看窗口和截图用 `npm run smoke:show`（窗口是暗色的）。
+- **两种模式 = 同一个 exe + 一个参数**（`src\modes.js`，纯逻辑 + 单测）：
+  `班级百宝箱`（浏览，现在的窗口）与 `作业编辑器`（`--app=homework`）。
+  单实例锁保留：第二个快捷方式点开的是**同一个进程里的第二个窗口**，
+  所以设置文件只有一个写者。作业编辑器不加载站点，界面在 `src\ui\hwk\`，
+  数据先写本机（`src\hwk-store.js` → `userData\hwk\`，形状与站点 `class\data\hwk\` 完全一致），
+  第一次打开从随包副本导一份**基线**；「同步到云端」才走网络。
+- **跨网同步**（`src\sync.js`）：设置面板里的「云端同步」负责更新本机离线副本
+  （写 `userData\offline-site\`，`src\local-server.js` 优先用它，所以**内容更新不必重打 exe**）、
+  上传文件到 Gitee 收件箱、断网队列重试；作业编辑器只上传 `hwk` 那一份。
+  **令牌是打包时注进包内的**（`build\make-sync-config.mjs` → `resources\sync-config.json`），
+  学校那台机器不用登录、不用配任何东西。实现复用 `sync\lib\`（打包时由 `extraResources`
+  放到 `resources\sync\lib`），**不复制第二份**。
+- **811 套装（安装版）**：`build\installer.nsh` 自己建**两个**快捷方式
+  （桌面 + 开始菜单「811 套装」目录）：`班级百宝箱.lnk` 与 `作业编辑器.lnk`（带 `--app=homework`），
+  安装包名 `JinSuper-811-Setup-<版本>.exe`，卸载能清掉这两份快捷方式而**保留**
+  `%APPDATA%\JinSuper`（本机作业数据不会被卸载带走）。`.nsh` 是 UTF-8 **带 BOM** 的，
+  否则中文快捷方式名会乱码。
+- `local-server.js` 对 `.php` 一律回 404：阅读器先试 `p/raw.php`，404 后按设计回落去取 `.md`；
+  真把 `raw.php` 发回去，页面会把 PHP 源码当正文显示。
 
 ---
 
@@ -627,6 +651,36 @@ npm run dist:win   # 打 Windows 免安装 exe → desktop\release\
 
 **回滚**：备份仓库里每个 tag / 提交都是完整快照，要退回去就在那儿 `git checkout <tag>`
 （或 `git switch -c 旧版本 <tag>`），比在本地凭记忆改安全。
+
+### 5.3 跨网同步（第三条线）
+
+学校那台机器只能上 Gitee（连自己的站点、GitHub、微软都打不开），所以发布完之后还要把
+`dist\` 送到学校够得着的地方，学校录的作业也要能回来。这条线**既不是发布也不是备份**：
+
+```bat
+部署.cmd sync check        :: 探通道 + 看云端版本（学校第一次用之前先跑）
+部署.cmd sync push         :: 组装 dist → 写 _sync.json → 推 GitHub Pages + Gitee 镜像
+部署.cmd sync pull         :: 拉收件箱（学校传上来的）→ sync\inbox\<时间戳>\
+部署.cmd sync apply --write:: 按 roots 落进仓库（默认只预览）
+部署.cmd sync home         :: 到家一条龙：pull → apply（确认）→ full
+部署.cmd sync push --to I:\jsd-out   :: 不发网络，镜像到 U 盘目录（兜底）
+```
+
+- **实现只有一份**：`sync\lib\*.mjs`（清单、收件箱、tar.gz、通道、纯规则）。
+  家里那侧是 `build\sync-cli.mjs`（`部署.cmd sync` 委托给它，和 `hwk` 一个套路），
+  控制台是网页「跨网同步」面板 + `控制台.cmd sync`，桌面版是 `desktop\src\sync.js`。
+  加功能三处一起动；四个入口脚本的用法列表一起改。
+- **镜像**就是 `dist\` 的内容（与热铁盒 / GitHub Pages 一致），根上多一个 `_sync.json`
+  （路径 → sha256）。学校那边比对清单只下变化的文件。它在 `KEEP_ROOT` 里保着，
+  否则下一次组装会被 prune 掉。
+- **收件箱**是 `inbox\<时间戳>\<root>.tar.gz` + `_manifest.json`（**最后写**，
+  所以传到一半断线不会被当成完整的一份）。`root` 决定落到仓库哪里：
+  `hwk` → `class\data\hwk\`、`site` → 网站内容、`misc` → `sync\inbox\`。
+- 站点镜像走 `dist\.git` 的**第二个 remote**（`gitee`），复用 `git-dist.mjs` 那套；
+  Gitee 是国内站，**显式清空代理**，别拿 GitHub 的代理去连它。
+- 配额（Gitee 社区版）：单文件 ≤ 50MB、单仓库 ≤ 500MB；本地目录 / U 盘通道是同一套接口的
+  另一个实现，**不认盘符、不自动探测可移动盘**（U 盘不常住电脑）。
+- 完整说明见 **`sync\README.md`**。
 
 ---
 
@@ -751,7 +805,9 @@ CommonMark、GFM 表格/任务列表/删除线/自动链接/脚注、Emoji、上
 | `build\test-tui.mjs` | ink TUI：用假终端渲染，验菜单 / 计划开关 / 状态页 / 执行→结果 / Ctrl+C 中止 | ~8s |
 | `build\test-homework.mjs` | 作业页：811→class 改名与迁移、主页新旧两种数据、时光机多级降级（API → 生产清单 → index.json → 同源）、超时/缓存/并发、一次 5 天分页、清单生成器、控制台与 CI 的装配契约（115 项） | ~12s |
 | `console\test\` | 控制台：文章 / 归档 / 队列 / 片段预览 / 深链接 20 条 + 预览面板 3 条 + 部署作业 9 条 + **作业数据 14 条**（一天一文件、顶目录、备份、JSON 源码、重建清单） | ~6s |
-| `desktop\test\` | 桌面版纯逻辑 16 条：来源表、回落链（默认 / 关档 / 指定来源 / 选离线）、设置归一、URL 归属、离线服务的路径归一与 MIME | ~1s |
+| `build\test-sync.mjs` | 跨网同步 10 条：tar.gz 往返与路径穿越、镜像清单生成/比对、收件箱上传→列出→拉取→apply（dry-run 不写仓库）、分卷读写、作业规则、四个入口脚本都有 sync | ~8s |
+| `console\test\` 之二 | 控制台「跨网同步」面板 5 条：5 条路由、5 个导出、面板与导航、配置不全时不白屏 | ~1s |
+| `desktop\test\` | 桌面版纯逻辑 29 条：来源表、回落链、设置归一、URL 归属、离线服务路径/MIME、**两种模式（--app=）与安装脚本**、**作业本机存储（形状/基线/快照/脏标记/备份）** | ~2s |
 
 ```bash
 部署.cmd check        # 上面全部
@@ -982,6 +1038,7 @@ Windows 上装个系统 Deno（`winget install DenoLand.Deno`），脚本优先�
 | `MANIFEST.md` | **清单规范**：加工具只改 json、字段表、三条硬规则、校验命令 |
 | `build\README.md` | **构建系统详解**：打包器、预渲染、样式合并、对比度脚本、图标生成、部署细节 |
 | `desktop\README.md` | **桌面版（Electron）**：来源与回落规则、两个 WebContentsView 的窗口结构、离线副本、打包与快捷键；要点见 §4.8 |
+| `sync\README.md` | **跨网同步**：Gitee 通道怎么建、四个入口命令、镜像与收件箱格式、配额、U 盘兜底、备案那项选项、排障表；要点见 §5.3 |
 | `console\lib\store.mjs` / `api.mjs` / `render.mjs` | **发布控制台**的实现（sk.json 保形读写、归档流程、预渲染器与「重刷外壳」、接口）；用法见 §4.5 |
 | `console\lib\hwk.mjs` / `console\hwk-cli.mjs` | **作业数据读写**：网页面板与终端入口共用这一份（写一天、顶目录、备份、重建清单）；数据格式见 §4.7 |
 | `build\lib\hwk-index.mjs` / `build\gen-hwk-index.mjs` | **作业清单生成**：`hwk\index.json` + `class\data\index-produce.json`；GitHub Actions 里跑的是它的拷贝，见 §4.7 |
@@ -992,7 +1049,7 @@ Windows 上装个系统 Deno（`winget install DenoLand.Deno`），脚本优先�
 | `jinsuper.rth1.xyz\class\data\hwk-log\index.json` | **作业页更新日志目录**（每条日志同目录下一个 json；只增不改，见 §4.7） |
 | `asset\background\` | **作业页游戏壁纸**（`mc\<宽x高>\wallpaper.png` + `ut.png`，见 §4.7） |
 | `rth-sites.json` | 要发布的站点清单 |
-| `部署.cmd --help` / `控制台.cmd` | 部署命令与选项 / 启动本地控制台 |
+| `部署.cmd --help` / `控制台.cmd` | 部署命令与选项（含 `sync` 跨网同步）/ 启动本地控制台 |
 | `.Skills\retiehe-web\SKILL.md` | 热铁盒平台参考资料 |
 | `F:\@AI\skills\theme-plus\` | 主题相关参考资料（**DSH 全局技能，不在本仓库**；原先在 `.agents\skills\theme-plus`） |
 

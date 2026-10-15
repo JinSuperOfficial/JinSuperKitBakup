@@ -1,4 +1,4 @@
-name: 桌面版安装包（Windows）
+name: 桌面版安装包 · 811 套装（Windows）
 
 # 为什么在 Actions 上打：安装版（NSIS）需要「能跑 Windows 可执行文件」的环境 ——
 # Linux / WSL 上 electron-builder 要借 wine 先烘一个卸载器，本机没有 wine 就打不出来。
@@ -8,9 +8,14 @@ name: 桌面版安装包（Windows）
 #   · 手动：Actions 页面点「Run workflow」，或 `gh workflow run desktop-win.yml --repo JinSuperOfficial/JinSuperKitBakup`
 #   · 打 tag：推 `desktop-v*` 会顺带跑一次
 #
-# 产物在 workflow 的 Artifacts 里（JinSuper-win-x64）：
-#   JinSuper-<版本>-portable.exe   免安装版
-#   JinSuper-Setup-<版本>.exe      安装版（装新版会先卸旧版）
+# 产物在 workflow 的 Artifacts 里（JinSuper-811-win-x64）：
+#   JinSuper-<版本>-portable.exe        免安装版
+#   JinSuper-811-Setup-<版本>.exe       「811 套装」安装版（装新版会先卸旧版，
+#                                       装完桌面/开始菜单各两份快捷方式：班级百宝箱 + 作业编辑器）
+#
+# 同步令牌：CI 里没有 .env，所以走仓库 secrets（可选）——
+#   JINS_GITEE_TOKEN / JINS_GITEE_OWNER / JINS_GITEE_REPO
+# 没配也能打出来，只是桌面版「云端同步」会提示未配置。
 # 传上 GitHub Releases 用 `desktop/build/upload-release.mjs`。
 
 on:
@@ -44,6 +49,19 @@ jobs:
       - name: 装依赖
         run: npm ci
 
+      - name: 注入同步配置（有 secret 才做）
+        shell: bash
+        env:
+          JINS_GITEE_TOKEN: ${{ secrets.JINS_GITEE_TOKEN }}
+          JINS_GITEE_OWNER: ${{ secrets.JINS_GITEE_OWNER }}
+          JINS_GITEE_REPO: ${{ secrets.JINS_GITEE_REPO }}
+        run: |
+          if [ -z "$JINS_GITEE_TOKEN" ]; then
+            echo "没有 JINS_GITEE_TOKEN：这次打出来的包，云端同步面板会提示未配置"
+            exit 0
+          fi
+          node build/make-sync-config.mjs
+
       - name: 打包（免安装 + 安装版）
         run: npx electron-builder --win --x64
         env:
@@ -57,7 +75,7 @@ jobs:
       - name: 上传产物
         uses: actions/upload-artifact@v4
         with:
-          name: JinSuper-win-x64
+          name: JinSuper-811-win-x64
           path: desktop/release/*.exe
           if-no-files-found: error
           retention-days: 30

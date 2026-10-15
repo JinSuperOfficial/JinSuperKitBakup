@@ -28,6 +28,11 @@
 #    ./部署.sh build            只构建     ./部署.sh status   看状态
 #    ./部署.sh bakup --check    只看会备份什么（源码备份，与部署无关）
 #    ./部署.sh hwk              录作业（class/data/hwk/；和控制台「作业数据」面板同一份实现）
+#    ./部署.sh sync check       跨网同步：探通道 + 看云端版本
+#    ./部署.sh sync push        组装 dist → 写清单 → 推 GitHub Pages + Gitee 镜像
+#    ./部署.sh sync pull        拉收件箱（学校传上来的）到 sync/inbox/
+#    ./部署.sh sync apply --dry-run   预览会改仓库里哪些文件
+#    ./部署.sh sync home        到家一条龙：pull → apply（确认）→ full
 #    ./部署.sh --help           全部命令和选项
 #
 #  环境变量（可选）：

@@ -24,11 +24,14 @@
 
 const path = require('node:path');
 const fs = require('node:fs');
-const { app, BaseWindow, WebContentsView, ipcMain, shell, Menu, screen } = require('electron');
+const { app, BaseWindow, WebContentsView, ipcMain, shell, Menu, screen, dialog, nativeTheme } = require('electron');
 
 const { ORIGINS, NAV, DEFAULT_ORIGIN, getOrigin, buildChain } = require('./origins');
 const store = require('./settings-store');
 const localServer = require('./local-server');
+const { modeFromArgv, getMode } = require('./modes');
+const { createHwkStore } = require('./hwk-store');
+const { createSyncService } = require('./sync');
 
 const APP_TITLE = 'JinSuper 百宝箱';
 const BAR_H = 46;
@@ -38,8 +41,17 @@ const SMOKE_DIR = app.isPackaged
   ? path.join(app.getPath('temp'), 'jinsuper-desktop-smoke')
   : path.join(__dirname, '..', '.smoke');
 const IS_SMOKE = process.argv.includes('--smoke');
+/* 冒烟**默认不开窗**：跑测试的时候不要在别人屏幕上闪一个窗口出来。
+   代价是截不了图（这个环境里隐藏窗口 capturePage 会报
+   "Current display surface not available"），所以截图那几步自动跳过。
+   要看窗口和截图：`npm run smoke:show`（= --smoke --show）。
+   窗口本身永远是暗色的：原生主题钉成 dark（见 whenReady）。 */
+const SHOW_WINDOWS = !IS_SMOKE || process.argv.includes('--show');
 const IS_DEV = !app.isPackaged;
 const LOAD_TIMEOUT = 15000;
+/* 这次开哪个窗口：班级百宝箱（浏览）还是作业编辑器（--app=homework）。
+   两个快捷方式指向同一个 exe，差别就在这一个参数上（见 src/modes.js）。 */
+const APP_MODE = IS_SMOKE ? 'browse' : modeFromArgv(process.argv);
 
 /** `--origin=<id>`：这一次运行先用哪个来源（不落盘，给冒烟测试和排障用） */
 const ARG_ORIGIN = (() => {
@@ -352,7 +364,7 @@ function createWindow() {
 
   topbarView.webContents.once('did-finish-load', () => {
     layout();
-    win.show();
+    if (SHOW_WINDOWS) win.show();
     openOrigin(ARG_ORIGIN || settings.originId);
     pushState();
   });
@@ -416,6 +428,250 @@ function openSmart(url) {
     return;
   }
   if (/^(https?|mailto|tel):/i.test(url)) shell.openExternal(url).catch(() => {});
+}
+
+/* ═══════════════════════════════════════════════════
+   作业编辑器（第二种模式）与跨网同步
+   ---------------------------------------------------
+   两个快捷方式 = 同一个 exe 的两种模式（src/modes.js）：
+     · 班级百宝箱：原来的窗口（topbar + 站点 + 设置面板）
+     · 作业编辑器：一个独立小窗口，界面全在 src/ui/hwk/ 里，**不加载站点**，
+       所以在完全断网的学校机器上也能录作业
+   单实例锁保留：两个快捷方式点开的是同一个进程里的两个窗口，设置文件
+   只有一个写者，不会互相覆盖。
+   ═══════════════════════════════════════════════════ */
+
+/** @type {BaseWindow|null} */ let hwkWin = null;
+/** @type {WebContentsView|null} */ let hwkView = null;
+/** @type {ReturnType<typeof createHwkStore>|null} */ let hwkStore = null;
+/** @type {ReturnType<typeof createSyncService>|null} */ let syncService = null;
+
+/** 本机服务（作业存储 + 同步）—— 只建一次 */
+function initServices() {
+  if (!hwkStore) {
+    hwkStore = createHwkStore({
+      dir: path.join(app.getPath('userData'), 'hwk'),
+      baselineDir: path.join(localServer.siteRoot(), 'class', 'data', 'hwk'),
+      outboxDir: path.join(app.getPath('userData'), 'sync', 'outbox'),
+    });
+  }
+  if (!syncService) {
+    syncService = createSyncService({
+      userDataDir: app.getPath('userData'),
+      siteRoot: () => localServer.siteRoot(),
+      projectRoot: path.resolve(__dirname, '..', '..'),
+      log: (m) => console.log('[sync]', m),
+    });
+  }
+  return { hwkStore, syncService };
+}
+
+function hwkLayout() {
+  if (!hwkWin || hwkWin.isDestroyed() || !hwkView) return;
+  const [w, h] = hwkWin.getContentSize();
+  hwkView.setBounds({ x: 0, y: 0, width: w, height: h });
+}
+
+/** 作业编辑器窗口：一个视图铺满，没有 topbar（它不浏览网页） */
+function createHomeworkWindow() {
+  if (hwkWin && !hwkWin.isDestroyed()) {
+    if (hwkWin.isMinimized()) hwkWin.restore();
+    hwkWin.focus();
+    return hwkWin;
+  }
+  const meta = getMode('homework');
+  initServices();
+  hwkStore.seed().catch((e) => console.error('[hwk] 导入基线失败：', e && e.message));
+
+  hwkWin = new BaseWindow({
+    width: meta.width,
+    height: meta.height,
+    minWidth: 420,
+    minHeight: 420,
+    frame: false,
+    show: false,
+    backgroundColor: '#14120E',
+    title: meta.title,
+    autoHideMenuBar: true,
+  });
+  hwkView = makeView(path.join(UI_DIR, 'hwk-preload.js'));
+  hwkWin.contentView.addChildView(hwkView);
+  if (typeof hwkView.setBackgroundColor === 'function') hwkView.setBackgroundColor('#14120E');
+
+  const wc = hwkView.webContents;
+  wc.setWindowOpenHandler(({ url }) => {
+    if (/^https?:/i.test(url)) shell.openExternal(url).catch(() => {});
+    return { action: 'deny' };
+  });
+  wc.on('before-input-event', (event, input) => {
+    if (input.type !== 'keyDown') return;
+    const mod = process.platform === 'darwin' ? input.meta : input.control;
+    if (mod && input.key === 'q') { event.preventDefault(); app.quit(); }
+    if (input.key === 'Escape') { event.preventDefault(); hwkWin.close(); }
+    if (input.key === 'F12') { event.preventDefault(); wc.toggleDevTools(); }
+  });
+  hwkWin.on('resize', hwkLayout);
+  hwkWin.on('closed', () => {
+    hwkWin = null;
+    hwkView = null;
+  });
+  hwkLayout();
+  wc.loadFile(path.join(UI_DIR, 'hwk', 'index.html')).catch((err) => {
+    console.error('[hwk] 界面加载失败：', err && err.message);
+  });
+  wc.once('did-finish-load', () => {
+    if (SHOW_WINDOWS) hwkWin.show();
+  });
+  return hwkWin;
+}
+
+/** 按模式开窗（第二个实例的请求也走这里） */
+function openModeWindow(modeId) {
+  if (modeId === 'homework') return createHomeworkWindow();
+  if (win && !win.isDestroyed()) {
+    if (win.isMinimized()) win.restore();
+    win.focus();
+    return win;
+  }
+  return createWindow();
+}
+
+async function handleHwkAction(action, payload) {
+  const { hwkStore: st, syncService: sy } = initServices();
+  switch (action) {
+    case 'list':
+      return st.list();
+    case 'read':
+      return st.read(payload && payload.id);
+    case 'save': {
+      const saved = await st.save(payload && payload.input);
+      return { ...saved, state: await st.list() };
+    }
+    case 'snapshot': {
+      const snap = await st.snapshot();
+      return { ...snap, state: await st.list() };
+    }
+    case 'sync': {
+      /* 「先同步到本地」→ 再上传：本地快照先落盘，上传失败也不丢 */
+      const snap = await st.snapshot();
+      if (!snap.files.length) return { ok: false, reason: '本机还没有作业内容' };
+      try {
+        const res = await sy.upload({ root: 'hwk', files: [snap.dir] });
+        st.markSynced(res.stamp);
+        return { ok: true, uploaded: res, state: await st.list() };
+      } catch (e) {
+        const queued = sy.enqueue({ root: 'hwk', files: [snap.dir] });
+        return { ok: false, queued, error: String(e && e.message ? e.message : e), state: await st.list() };
+      }
+    }
+    case 'flush': {
+      try {
+        const done = await sy.flushQueue();
+        if (done.length) st.markSynced(done[done.length - 1].stamp);
+        return { ok: true, done, state: await st.list() };
+      } catch (e) {
+        return { ok: false, error: String(e && e.message ? e.message : e), state: await st.list() };
+      }
+    }
+    case 'syncState':
+      return sy.state();
+    case 'openDataDir':
+      shell.openPath(st.dir).catch(() => {});
+      return { ok: true, dir: st.dir };
+    case 'close':
+      if (hwkWin) hwkWin.close();
+      return { ok: true };
+    default:
+      return { ok: false, error: '未知操作：' + action };
+  }
+}
+
+/** 设置面板里的「云端同步」用这些（浏览窗口那一侧）。
+    动作名一律带 sync 前缀，IPC 那边一眼能分出来。 */
+async function handleSyncAction(action, payload) {
+  const { syncService: sy } = initServices();
+  switch (action) {
+    case 'syncState':
+      return sy.state();
+    case 'syncUpdateSite': {
+      try {
+        const res = await sy.updateSite({ onProgress: (p) => sendSyncProgress(p) });
+        if (res.ok) {
+          /* 离线副本换了 → 让站点页面重新加载，看到的立刻是新版 */
+          try {
+            if (currentOriginId === 'local') openOrigin('local');
+          } catch { /* 没在离线副本上就算了 */ }
+        }
+        return { ...res, state: await sy.state() };
+      } catch (e) {
+        return { ok: false, error: String(e && e.message ? e.message : e), state: await sy.state() };
+      }
+    }
+    case 'syncFlush':
+      try {
+        const done = await sy.flushQueue({ onProgress: (p) => sendSyncProgress(p) });
+        return { ok: true, done, state: await sy.state() };
+      } catch (e) {
+        return { ok: false, error: String(e && e.message ? e.message : e), state: await sy.state() };
+      }
+    case 'syncUpload': {
+      const root = payload && payload.root === 'hwk' ? 'hwk' : (payload && payload.root === 'site' ? 'site' : 'misc');
+      const picked = await dialog.showOpenDialog(win || hwkWin, {
+        title: '选择要传到云端收件箱的文件',
+        buttonLabel: '上传',
+        properties: ['openFile', 'multiSelections'],
+      });
+      if (picked.canceled || !picked.filePaths.length) return { ok: false, canceled: true };
+      return uploadToInbox(root, picked.filePaths);
+    }
+    case 'syncUploadPaths': {
+      const root = payload && payload.root ? payload.root : 'misc';
+      return uploadToInbox(root, (payload && payload.files) || []);
+    }
+    case 'syncSaveSettings': {
+      const saved = sy.settings.save(payload || {});
+      return { ok: true, settings: saved, state: await sy.state() };
+    }
+    case 'syncOpenFolder':
+      shell.openPath(sy.offlineDir).catch(() => {});
+      return { ok: true, dir: sy.offlineDir };
+    case 'openUrl': {
+      const url = String((payload && payload.url) || '');
+      /* 只放行备案办理的官方入口 —— 别让界面变成随便开网页的后门 */
+      if (/^https:\/\/([a-z0-9-]+\.)*(miit\.gov\.cn|beian\.miit\.gov\.cn)\//i.test(url)) {
+        shell.openExternal(url).catch(() => {});
+        return { ok: true };
+      }
+      return { ok: false, error: '只允许打开备案官方站点' };
+    }
+    default:
+      return { ok: false, error: '未知操作：' + action };
+  }
+}
+
+async function uploadToInbox(root, files) {
+  const { syncService: sy } = initServices();
+  try {
+    const res = await sy.upload({ root, files, onProgress: (p) => sendSyncProgress(p) });
+    return { ok: true, uploaded: res, state: await sy.state() };
+  } catch (e) {
+    const queued = (() => {
+      try {
+        return sy.enqueue({ root, files });
+      } catch {
+        return null;
+      }
+    })();
+    return { ok: false, queued, error: String(e && e.message ? e.message : e), state: await sy.state() };
+  }
+}
+
+function sendSyncProgress(p) {
+  try {
+    panelView?.webContents.send('sync:progress', p);
+  } catch {
+    /* 面板已经关了 */
+  }
 }
 
 /* ─────────────────────────── 操作 ─────────────────────────── */
@@ -639,7 +895,17 @@ async function waitIdle(wc, ms) {
   await new Promise((r) => setTimeout(r, 250));
 }
 
+/** 隐藏窗口下只提示一次「跳过截图」，别把冒烟日志刷成一堆失败 */
+let shotNoticeShown = false;
+
 async function shot(view, name) {
+  if (!SHOW_WINDOWS) {
+    if (!shotNoticeShown) {
+      shotNoticeShown = true;
+      console.log('[smoke] 窗口是隐藏的（不闪屏）——跳过所有截图；要看图跑 npm run smoke:show');
+    }
+    return;
+  }
   try {
     const img = await view.webContents.capturePage();
     const file = path.join(SMOKE_DIR, name);
@@ -669,6 +935,19 @@ async function runSmoke() {
   await waitIdle(panelView.webContents, 8000);
   await new Promise((r) => setTimeout(r, 1200));
   await shot(panelView, '3-settings.png');
+  /* 滚到底再拍一张：设置面板下半部分是新加的「云端同步」（云端/本机版本、
+     访问方式含备案那一项、令牌与仓库），不滚就看不到它到底画出来没有 */
+  await panelView.webContents.executeJavaScript(
+    "(function(){var el=document.getElementById('syncChannel');if(el&&el.scrollIntoView)el.scrollIntoView({block:'start'});"
+    + "var b=document.querySelector('.pb');if(b)b.scrollTop=Math.max(0,b.scrollTop-56);return true;})()",
+  ).catch(() => {});
+  await new Promise((r) => setTimeout(r, 500));
+  await shot(panelView, '3b-settings-sync.png');
+  await panelView.webContents.executeJavaScript(
+    "(function(){var b=document.querySelector('.pb');if(b)b.scrollTop=b.scrollHeight;return true;})()",
+  ).catch(() => {});
+  await new Promise((r) => setTimeout(r, 500));
+  await shot(panelView, '3c-settings-beian.png');
   // 再走一趟「班级工具箱」，确认 topbar 换页正常
   await handleAction('goto', { id: 'class' });
   await waitIdle(pageView.webContents, 20000);
@@ -707,8 +986,47 @@ async function runSmoke() {
   await waitIdle(pageView.webContents, 25000);
   console.log('[smoke] 切回主站 →', publicState().originId, publicState().mode, pageView.webContents.getURL());
 
+  /* 顺带把「作业编辑器」那一半也走一遍：它是第二个快捷方式
+     （同一个 exe 加 --app=homework），界面与本地存储都得能跑。 */
+  createHomeworkWindow();
+  await runHwkSmoke();
+
   console.log('[smoke] 完成');
   app.quit();
+}
+
+/** 冒烟：作业编辑器那一半（第二个快捷方式 = 同一个 exe 加 --app=homework） */
+async function runHwkSmoke() {
+  fs.mkdirSync(SMOKE_DIR, { recursive: true });
+  console.log('[smoke] 作业编辑器：等界面……');
+  await waitIdle(hwkView.webContents, 20000);
+  await new Promise((r) => setTimeout(r, 900));
+  await shot(hwkView, '6-hwk.png');
+  /* 真写一天进去，看本机文件是不是按同一套规则落下来了 */
+  const written = await hwkView.webContents.executeJavaScript(`(function () {
+    var d = document.getElementById('date');
+    d.value = '2026-10-15'; d.dispatchEvent(new Event('change'));
+    document.getElementById('notes').value = '冒烟测试写的';
+    var rows = document.querySelectorAll('#subjects .subj');
+    if (rows[0]) {
+      var inputs = rows[0].querySelectorAll('input, textarea');
+      inputs[0].value = '语文'; inputs[0].dispatchEvent(new Event('input'));
+      inputs[1].value = '背上今天的古诗'; inputs[1].dispatchEvent(new Event('input'));
+    }
+    document.getElementById('btnSave').click();
+    return new Promise(function (resolve) {
+      setTimeout(function () {
+        resolve({
+          status: document.getElementById('status').textContent,
+          days: document.querySelectorAll('#days li').length,
+          firstDay: (document.querySelector('#days b') || {}).textContent || ''
+        });
+      }, 1500);
+    });
+  })()`);
+  console.log('[smoke] 作业编辑器：', JSON.stringify(written));
+  await shot(hwkView, '7-hwk-saved.png');
+  console.log('[smoke] 作业编辑器完成');
 }
 
 /* ─────────────────────────── 生命周期 ─────────────────────────── */
@@ -716,11 +1034,9 @@ async function runSmoke() {
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on('second-instance', () => {
-    if (win) {
-      if (win.isMinimized()) win.restore();
-      win.focus();
-    }
+  app.on('second-instance', (_e, argv) => {
+    /* 第二个快捷方式点开时，argv 里带着它的 --app=…：开（或聚焦）对应那个窗口 */
+    openModeWindow(modeFromArgv(argv));
   });
 
   app.setAppUserModelId('xyz.jinsuper.desktop');
@@ -736,11 +1052,23 @@ if (!app.requestSingleInstanceLock()) {
     settings = store.load();
     app.userAgentFallback = CHROME_UA;
     Menu.setApplicationMenu(null);
+    /* 桌面版自带界面（topbar / 设置 / 作业编辑器）只有暗色一套，
+       站点主题是「跟随系统」——系统是亮色时，窗口里就是一片亮底，
+       和外壳不是一套。这里把原生主题钉成 dark，站点就会走它的暗色分支
+       （不是往页面里注入样式，只是告诉 Chromium「系统是暗的」）。 */
+    nativeTheme.themeSource = 'dark';
 
     ipcMain.handle('app:getState', () => publicState());
-    ipcMain.handle('app:action', (_e, action, payload) => handleAction(action, payload));
+    ipcMain.handle('app:action', (_e, action, payload) => {
+      const name = String(action || '');
+      /* 「云端同步」那几条走另一条处理链（浏览窗口的设置面板发起的） */
+      if (name.startsWith('sync') || name === 'openUrl') return handleSyncAction(name, payload);
+      return handleAction(name, payload);
+    });
+    ipcMain.handle('hwk:action', (_e, action, payload) => handleHwkAction(action, payload));
 
-    createWindow();
+    if (APP_MODE === 'homework') createHomeworkWindow();
+    else createWindow();
     if (IS_SMOKE) {
       pageView.webContents.once('did-finish-load', () => {
         runSmoke().catch((err) => {
@@ -751,7 +1079,9 @@ if (!app.requestSingleInstanceLock()) {
     }
 
     app.on('activate', () => {
-      if (!win) createWindow();
+      if (APP_MODE === 'homework') {
+        if (!hwkWin) createHomeworkWindow();
+      } else if (!win) createWindow();
     });
   });
 

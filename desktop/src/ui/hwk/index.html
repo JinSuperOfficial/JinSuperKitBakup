@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>作业编辑器 · JinSuper</title>
+<link rel="stylesheet" href="../base.css">
+<link rel="stylesheet" href="hwk.css">
+</head>
+<body>
+  <header class="bar" id="bar">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M6 3.5h9.5L19 7v13.5H6z"/><path d="M9 11h7M9 14.5h7"/>
+      </svg>
+      <b>作业编辑器</b>
+      <span class="sub" id="today"></span>
+    </div>
+    <div class="bar-right">
+      <span class="pill" id="netPill" title="离线也能录，联网后再点「同步到云端」">本地优先</span>
+      <button class="icon" id="btnData" title="打开本机数据目录" aria-label="打开数据目录">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M3 7.5h6l1.6 2H21v9.5H3z"/></svg>
+      </button>
+      <button class="icon" id="btnClose" title="关闭（Esc）" aria-label="关闭">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="left">
+      <div class="grp">
+        <div class="grp-h"><h2>是哪一天</h2><em id="hintId"></em></div>
+        <div class="row">
+          <label class="field">
+            <span>日期</span>
+            <input type="date" id="date">
+          </label>
+          <label class="field">
+            <span>标题</span>
+            <input type="text" id="title" placeholder="留空就按日期自动生成">
+          </label>
+        </div>
+        <div class="quick" id="quick"></div>
+      </div>
+
+      <div class="grp">
+        <div class="grp-h"><h2>各科作业</h2><em>空着的不会写进去</em></div>
+        <div id="subjects"></div>
+        <button class="add" id="btnAddSubject" type="button">＋ 加一科</button>
+      </div>
+
+      <div class="grp">
+        <div class="grp-h"><h2>笔记</h2><em>选填</em></div>
+        <textarea id="notes" rows="3" placeholder="要提醒自己的事"></textarea>
+      </div>
+
+      <div class="actions">
+        <button class="btn primary" id="btnSave" type="button">保存到本地</button>
+        <button class="btn" id="btnSync" type="button">同步到云端</button>
+        <span class="status" id="status"></span>
+      </div>
+    </section>
+
+    <aside class="right">
+      <div class="grp-h"><h2>本机已有</h2><em id="count"></em></div>
+      <ul class="days" id="days"></ul>
+      <p class="tip" id="tip">编辑内容先存在这台机器上（userData/hwk），联网后点「同步到云端」，家里 <code>部署.cmd sync pull</code> 就能取到。</p>
+    </aside>
+  </main>
+</body>
+<script src="hwk.js"></script>
+</html>

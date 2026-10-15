@@ -672,7 +672,9 @@ console.log('\n── E1. 控制台 / CI 那条链接上了没有 ──');
     /hwk-index\.yml/.test(push) && /hwk-index\.mjs/.test(push) && /GITHUB_FILES/.test(push));
   const files = fs.readFileSync(path.join(PROJECT, 'build/lib/deploy-files.mjs'), 'utf8');
   check('组装不会把 dist/.github 清掉（KEEP_ROOT 里保住了）',
-    /KEEP_ROOT = new Set\(\['CNAME', '\.nojekyll', '\.gitignore', '\.github'\]\)/.test(files));
+    /KEEP_ROOT = new Set\(\[[^\]]*'\.github'[^\]]*\]\)/.test(files));
+  check('跨网同步的镜像清单也在 KEEP_ROOT 里（组装不会把它删掉）',
+    /KEEP_ROOT = new Set\(\[[^\]]*'_sync\.json'[^\]]*\]\)/.test(files));
   const build = fs.readFileSync(path.join(PROJECT, 'build/build.mjs'), 'utf8');
   check('构建步骤会重建作业清单（手拷一份文件也能被收进目录）', /hwk-index\.mjs/.test(build));
   const verify = fs.readFileSync(path.join(PROJECT, 'build/verify-manifests.mjs'), 'utf8');

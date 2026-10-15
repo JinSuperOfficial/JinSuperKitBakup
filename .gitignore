@@ -41,3 +41,9 @@ desktop.ini
 
 # Windows 下载标记（ADS 泄漏成真文件，带冒号，Windows 上根本签不出来）
 *:Zone.Identifier
+
+# 跨网同步：打包时注进去的配置（含令牌）与本地收件箱/缓存
+desktop/build/sync-config.json
+sync/inbox/
+sync/cache/
+console/logs/

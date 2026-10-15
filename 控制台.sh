@@ -26,6 +26,12 @@
 #    ./控制台.sh server         只起 headless 预览服务（不要界面）
 #    ./控制台.sh hwk            在终端里录作业（和网页「作业数据」面板同一份实现）
 #    ./控制台.sh hwk --json     直接粘 JSON 源码；--list 看有哪几天；--web 打开网页版
+#    ./控制台.sh sync <子命令>  跨网同步（和「部署.sh sync」是同一份实现）：
+#                               check 探通道 / push 推 Gitee 镜像 / pull 拉收件箱
+#                               apply 落进仓库（默认只预览）/ home 到家一条龙
+#
+#  四个入口（部署.cmd/.sh、控制台.cmd/.sh）的用法列表要一起改 ——
+#  它们说的是同一个功能，不许只更新一半。
 #
 #  环境变量（可选）：
 #    JINS_NODE=/path/to/node    指定用哪个 node

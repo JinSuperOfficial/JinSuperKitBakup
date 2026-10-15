@@ -1,0 +1,20 @@
+{
+  "provider": "gitee",
+  "gitee": {
+    "owner": "jinsuper",
+    "repo": "jinsupercn-sync",
+    "branch": "main",
+    "inboxBranch": "inbox",
+    "visibility": "private",
+    "publicBase": ""
+  },
+  "local": {
+    "dir": ""
+  },
+  "roots": {
+    "hwk": "jinsuper.rth1.xyz/class/data/hwk",
+    "site": "jinsuper.rth1.xyz",
+    "misc": "sync/inbox"
+  },
+  "exclude": []
+}

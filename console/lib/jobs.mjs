@@ -166,7 +166,7 @@ export function startJob(o = {}, deps = {}) {
   const id = newId();
   const logFile = logFileOf(id);
   fs.mkdirSync(LOG_DIR, { recursive: true });
-  fs.writeFileSync(logFile, `# ${label}\n# ${new Date().toLocaleString()} · node build/run-pipeline.mjs ${argv.slice(1).join(' ')}\n\n`);
+  fs.writeFileSync(logFile, `# ${label}\n# ${new Date().toLocaleString()} · node ${argv.map((a) => path.relative(workspaceRoot, a) || a).join(' ')}\n\n`);
 
   const job = {
     id,

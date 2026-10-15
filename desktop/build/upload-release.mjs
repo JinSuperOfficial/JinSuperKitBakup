@@ -38,8 +38,11 @@ const valueOf = (name) => {
 const pkg = JSON.parse(fs.readFileSync(path.join(appDir, 'package.json'), 'utf8'));
 const version = pkg.version;
 
+/* 811 套装改过名：安装版现在是 JinSuper-811-Setup-<版本>.exe。
+   老名字也留着匹配 —— 老的 release/ 里可能还躺着上一版产物，别装作看不见。 */
 const files = [
   path.join(appDir, 'release', `JinSuper-${version}-portable.exe`),
+  path.join(appDir, 'release', `JinSuper-811-Setup-${version}.exe`),
   path.join(appDir, 'release', `JinSuper-Setup-${version}.exe`),
 ].filter((f) => fs.existsSync(f));
 

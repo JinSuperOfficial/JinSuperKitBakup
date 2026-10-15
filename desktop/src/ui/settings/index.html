@@ -55,6 +55,63 @@
       </section>
 
       <section class="grp">
+        <h2>云端同步（学校那台机器靠它取件）</h2>
+        <p class="hint" id="syncChannel">正在读取…</p>
+        <div class="syncbox">
+          <div class="syncrow">
+            <span class="row-main">
+              <b>云端版本</b>
+              <em id="syncCloud">—</em>
+            </span>
+            <span class="row-main">
+              <b>本机离线副本</b>
+              <em id="syncLocal">—</em>
+            </span>
+          </div>
+          <p class="hint" id="syncDiff"></p>
+          <div class="syncbtns">
+            <button class="btn" data-sync="check">检查更新</button>
+            <button class="btn" data-sync="updateSite">更新离线副本</button>
+            <button class="btn" data-sync="upload">上传文件到云端</button>
+            <button class="btn" data-sync="flush">重试队列</button>
+          </div>
+          <p class="hint" id="syncMsg"></p>
+        </div>
+
+        <h3 class="sub">访问方式（要不要备案）</h3>
+        <div class="opts" id="syncAccess"></div>
+        <p class="hint" id="syncAccessHint">Gitee 走的是国内域名，**不需要备案**；只有当你把镜像挂到自己的域名 / 国内对象存储的自定义域名上，才要办 ICP 备案。</p>
+        <div class="beian" id="beianBox" hidden>
+          <b>备案怎么办（只在你选了自定义域名时才需要）</b>
+          <ul>
+            <li>前提：域名已实名、挂在境内服务器或境内对象存储上；</li>
+            <li>材料：主体证件、域名证书、负责人照片、网站备案信息表；</li>
+            <li>入口：工信部备案系统（下面按钮打开），一般 7–20 个工作日；</li>
+            <li>没备案也能用：保持「Gitee（免备案）」这一项就行。</li>
+          </ul>
+          <button class="btn" data-sync="openBeian">打开备案办理入口</button>
+        </div>
+
+        <h3 class="sub">令牌与仓库（打包时已经带好了，一般不用改）</h3>
+        <label class="field">
+          <span>Gitee 仓库（owner/repo）</span>
+          <input type="text" id="syncRepo" placeholder="例如 JinSuperOfficial/jinsuper-sync" autocomplete="off">
+        </label>
+        <label class="field">
+          <span>访问令牌（只给这个仓库权限；明文存在本机设置里）</span>
+          <input type="password" id="syncToken" placeholder="留空则用打包时带进来的令牌" autocomplete="off">
+        </label>
+        <label class="field">
+          <span>自定义域名（选了要备案的那种访问方式才用得上，可留空）</span>
+          <input type="text" id="syncBase" placeholder="https://cdn.example.com" autocomplete="off">
+        </label>
+        <div class="syncbtns">
+          <button class="btn" data-sync="save">保存这些设置</button>
+          <button class="btn" data-sync="openFolder">打开离线副本目录</button>
+        </div>
+      </section>
+
+      <section class="grp">
         <h2>关于</h2>
         <dl class="kv">
           <dt>当前地址</dt>

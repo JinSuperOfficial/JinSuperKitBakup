@@ -79,7 +79,30 @@ F:\@AI\skills\theme-plus\references\circle_angle.md
   或加样式钩子；topbar / 设置 / 错误页的界面全在 `desktop/src/ui/` 里，和站点 CSS 隔离
 - 来源表与回落链只有一份：`desktop/src/origins.js`（纯逻辑，`cd desktop && node --test`）
 - 离线副本走本地 `http://127.0.0.1`，**不是 `file://`** —— 清单是 `fetch` 出来的，`file://` 下会被 CORS 拦掉
-- 用法 / 打包 / 快捷键见 **`desktop/README.md`**，要点见 `project.md` §4.8
+- **界面固定暗色 + 冒烟不开窗**：启动时 `nativeTheme.themeSource = 'dark'`（自带界面只有暗色一套，
+  站点却跟随系统；不许往页面注入样式，只是告诉 Chromium「系统是暗的」）；
+  `npm run smoke` 默认**不显示窗口**（别在别人屏幕上闪），要看图用 `npm run smoke:show`
+- 本地服务对 `.php` 一律回 404（不跑 PHP）：阅读器取原文的第一选择是 `p/raw.php`，
+  404 之后它才会按设计回落去直接取 `.md`，否则页面会把 PHP 源码当正文
+- **两种模式 = 同一个 exe + 一个参数**（`desktop/src/modes.js`）：
+  `班级百宝箱`（浏览）与 `作业编辑器`（`--app=homework`，离线录作业，**先写本机**）。
+  两个快捷方式由 `desktop/build/installer.nsh` 建（NSIS，UTF-8 **带 BOM**），
+  安装包叫 `JinSuper-811-Setup-<版本>.exe`（「811 套装」）
+- 用法 / 打包 / 快捷键 / 同步面板见 **`desktop/README.md`**，要点见 `project.md` §4.8
+
+## 跨网同步（`sync/`）
+
+学校那台机器只能上 Gitee，所以家里发布完之后还要把产物同步过去，学校录的作业也要回来。
+这条线与发布、备份都无关，**实现只有一份**：`sync/lib/*.mjs`。
+
+- 家里：`部署.cmd sync check|push|pull|apply|home`（`build/sync-cli.mjs`）
+- 控制台：网页「跨网同步」面板 + `控制台.cmd sync …`（和上面同一份实现，别在 `console/` 里重写）
+- 桌面版：设置里的「云端同步」+ 作业编辑器的「同步到云端」（`desktop/src/sync.js`）
+- **加功能要三处一起动**：CLI、控制台面板、桌面版；四个入口脚本
+  （`部署.cmd` / `部署.sh` / `控制台.cmd` / `控制台.sh`）的用法列表也要一起改
+- 令牌从 `.env`（`JINS_GITEE_TOKEN`）来；桌面版是**打包时注进包内**的
+  （`desktop/build/make-sync-config.mjs` → `resources/sync-config.json`，这个文件不许入库）
+- 细节、配额、排障见 **`sync/README.md`**
 
 ## 提交与备份（改完代码之后）
 

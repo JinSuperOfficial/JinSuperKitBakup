@@ -35,6 +35,21 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { exists, isFile, siteRoot, workspaceRoot } from './paths.mjs';
 import { backupToState, readJsonSafe, writeAtomic } from './store.mjs';
+/* 纯规则只有一份，住在 sync/lib/hwk-schema.mjs —— 桌面版的「作业编辑器」
+   （在学校那台机器上离线录作业）用的也是它，所以两边写出来的文件一模一样。
+   这里只保留「往仓库里读写」的那部分。 */
+import {
+  ID_RE, RESERVED, NOTES_KEY, EGG_KEY, BG_KNOWN, DEFAULT_SUBJECTS,
+  nameFor, dumpJson, parseLoose, isBlank,
+  normalizeDate, idFromDate, dateFromId, todayOf,
+  normalizeEntry, mergeIndex, normalizeInput,
+} from '../../sync/lib/hwk-schema.mjs';
+
+/* 再转出去：控制台里别处一直是从本模块 import 这些名字的（外部接口不变） */
+export {
+  ID_RE, RESERVED, NOTES_KEY, EGG_KEY, BG_KNOWN, DEFAULT_SUBJECTS,
+  nameFor, normalizeDate, idFromDate, dateFromId, normalizeInput,
+};
 
 /* ═══════════════════════════════════════════════════
    位置与常量
@@ -53,92 +68,16 @@ export const PRODUCE_FILE = path.join(siteRoot, 'class', 'data', 'index-produce.
 /** 迁移前的老文件：只读它、只往里补历史，不从它读「今天」 */
 export const LEGACY_FILE = path.join(siteRoot, 'class', 'data', 'homework.json');
 
-/** id 会变成文件名，所以只放 ASCII：没中文、没空格、没路径分隔符 */
-export const ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,59}$/;
-
-/**
- * 记录里的保留字。**必须和页面 `homework.html` 的 `INLINE_RESERVED` 对齐**：
- * 页面把「不在这个表里的顶层键」一律当科目画成一行，多一个保留字就多一行假科目，
- * 少一个科目就被吞掉。
- */
-export const RESERVED = [
-  'id', 'date', 'title', 'bg', 'name', 'file',
-  'subjects', 'notesId', 'eggId', 'homework', 'notes', 'egg', '彩蛋',
-];
-
-/** 笔记与彩蛋是记录里的特殊键（笔记：页面底部那块；彩蛋：竖排字） */
-export const NOTES_KEY = '笔记';
-export const EGG_KEY = '彩蛋';
-
-/** 页面认得的背景档位（认不出的值页面会退回默认，所以这里只提醒、不拦） */
-export const BG_KNOWN = [
-  'default', 'auto', '随机', 'game-mc', 'game-ut', 'egg',
-  'bg_grid', 'bg_ink', 'bg_map', 'bg_botanical',
-];
-
-/** 面板/终端预填的科目清单（只是提示，写进去的以用户填的为准） */
-export const DEFAULT_SUBJECTS = ['语文', '数学', '英语', '科学', '社会', '班务'];
-
-const INDENT = '\t';
-const MAX_TEXT = 20000;
-
 const err = (msg, status = 400) => { const e = new Error(msg); e.status = status; return e; };
 
 /* ═══════════════════════════════════════════════════
    小工具
    ═══════════════════════════════════════════════════ */
 
-export const nameFor = (id) => 'hwk-' + id + '.json';
 export const fileFor = (id) => path.join(HWK_DIR, nameFor(id));
 
 /** 站点相对路径（给前端的 href 用；Windows 上也要是正斜杠） */
 export const relFor = (id) => HWK_REL + '/' + nameFor(id);
-
-/** 写 JSON：制表符缩进 + 一个换行，和现有那几个文件逐字节一致 */
-const dumpJson = (data) => JSON.stringify(data, null, INDENT) + '\n';
-
-/** 手写的 JSON 常有多余逗号，跟页面 `parseLooseJson()` 一个口径 */
-function parseLoose(text) {
-  return JSON.parse(String(text).replace(/,\s*([}\]])/g, '$1'));
-}
-
-const isBlank = (v) => v === null || v === undefined || String(v).trim() === '';
-
-/** `2026-10-10` / `2026/10/10` / `2026.10.10` → `2026-10-10`；不认识就返回 '' */
-export function normalizeDate(raw) {
-  const s = String(raw == null ? '' : raw).trim();
-  if (!s) return '';
-  const m = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/.exec(s);
-  if (!m) return '';
-  const [, y, mo, d] = m;
-  const mm = String(mo).padStart(2, '0');
-  const dd = String(d).padStart(2, '0');
-  const dt = new Date(`${y}-${mm}-${dd}T00:00:00`);
-  if (Number.isNaN(dt.getTime())) return '';
-  /* Date 会把 2 月 31 日滚到 3 月，滚过的就当写错了 */
-  if (dt.getFullYear() !== Number(y) || dt.getMonth() + 1 !== Number(mm) || dt.getDate() !== Number(dd)) return '';
-  return `${y}-${mm}-${dd}`;
-}
-
-/** 日期 → 默认 id：2026-10-11 → n261011（沿用现有那份 `n261010` 的命名） */
-export function idFromDate(date) {
-  const d = normalizeDate(date);
-  if (!d) return '';
-  return 'n' + d.slice(2).replace(/-/g, '');
-}
-
-/** id → 日期：n261011 → 2026-10-11（只认这个形状，认不出返回 ''） */
-export function dateFromId(id) {
-  const m = /^n(\d{2})(\d{2})(\d{2})$/.exec(String(id || ''));
-  if (!m) return '';
-  return normalizeDate(`20${m[1]}-${m[2]}-${m[3]}`);
-}
-
-const todayOf = () => {
-  const d = new Date();
-  const p = (x) => String(x).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-};
 
 /* ═══════════════════════════════════════════════════
    读
@@ -150,20 +89,6 @@ function readIndexRaw() {
   const list = Array.isArray(data) ? data : (data && Array.isArray(data.entries) ? data.entries : null);
   if (!list) throw err('index.json 不是数组（应该是裸数组或 { entries: […] }）', 500);
   return list;
-}
-
-/** 一条目录记录 → 归一（只要能拼出文件名就算数） */
-function normalizeEntry(raw) {
-  const e = (raw && typeof raw === 'object') ? raw : { name: raw };
-  const name = String(e.name || '').trim();
-  const id = String(e.id || name.replace(/^hwk-/, '').replace(/\.json$/, '')).trim();
-  if (!id) return null;
-  return {
-    id,
-    name: name || nameFor(id),
-    date: normalizeDate(e.date) || dateFromId(id),
-    title: String(e.title || ''),
-  };
 }
 
 const byDateDesc = (a, b) =>
@@ -249,136 +174,8 @@ export function readRecord(id) {
 }
 
 /* ═══════════════════════════════════════════════════
-   归一：表单 / JSON 源码 → 一条记录
+   写（归一的规则在 sync/lib/hwk-schema.mjs，这里只管往仓库里落）
    ═══════════════════════════════════════════════════ */
-
-/** 表单里的科目：数组 [{name,text}] 或对象 {name: text} 都收 */
-function subjectsFromInput(input) {
-  const out = [];
-  const push = (name, text) => {
-    const n = String(name == null ? '' : name).trim();
-    if (!n || isBlank(text)) return;
-    out.push([n, String(text)]);
-  };
-  const src = input.subjects;
-  if (Array.isArray(src)) src.forEach((s) => push(s && s.name, s && s.text));
-  else if (src && typeof src === 'object') Object.entries(src).forEach(([k, v]) => push(k, v));
-  return out;
-}
-
-/**
- * 输入 → { record, meta }
- * ---------------------------------------------------
- * `record` 就是最终要写进 `hwk-<id>.json` 的对象（键序：id/date/title/bg/各科/笔记/彩蛋）。
- * 校验不通过时抛 400，把**所有**问题一次说完，别让人改一条报一条。
- */
-export function normalizeInput(input = {}) {
-  const mode = input.mode === 'json' ? 'json' : 'form';
-  const problems = [];
-  let raw = {};
-
-  if (mode === 'json') {
-    const text = String(input.source == null ? '' : input.source).trim();
-    if (!text) throw err('JSON 源码是空的');
-    try {
-      raw = parseLoose(text);
-    } catch (e) {
-      throw err('JSON 解析不了：' + e.message);
-    }
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw err('JSON 顶层得是一个对象');
-  }
-
-  /* ── 日期：表单优先，其次记录里的，最后拿 id 反推；一路都没给就默认今天 ── */
-  let date = normalizeDate(input.date) || normalizeDate(raw.date);
-  const idGiven = String(input.id || raw.id || '').trim();
-  if (!date && idGiven) date = dateFromId(idGiven);
-  if (!date) {
-    if (isBlank(input.date) && isBlank(raw.date) && !idGiven) date = todayOf();
-    else problems.push('日期要写成 2026-10-11 这样（也可以用 / 或 . 分隔）');
-  }
-
-  /* ── id ── */
-  const id = String(input.id || raw.id || (date ? idFromDate(date) : '')).trim();
-  if (!id) problems.push('缺 id（留空的话按日期自动生成，形如 n261011）');
-  else if (!ID_RE.test(id)) problems.push(`id「${id}」不能当文件名：只用字母数字和 . _ -，别用中文/空格/斜杠`);
-
-  /* ── 标题 ── */
-  const title = String(input.title || raw.title || (date ? '作业-' + date.replace(/-/g, '') : '')).trim();
-  if (!title) problems.push('标题不能空');
-  if (title.length > 120) problems.push('标题太长了（>120 字）');
-
-  /* ── 正文：JSON 模式下顶层非保留键就是科目 ── */
-  const subjects = [];
-  if (mode === 'json') {
-    Object.keys(raw).forEach((k) => {
-      if (RESERVED.includes(k) || k === NOTES_KEY) return;
-      if (k.slice(0, 2) === '__') return;               /* 内部记账键 */
-      if (isBlank(raw[k])) return;
-      if (typeof raw[k] !== 'string') { problems.push(`科目「${k}」的正文得是字符串`); return; }
-      subjects.push([k, raw[k]]);
-    });
-  }
-  subjectsFromInput(input).forEach(([n, t]) => {
-    if (RESERVED.includes(n) || n === NOTES_KEY) { problems.push(`「${n}」是保留字，不能当科目名`); return; }
-    const at = subjects.findIndex(([x]) => x === n);
-    if (at >= 0) subjects[at][1] = t; else subjects.push([n, t]);
-  });
-
-  const notes = !isBlank(input.notes) ? String(input.notes)
-    : (!isBlank(raw[NOTES_KEY]) ? String(raw[NOTES_KEY]) : '');
-  const egg = !isBlank(input.egg) ? String(input.egg)
-    : (!isBlank(raw[EGG_KEY]) ? String(raw[EGG_KEY]) : '');
-
-  for (const [n, t] of subjects) {
-    if (n.length > 20) problems.push(`科目名太长了：「${n}」`);
-    if (t.length > MAX_TEXT) problems.push(`「${n}」的正文太长了（>${MAX_TEXT} 字）`);
-  }
-  if (notes.length > MAX_TEXT) problems.push(`笔记太长了（>${MAX_TEXT} 字）`);
-  if (!subjects.length && !notes) problems.push('一个科目都没填（至少写一科，或者写笔记）');
-
-  /* ── 背景 ── */
-  const bgRaw = !isBlank(input.bg) ? input.bg : raw.bg;
-  let bgValue = 'default';
-  const notesOut = [];
-  if (bgRaw !== null && bgRaw !== undefined && !isBlank(bgRaw)) {
-    bgValue = typeof bgRaw === 'object'
-      ? String(bgRaw.value !== undefined ? bgRaw.value : (bgRaw.slug !== undefined ? bgRaw.slug : ''))
-      : String(bgRaw);
-    bgValue = bgValue.trim() || 'default';
-    if (!BG_KNOWN.includes(bgValue)) {
-      notesOut.push(`背景「${bgValue}」页面不认识，会按默认处理（认得的：${BG_KNOWN.join(' / ')}）`);
-    }
-  }
-
-  if (problems.length) throw err(problems.join('；'));
-
-  /* 键序固定：id / date / title / bg / 各科 / 笔记 / 彩蛋 —— 和现有那份一样，diff 才干净 */
-  const record = { id, date, title, bg: { value: bgValue } };
-  for (const [n, t] of subjects) record[n] = t;
-  if (notes) record[NOTES_KEY] = notes;
-  if (egg) record[EGG_KEY] = egg;
-
-  return {
-    record,
-    meta: { mode, id, date, title, bg: bgValue, subjects: subjects.map(([n]) => n), hasNotes: !!notes, hasEgg: !!egg },
-    notes: notesOut,
-    extra: raw,   /* JSON 模式下多出来的保留字（subjects/notesId/eggId…）——提示用 */
-  };
-}
-
-/* ═══════════════════════════════════════════════════
-   写
-   ═══════════════════════════════════════════════════ */
-
-/** 目录里出现过的最大 id 之类都不需要；这里只把新条目顶上去 */
-function mergeIndex(list, entry) {
-  const rest = list.map(normalizeEntry).filter(Boolean).filter((e) => e.id !== entry.id);
-  /* 新的在前：日期倒序，同一天按 id 倒序 —— 和 build/lib/hwk-index.mjs、页面
-     normalizeIndex() 是同一条规则（谁生成的 index.json 都长一样） */
-  return [entry, ...rest].sort((a, b) =>
-    String(b.date || b.id).localeCompare(String(a.date || a.id)) ||
-    String(b.id).localeCompare(String(a.id)));
-}
 
 /**
  * 写入作业

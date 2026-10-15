@@ -719,6 +719,33 @@ async function cmdHwk() {
   return Number.isFinite(code) ? code : 0;
 }
 
+/**
+ * `部署.cmd sync …` —— 跨网同步（和发布、备份一样，是**另一条线**）
+ * ---------------------------------------------------
+ * 学校那台机器只能上 Gitee，家里这台能上一切 —— 所以网站发布完之后还要
+ * 把产物同步到 Gitee 镜像（`sync push`），学校那边才拿得到；
+ * 学校传上来的东西（`sync pull` / `sync apply`）再由这条线搬进仓库。
+ *
+ * 它同样不进 MENU / TUI（那两张表是「部署包括什么」的契约），
+ * 实现一份在 build/sync-cli.mjs，和桌面版、控制台共用 sync/lib/。
+ *
+ *   node build/deploy-cli.mjs sync check
+ *   node build/deploy-cli.mjs sync push
+ *   node build/deploy-cli.mjs sync pull --list
+ *   node build/deploy-cli.mjs sync apply --dry-run
+ */
+async function cmdSync() {
+  const cli = path.join(projectRoot, 'build', 'sync-cli.mjs');
+  if (!fs.existsSync(cli)) {
+    fail('缺文件：build/sync-cli.mjs');
+    note('跨网同步的实现跟着项目一起走，先把项目拉全。');
+    return 1;
+  }
+  const { main: runSync } = await import(pathToFileURL(cli).href);
+  const code = await runSync(process.argv.slice(3));
+  return Number.isFinite(code) ? code : 0;
+}
+
 /* ═══════════════════════════════════════════════════
    菜单
    ═══════════════════════════════════════════════════ */
@@ -905,6 +932,7 @@ const COMMANDS = {
 const COMMANDS_EXTRA = {
   bakup: { desc: '备份整个项目源码到 JinSuperKitBakup', run: cmdBakup },
   hwk:   { desc: '录作业（class/data/hwk/，和控制台「作业数据」面板同一份实现）', run: cmdHwk },
+  sync:  { desc: '跨网同步（Gitee 镜像 / 收件箱 / U 盘；学校那台机器靠它取件）', run: cmdSync },
 };
 const ALL_COMMANDS = { ...COMMANDS, ...COMMANDS_EXTRA };
 
@@ -917,6 +945,7 @@ const ALIAS = {
   s: 'serve', st: 'status',
   backup: 'bakup', bak: 'bakup', bk: 'bakup',
   homework: 'hwk', 作业: 'hwk',
+  同步: 'sync',
 };
 
 const OPTIONS = [
@@ -980,6 +1009,20 @@ function usage() {
     ['部署.cmd hwk --list', '看现在有哪几天'],
     ['部署.cmd hwk --dry-run', '只算不写'],
   ]) console.log(`    ${pad(a, 28)}${dim(d)}`);
+  console.log('');
+  console.log(bold('  另一个功能：跨网同步'));
+  console.log(dim('    学校那台机器只能上 Gitee —— 这条线把 dist/ 推成 Gitee 镜像'));
+  console.log(dim('    （顺带写一份 _sync.json 清单，那边只下变化的文件），'));
+  console.log(dim('    再把学校传上来的收件箱搬进仓库。和发布、备份互不影响。'));
+  for (const [a, d] of [
+    ['部署.cmd sync check', '探通道 + 看云端版本（学校第一次用之前先跑）'],
+    ['部署.cmd sync push', '组装 dist → 写清单 → 推 GitHub Pages + Gitee 镜像'],
+    ['部署.cmd sync pull', '拉收件箱到 sync/inbox/'],
+    ['部署.cmd sync apply --dry-run', '看会改仓库里哪些文件（不写）'],
+    ['部署.cmd sync apply --write', '真的写进仓库（作业那部分会重建清单）'],
+    ['部署.cmd sync home', '到家一条龙：pull → apply（确认）→ full'],
+    ['部署.cmd sync push --to I:\\jsd', '不发网络，直接镜像到 U 盘目录'],
+  ]) console.log(`    ${pad(a, 44)}${dim(d)}`);
   console.log('');
 }
 

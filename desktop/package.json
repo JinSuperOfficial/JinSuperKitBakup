@@ -6,8 +6,14 @@
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
+    "sync:config": "node build/make-sync-config.mjs",
+    "prepack:win": "node build/make-sync-config.mjs",
+    "predist:win": "node build/make-sync-config.mjs",
+    "predist:portable": "node build/make-sync-config.mjs",
+    "predist:setup": "node build/make-sync-config.mjs",
     "dev": "electron . --dev",
     "smoke": "electron . --smoke",
+    "smoke:show": "electron . --smoke --show",
     "pack:win": "electron-builder --win dir --x64",
     "dist:win": "electron-builder --win --x64",
     "dist:portable": "electron-builder --win portable --x64",
@@ -45,6 +51,19 @@
         "filter": [
           "**/*"
         ]
+      },
+      {
+        "from": "../sync/lib",
+        "to": "sync/lib"
+      },
+      {
+        "from": "build",
+        "to": ".",
+        "filter": [
+          "sync-config.json",
+          "icon.ico",
+          "icon-hwk.ico"
+        ]
       }
     ],
     "win": {
@@ -70,21 +89,23 @@
       "unpackDirName": "JinSuperDesktop"
     },
     "nsis": {
-      "artifactName": "JinSuper-Setup-${version}.exe",
+      "artifactName": "JinSuper-811-Setup-${version}.exe",
       "oneClick": false,
       "perMachine": false,
       "allowElevation": true,
       "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "JinSuper 百宝箱",
-      "uninstallDisplayName": "JinSuper 百宝箱 ${version}",
+      "createDesktopShortcut": false,
+      "createStartMenuShortcut": false,
+      "shortcutName": "811 套装",
+      "uninstallDisplayName": "811 套装 ${version}",
       "deleteAppDataOnUninstall": false,
       "runAfterFinish": true,
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
       "installerHeaderIcon": "build/icon.ico",
-      "differentialPackage": false
+      "differentialPackage": false,
+      "menuCategory": "811 套装",
+      "include": "build/installer.nsh"
     },
     "compression": "normal"
   }
