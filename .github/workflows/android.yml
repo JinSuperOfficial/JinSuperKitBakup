@@ -1,0 +1,130 @@
+name: Android APK
+
+# 移动端（第三端）的打包流水线。
+# ---------------------------------------------------------------
+# 为什么打 APK 也走 Actions（和桌面版 §15.1 一个理由）：
+#   · 这台开发机（WSL）上没有 Android SDK，本地打不出正式包；
+#   · **signing keystore 不该躺在任何一台开发机上** —— 放 Secrets 里，谁都不用在
+#     自己机器上存一份。
+#
+# 一条龙：装 JDK/SDK → 同步离线副本（站点那份 + 编辑器界面）→ 注入同步配置（含令牌）
+#        → 跑单元测试 → 打 release APK → 传成 Artifact。
+#
+# 需要的 Secrets（都在仓库 Settings → Secrets and variables → Actions）：
+#   JINS_GITEE_TOKEN          跨网同步的令牌（打包时注进 assets/sync-config.json）
+#   JINS_KEYSTORE_BASE64      签名用的 .jks，base64 编码后一行
+#   JINS_KEYSTORE_PASSWORD    keystore 口令
+#   JINS_KEY_ALIAS            密钥别名
+#   JINS_KEY_PASSWORD         密钥口令
+# 缺签名那四个 → 出一个**未签名**的 release（能构建、装不上，用来验流程）；
+# 缺 JINS_GITEE_TOKEN → 出一个「只能看不能传」的包（也是有效形态，会打一条 ::warning）。
+#
+# ★ 手动触发也留着（workflow_dispatch）：要重打一个带新令牌的包时不用编空提交。
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - 'jinsuper.rth1.xyz/**'
+      - 'desktop/src/ui/hwk/**'
+      - 'sync/lib/**'
+      - '.github/workflows/android.yml'
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: '版本名（留空 = 用 app/build.gradle.kts 里的）'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: 打包 APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: 取源码
+        uses: actions/checkout@v4
+
+      - name: 装 JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: 装 Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 配 Gradle（带缓存）
+        uses: gradle/actions/setup-gradle@v3
+
+      # 离线副本与编辑器界面都是**生成物**（源头在站点目录 / desktop/src/ui/hwk/），
+      # 不入库，所以每次构建前先同步一遍 —— 少这一步，打出来的包是空壳。
+      - name: 同步离线副本与编辑器界面
+        run: node android/tools/sync-site-assets.mjs
+
+      - name: 注入同步配置（含令牌）
+        env:
+          JINS_GITEE_TOKEN: ${{ secrets.JINS_GITEE_TOKEN }}
+        run: |
+          if [ -z "$JINS_GITEE_TOKEN" ]; then
+            echo "::warning::没有 JINS_GITEE_TOKEN —— 这个包只能看作业、不能传。"
+            exit 0
+          fi
+          node android/tools/inject-sync-config.mjs --from "CI 打包"
+
+      - name: 跑单元测试
+        working-directory: android
+        run: ./gradlew testDebugUnitTest --no-daemon --console=plain
+
+      - name: 还原签名 keystore
+        id: keystore
+        if: ${{ secrets.JINS_KEYSTORE_BASE64 != '' }}
+        env:
+          JINS_KEYSTORE_BASE64: ${{ secrets.JINS_KEYSTORE_BASE64 }}
+        run: |
+          mkdir -p android/keystore
+          printf '%s' "$JINS_KEYSTORE_BASE64" | base64 -d > android/keystore/jinsuper.jks
+          echo "path=android/keystore/jinsuper.jks" >> "$GITHUB_OUTPUT"
+
+      - name: 打 release APK
+        working-directory: android
+        env:
+          # 只有 keystore 还原成功时这些才非空 —— 没配就出一个未签名的包
+          JINS_KEYSTORE: ${{ steps.keystore.outputs.path }}
+          JINS_KEYSTORE_PASSWORD: ${{ secrets.JINS_KEYSTORE_PASSWORD }}
+          JINS_KEY_ALIAS: ${{ secrets.JINS_KEY_ALIAS }}
+          JINS_KEY_PASSWORD: ${{ secrets.JINS_KEY_PASSWORD }}
+          VERSION_NAME: ${{ github.event.inputs.version_name }}
+        run: |
+          ARGS=""
+          if [ -n "$VERSION_NAME" ]; then ARGS="-PversionName=$VERSION_NAME"; fi
+          ./gradlew assembleRelease --no-daemon --console=plain $ARGS
+
+      - name: 报告体积与产物
+        working-directory: android
+        run: |
+          ls -la app/build/outputs/apk/release/
+          for f in app/build/outputs/apk/release/*.apk; do
+            echo "APK: $f  $(du -h "$f" | cut -f1)"
+          done
+
+      - name: 上传 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: jinsuper811-apk
+          path: android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: 清理 keystore
+        if: always()
+        run: rm -rf android/keystore

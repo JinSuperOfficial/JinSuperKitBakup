@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  android/app/src/main/res/values/themes.xml
+  ===========================================================
+  壳层的主题。两件事：
+
+    1. **窗口底色要和站点暗色一侧对齐**，不然 WebView 首帧会闪一块白
+       （同学看到的就是「点开一闪」）。所以 window_bg = #14120E（站点暗色的背景色）。
+    2. 用**框架自带**的 Material 主题，不引 AppCompat：
+      「轻量」是硬指标，而壳层只有四个 Compose 页面 + 一个 WebView，
+      完全可以只用 `ComponentActivity` + `android:Theme.*`。
+      引 appcompat 会白白多几百 KB 和一条依赖升级负担。
+
+  站点本身是「跟随系统」的（lib/theme.js 走 prefers-color-scheme）——
+  壳层跟着系统走即可，**不硬钉暗色**。
+  （桌面版硬钉暗色是因为它自带界面只有暗色一套，和这里不是一回事。）
+-->
+<resources>
+
+    <style name="Theme.JinSuper811" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/window_bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:colorAccent">@color/icon_edit</item>
+    </style>
+
+    <!-- 启动瞬间那一帧：背景同色，避免从桌面图标切进来时闪白 -->
+    <style name="Theme.JinSuper811.Launch" parent="Theme.JinSuper811">
+        <item name="android:windowBackground">@color/window_bg</item>
+    </style>
+
+</resources>

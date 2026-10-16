@@ -17,10 +17,10 @@
     "build": "node build/build.mjs",
     "gen": "node build/gen-site-index.mjs",
     "check:manifest": "node build/verify-manifests.mjs && node build/test-manifest.mjs",
-    "check:desktop": "node --test desktop/test/origins.test.cjs desktop/test/modes.test.cjs desktop/test/hwk-store.test.cjs",
+    "check:desktop": "node --test desktop/test/origins.test.cjs desktop/test/modes.test.cjs desktop/test/hwk-store.test.cjs desktop/test/installer.test.cjs",
     "check:function": "node build/test-function.mjs",
     "check:homework": "node build/test-homework.mjs",
-    "check": "node build/verify-manifests.mjs && node build/test-manifest.mjs && node build/test-function.mjs && node build/test-homework.mjs && node build/test-render.mjs && node build/verify.mjs && node build/test-pipeline.mjs && node build/test-tui.mjs && node build/test-dom.mjs && node --test desktop/test/origins.test.cjs desktop/test/modes.test.cjs desktop/test/hwk-store.test.cjs && node --test console/test/console.test.mjs console/test/jobs.test.mjs console/test/md-extras.test.mjs console/test/hwk.test.mjs && node --test build/test-sync.mjs",
+    "check": "node build/verify-manifests.mjs && node build/test-manifest.mjs && node build/test-function.mjs && node build/test-homework.mjs && node build/test-render.mjs && node build/verify.mjs && node build/test-responsive.mjs && node build/test-pipeline.mjs && node build/test-tui.mjs && node build/test-dom.mjs && node --test desktop/test/origins.test.cjs desktop/test/modes.test.cjs desktop/test/hwk-store.test.cjs desktop/test/installer.test.cjs && node --test console/test/console.test.mjs console/test/jobs.test.mjs console/test/md-extras.test.mjs console/test/hwk.test.mjs && node --test build/test-sync.mjs && node --test build/test-android.mjs",
     "check:console": "node --test console/test/console.test.mjs console/test/jobs.test.mjs console/test/md-extras.test.mjs console/test/hwk.test.mjs",
     "test:pipeline": "node build/test-pipeline.mjs",
     "test:tui": "node build/test-tui.mjs",
@@ -30,7 +30,8 @@
     "serve": "node build/.serve.mjs 8788",
     "gen:hwk": "node build/gen-hwk-index.mjs",
     "check:hwk": "node --test console/test/hwk.test.mjs",
-    "check:sync": "node --test build/test-sync.mjs"
+    "check:sync": "node --test build/test-sync.mjs",
+    "check:android": "node android/tools/make-tar-fixtures.mjs --check && node android/tools/sync-site-assets.mjs --check && cd android && ./gradlew testDebugUnitTest --no-daemon --console=plain"
   },
   "comment": "网站本体在 jinsuper.rth1.xyz/，三篇 md 在 asset/；build/prep-deploy.mjs 把它们组装进 dist/。热铁盒上传 dist/（rth-host.json），GitHub 也推 dist/（build/push-github.mjs），两边内容一致。构建依赖装在 build/package.json 里，所以这里没有 dependencies。console/ 是本地发布控制台，跑在 127.0.0.1，和 build/ 一样不进 dist。备份源码是另一条独立的线：build/backup-github.mjs 把项目根源码按 .gitignore 推到 JinSuperKitBakup，和部署互不影响。"
 }

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  「811 看作业」的图标（默认入口）。前景是站点那枚 logo（drawable/ic_launcher_foreground.xml），
+  底色是站点浅色一侧的纸色 —— 一眼和另外两枚分得开。
+  自适应图标只要这一份 XML（anydpi-v26）+ 一层前景矢量，**不需要** mdpi~xxxhdpi 五套 PNG。
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/icon_view" />
+    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+    <monochrome android:drawable="@drawable/ic_launcher_foreground" />
+</adaptive-icon>

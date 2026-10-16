@@ -579,6 +579,74 @@ npm run dist:win   # 打 Windows 免安装 exe → desktop\release\
 - `local-server.js` 对 `.php` 一律回 404：阅读器先试 `p/raw.php`，404 后按设计回落去取 `.md`；
   真把 `raw.php` 发回去，页面会把 PHP 源码当正文显示。
 
+### 4.9 移动端（Android，`android\`）
+
+整站还打了**第三端**：给同学用的安卓应用。**不发布到应用商店**，跟 `build\`、`console\`、
+`desktop\` 一样只待在源码里。用法 / 打包 / 排障见 **`android\README.md`**，这里只记要点。
+
+```bash
+node android/tools/sync-site-assets.mjs     # 同步离线副本 + 编辑器界面（生成物，不入库）
+node android/tools/inject-sync-config.mjs   # 把令牌注进 assets/sync-config.json（不入库）
+cd android && ./gradlew testDebugUnitTest   # 纯 JVM 单测，不用真机
+cd android && ./gradlew assembleRelease     # 打正式包（签名走环境变量）
+```
+
+- **一个 APK + 三个 `activity-alias`**（对齐桌面版的「同一个 exe + 一个参数」）：
+  `811 看作业`（默认）/ `811 录作业`（先过密码门）/ `811 设置与同步`。
+  **模式不读 intent extra** —— 从桌面图标启动没有 extra，所以每个 alias 用
+  `<meta-data name="jsd.mode">` 声明，`MainActivity` 用 `componentName` 反查自己的 alias。
+  用 extra 的话「点图标」这条路永远是 view，edit 那个图标就废了。
+- **本地内容不走 `file://`，也不用本地端口**（三条命门的第一条）：
+  全部走固定虚拟域 `https://appassets.androidplatform.net/`，子资源由
+  `shouldInterceptRequest` 接管。**这个域名必须固定** —— 作业页的勾选状态存在 `localStorage`，
+  键是 `hw:<id>:<条目哈希>`，而 `localStorage` 按 origin（scheme://host:port）隔离；
+  **端口一随机，origin 每次冷启动都变，同学之前勾过的作业全部消失**。
+  虚拟 host 外部访问不到（真实 DNS 没有它），天然隔离、没有端口暴露风险。
+  **不许**改成 `ServerSocket` 手写本地 HTTP 服务 + 随机端口（`build/test-android.mjs` 会拦）。
+- **Range 要支持**（命门第二条）：206 + `Content-Range` + `Accept-Ranges`。
+  `WebViewAssetLoader` **不支持 Range**，所以这里没用它 —— 自己实现在 `LocalContentHandler`，
+  解析规则在纯逻辑的 `RangeHeader`（有单测）。验收方式写死：**断网下拖进度条要看到 206**。
+- **`.php` 一律回 404**（命门第三条）：理由同 §4.8，阅读器靠这个 404 才会回落去取 `.md`。
+- **WebView 四条配置常量不许改**（在 `ui\WebScreen.kt`）：
+  `domStorageEnabled = true`（不配 = 勾选状态写不进去）、`javaScriptEnabled = true`、
+  `databaseEnabled = true`、`mixedContentMode = MIXED_CONTENT_COMPATIBILITY_MODE`；
+  外加 `cacheMode = LOAD_DEFAULT`、`allowFileAccess = false`。
+- **数据落 `filesDir\hwk\`**（不是外部存储：会被系统清理、也会被别的应用看见），
+  形状与 `class\data\hwk\` **逐字段一致**（`id`/`date`/`title`/`bg` + 科目作顶层键 + `笔记`），
+  `id` 沿用 `n261010` 这种。第一次打开从随包的离线副本导一份**基线**（只导一次、不覆盖本机），
+  另给一个显式的「重新导入基线」入口。
+- **离线副本只放「看作业」链路的最小集**（约 0.7MB）：明确排除 `class/data/english/**`
+  （36MB 听力音频，页面上直接引线上地址、离线时按设计静默降级）、`p/docs-md.js`（1.45MB）、
+  `p/fonts/`、`asset/background/**`（游戏壁纸）。清单在
+  `android\tools\sync-site-assets.mjs` 里**逐条列出**（不是通配），加文件要有意识。
+- **作业编辑器界面直接复用 `desktop\src\ui\hwk\`**（HTML/CSS/JS 一个字节不改）：
+  那套界面只依赖两个入口（`window.hwk.getState()` / `window.hwk.action()`），
+  安卓侧由 `HomeworkBridge` 按**同一份契约**实现（和 `desktop\src\ui\hwk-preload.js` 对称）。
+- **同步：看作业走来源回落链，传作业只走 Gitee 收件箱**，两条是独立通道（同 §5.3）。
+  上传格式与桌面版逐字节兼容：`inbox/<时间戳>/hwk.tar.gz` + `_manifest.json`（**最后写**）。
+  断网写进 `filesDir\sync\queue\`，下次点「立刻同步」重放 —— **没有后台任务**
+  （WorkManager 会被系统杀掉，同学还会以为已经传上去了）。
+- **令牌打包时明文注入** `assets/sync-config.json`（不入库）。这是**有意选择**：
+  加密只让解包难度上升一档，不改变「能被解包」这件事，却会把复杂度拉满。
+  代价是「发出去的包等于发出去一份令牌」，所以 **`android\README.md` 里那四步令牌轮换
+  流程必须真的能走**（撤销 → 改 `.env` → 重打 → 换发）。
+- **PHP / Range / 固定 origin 这三条有测试盯着**；跨端的一致性（来源表 / 保留字 /
+  收件箱常量 / tar 字节格式 / manifest 最后写）由 `build\test-android.mjs` 逐条比对，
+  别只改一边。
+- **签名**：keystore 在 `android/keystore/jinsuper.jks`，**进备份仓库**（`.gitignore` 里有一条
+  `!android/keystore/jinsuper.jks` 专门把它捞回来——安全的是口令，不是文件）。
+  **口令不入库**，存密码管理器。口令与 App 内作业密码相同（`114514`）这件事是
+  **用户明确拍板接受的风险**，详见 `android/README.md` 那一节，别当 bug 改。
+  正式发出去的包必须一直用这把钥匙签，换了就等于装过旧版的机器永远无法覆盖安装。
+- **写这个目录时三条硬规矩**（都踩过）：
+  1. `.gradle.kts` **顶上只能用 `//` 行注释** —— 用块注释会让 Kotlin 脚本编译器
+     把整个文件编译成**空脚本**（不报错、plugin 全不生效），报出来的是
+     「找不到 AGP 插件 / Searched in: Gradle Central Plugin Repository」，极难查；
+  2. Kotlin 注释里**别写「斜杠 + 星号」**（比如 `queue/` 后面跟个 `*`）—— 会嵌套开一层，
+     括号配不平，报的行号在文件末尾；
+  3. XML 注释里**别写连续两个减号** —— 那是 XML 语法错误，aapt 直接拦下
+     （写 CSS 变量名时最容易犯：`--bg` 要写成「背景色」）。
+
 ---
 
 ## 5. 发布链路
@@ -683,6 +751,11 @@ npm run dist:win   # 打 Windows 免安装 exe → desktop\release\
   `hwk` → `class\data\hwk\`、`site` → 网站内容、`misc` → `sync\inbox\`。
 - 站点镜像走 `dist\.git` 的**第二个 remote**（`gitee`），复用 `git-dist.mjs` 那套；
   Gitee 是国内站，**显式清空代理**，别拿 GitHub 的代理去连它。
+- **读写两条路不是同一条代码**：镜像（家里 → 云端）走 **git push**；收件箱（学校 → 家里）
+  走 **Gitee OpenAPI v5 的 contents 接口**（`sync\lib\gitee.mjs` 的 `get/put/del/list`）。
+  所以「家里 push 通了」**不等于**「学校传得上」—— 2026-10-16 就是栽在这儿：
+  `put()` 里误写成 `api.stat()`（`api` 只是箭头函数），学校每次点「同步到云端」第一行就
+  `TypeError`，而本地目录通道的用例全绿。现在 `build\test-sync.mjs` 用**假 fetch** 盯着这条写路径。
 - 配额（Gitee 社区版）：单文件 ≤ 50MB、单仓库 ≤ 500MB；本地目录 / U 盘通道是同一套接口的
   另一个实现，**不认盘符、不自动探测可移动盘**（U 盘不常住电脑）。
 - 完整说明见 **`sync\README.md`**。
@@ -787,13 +860,93 @@ CommonMark、GFM 表格/任务列表/删除线/自动链接/脚注、Emoji、上
 **② 文档站**（`/p/`）——自带 **12 套配色**，默认 `obsidian`（对比度最高的一套）。定义在
 `build\template\docs.html` 里，改完要重新构建。它和上面那套是两条线。
 
-正文对比度要求 ≥ 4.5:1（WCAG AA）。当前 **146/146 个前景色组合全部达标**，
-改样式后用 `audit-contrast.mjs` 复查。
+正文对比度要求 ≥ 4.5:1（WCAG AA）。改样式后用 `audit-contrast.mjs` 复查
+（`node build/audit-contrast.mjs`）。**注意：「146/146 全绿」是 2026-10 的旧快照** ——
+那一版脚本只扫了 146 个组合，现在扫 760 组，有 3 处历史遗留不达标（`--faint` / `--dim`
+的亮色定义，在 `Skills/index.html`、`Skills/tools/tiermaker.html`、`index.html`）。
+改这两处会动到桌面端的亮色视觉，所以**留着没动**；谁要清就单独开一轮，别混在响应式改造里。
 
 ### 交互约束
 
 正文对比度 ≥ 4.5:1、悬停位移 ≤ 4px、入场动画 ≤ 700ms、反馈 ≤ 300ms、
 尊重 `prefers-reduced-motion`、图标用内联 SVG 不用 emoji。
+
+### 响应式：桌面 + 平板 + 手机（断点与规矩）
+
+站点页面做了完整的响应式适配（重点是 `class/homework.html`）。**断点统一，只写在
+各自页面 CSS 末尾一段带注释的响应式块里**：
+
+| 档 | 宽度 | 说明 |
+|:--|:--|:--|
+| 桌面 | ≥ 1024px | **改造前什么样，现在就什么样，一条新规则都不许命中** |
+| 平板 | 768 – 1023px | 紧凑版（通用收一档内距 / 图标） |
+| 手机 | ≤ 767px | 重点适配 |
+| 窄屏 | ≤ 400px | 小屏微调 |
+
+**规矩（违反会出问题）**：
+
+- **一律用 `@media (max-width: …)` 覆盖**，不改现有桌面规则；不许出现 `min-width` 断点
+  （`build/test-responsive.mjs` 会拦）。这样桌面端天然不受影响 —— 这是「逐像素一致」的
+  结构性保证，不是靠人眼。
+- 颜色**一律走 token**：响应式块里不许出现写死的 `#RRGGBB` 或 `rgba(数字…)`
+  （否则亮色模式会花一块；测试会拦）。
+- **触摸目标 ≥ 48px**；触屏没有 hover，所以 `:hover` 与 `:active` **成对写**。
+- **底部固定元素必须留 `env(safe-area-inset-bottom)`**（作业页的手机动作面板、
+  听力页的迷你播放条）—— 否则 iPhone 的 home 指示条会压住控制键。
+- 页面左右留白：手机 ≥16px、平板 ≥24px；正文 ≥16px（防 iOS 自动放大）。
+- 表格 / 代码块在小屏**横向滚动**，不挤压、不换行。
+- 不许出现 `width:100vw`（含滚动条时会带出横向滚动条）。
+
+**作业页（`class/homework.html`）的手机端做法**（最容易被以后改坏，写清楚）：
+
+- 顶部那四个按钮（背景 / 时光机 / 更新日志 / 更多工具）**不搬家、不复制** ——
+  整条 `.head-acts` 在 ≤767px 变成**底部动作面板**（`position:fixed` 沉到底部），
+  另插一枚开关（`.acts-toggle`，**是 `.head-acts` 的第一个孩子**）来控制开合。
+  这样做的好处是 **Tab 顺序天然正确**（DOM 顺序就是视觉顺序），不需要用 CSS `order`
+  去改视觉序（那会把键盘顺序搞乱）。开关由 JS 插进 DOM（桌面是 `display:none`）。
+- 表格在手机上一列到底；条目行整行可点、命中区 ≥48px。
+- 两个弹窗（更新日志 / 时光机）近全屏；它们的左日期列折到顶部、横向可滑。
+- 滚动轨道在手机上加大刻度、关掉悬停标签（触屏没有 hover）。
+
+**验收入口**：
+
+```bash
+node build/test-responsive.mjs   # 静态断言（viewport / 断点 / 安全区 / 触摸目标 / 100vw / 写死颜色 / 站外地址）
+node build/audit-contrast.mjs    # 对比度（见 §8 里那条快照说明）
+node build/test-dom.mjs          # jsdom 真跑页面（行为不受影响）
+```
+
+**`test-responsive.mjs` 能测什么、不能测什么**：它只钉「能从源码里查证的东西」——
+恰恰也是最容易被以后改回去的那些。**真实布局（折行 / 溢出 / 遮挡）它测不了**
+（jsdom 不算布局），那部分要在几个视口下**人眼对照**：
+375×667 / 390×844 / 360×640 / 412×915 / 768×1024 / 1024×768 / 1440×900。
+截图留档在 `docs/responsive/`（进仓库，不进 `dist`）。
+
+**真浏览器验过了**（2026-10-16，`browser_*` 工具，浏览器在 Windows 侧走 bsk 扩展）：
+390×844 / 768×1024 / 1440×900 三档都拍了图，存在 `docs/responsive/`（含 README 说明怎么补拍）。
+结论：手机档表格塌成一列、科目成横幅、底部动作面板可用；桌面档四个按钮横排、
+表格两列带表头、`class/index.html` 卡片列表原样 —— **桌面没被改到**。
+
+> ⚠️ 用 `browser_*` 量的时候**必须 `emulate`（或核对页面自己打的视口日志）**，
+> 别只 `resize` 窗口：Windows 窗口有最小宽度，`resize` 到 375 会被夹到约 500px，
+> **767 那条断点根本不命中**，拍出来不是手机档。
+
+**这一轮真浏览器抓出两个纯 CSS 的 bug（静态断言一条都拦不住），已修 + 已回归**，
+都出在作业页手机档的「底部动作面板开关」上：
+
+1. **`display` 没翻过来** —— 开关基础规则是 `display:none`（桌面永不显示），
+   手机档漏了改回 `flex`。表现：**手机上没有任何入口能打开面板**（DOM 和 CSS 规则都在）。
+2. **`transform` 成了 `position:fixed` 后代的包含块** —— 面板用
+   `transform:translate3d(0, calc(100% + 14px), 0)` 滑出屏幕；开关原本是它的孩子，
+   于是即使 `position:fixed` 也被钉在那条**已经移出屏幕的坐标系**里，可见面积 = 0。
+   DevTools 只报 `element not visible` / `not focusable`，源码、选择器、DOM 全都正常。
+   修法：开关改成面板的**兄弟**（`acts.parentNode.insertBefore(btn, acts)`）。
+
+两条都有回归断言（`build/test-responsive.mjs` 第 13/14 条），并且**验证过它们真的会红**。
+这是「只做静态断言不够」最实在的一个例子。
+
+**还没做的**：`docs/responsive/` 目前覆盖 3 视口 × 2 页面（清单是 7 视口 × 10 页面）；
+`/p/archive/*.html` 这些控制台烘的旧产物还没有新外壳，要在控制台点一次**重刷外壳**。
 
 ---
 
@@ -808,17 +961,24 @@ CommonMark、GFM 表格/任务列表/删除线/自动链接/脚注、Emoji、上
 | `build\test-dom.mjs` | jsdom 真跑页面：切换、复制按钮、搜索、主题、加文档流程 | ~1–2min |
 | `build\test-pipeline.mjs` | 部署管线：步骤顺序与 id、开关映射、遇错停 / soft 步骤、上传文件规则（EXCLUDE、asset 覆盖）、`部署.cmd` 必须纯 ASCII、源码备份不混进管线 | ~4s |
 | `build\test-tui.mjs` | ink TUI：用假终端渲染，验菜单 / 计划开关 / 状态页 / 执行→结果 / Ctrl+C 中止 | ~8s |
-| `build\test-homework.mjs` | 作业页：811→class 改名与迁移、主页新旧两种数据、时光机多级降级（API → 生产清单 → index.json → 同源）、超时/缓存/并发、一次 5 天分页、清单生成器、控制台与 CI 的装配契约（115 项） | ~12s |
+| `build\test-homework.mjs` | 作业页：811→class 改名与迁移、主页新旧两种数据、时光机多级降级（API → 生产清单 → index.json → 同源）、超时/缓存/并发、一次 5 天分页、清单生成器、控制台与 CI 的装配契约（116 项）。**期望值钉在旧 `homework.json` 那一天**：以前拿「目录里最新那天」比，加一天作业就红一次 | ~12s |
 | `console\test\` | 控制台：文章 / 归档 / 队列 / 片段预览 / 深链接 20 条 + 预览面板 3 条 + 部署作业 9 条 + **作业数据 14 条**（一天一文件、顶目录、备份、JSON 源码、重建清单） | ~6s |
-| `build\test-sync.mjs` | 跨网同步 10 条：tar.gz 往返与路径穿越、镜像清单生成/比对、收件箱上传→列出→拉取→apply（dry-run 不写仓库）、分卷读写、作业规则、四个入口脚本都有 sync | ~8s |
+| `build\test-sync.mjs` | 跨网同步 15 条：tar.gz 往返与路径穿越、镜像清单生成/比对、收件箱上传→列出→拉取→apply（dry-run 不写仓库）、分卷读写、作业规则、四个入口脚本都有 sync；**Gitee 后端 5 条用假 fetch 测请求形状**（新文件 POST / 已存在 PUT 带 sha / del 带 sha / raw 读 / pushInbox 先 tar.gz 后 `_manifest.json`）—— 学校那条写路径只有这里覆盖得到 | ~8s |
 | `console\test\` 之二 | 控制台「跨网同步」面板 5 条：5 条路由、5 个导出、面板与导航、配置不全时不白屏 | ~1s |
-| `desktop\test\` | 桌面版纯逻辑 29 条：来源表、回落链、设置归一、URL 归属、离线服务路径/MIME、**两种模式（--app=）与安装脚本**、**作业本机存储（形状/基线/快照/脏标记/备份）** | ~2s |
+| `desktop\test\` | 桌面版纯逻辑 **34 条**：来源表、回落链、设置归一、URL 归属、离线服务路径/MIME、**两种模式（--app=）**、**作业本机存储（形状/基线/快照/脏标记/备份）**、**安装包硬规矩（`.nsh` 必须带 BOM、强制只给当前用户装、不许 `menuCategory`、两份快捷方式自己建）** | ~2s |
 
 ```bash
 部署.cmd check        # 上面全部
 npm run check         # 同上（在项目根）
 npm run test:dom      # 只跑慢的那套（改了阅读器 / 模板时跑）
 ```
+
+> **新增测试文件要登记**：`npm run check` / `check:desktop` 是**逐个文件列出来**跑的
+> （不是 `--test 目录`，那个在这台机器上会 MODULE_NOT_FOUND）。`desktop\test\installer.test.cjs`
+> 就是这么漏掉过一轮：文件在、测试也绿，但 `npm run check` 根本不跑它。
+>
+> 测试用的临时目录都会在 `process.on('exit')` 里删掉（以前一次 `npm run check`
+> 会在 `/tmp` 留下几十个目录，分卷那份一个就 17MB）。
 
 `deploy-cli.mjs` 的 `full` 会自动跑快的那几套，不过就拦下发布。
 改动渲染器后请手动跑一遍 `test-dom`；改了控制台或 TUI 请跑 `npm run check`。
@@ -1032,6 +1192,11 @@ Windows 上装个系统 Deno（`winget install DenoLand.Deno`），脚本优先�
 | GitHub 仓库里没跑「作业清单」这个 workflow | 它住在 **dist 仓库**（`jinsuperofficial.github.io`），不在源码备份仓库。第一次推送后去仓库的 Actions 标签页看；本地 `dist/.github/` 是 `push-github.mjs` 复制进去的，组装时会按 `KEEP_ROOT` 保留 |
 | `部署.cmd hwk` / `控制台.cmd hwk` 说没这个命令 | 终端入口在 Node 里（`console/hwk-cli.mjs`）：先确认文件在、再确认参数没写错（`hwk --list`、`hwk --json`、`hwk --help`） |
 | 桌面版（`desktop\`）起不来 / 打包报错 | 八成是 Electron 二进制没下下来：`node desktop\node_modules\electron\install.js`；开发机上挂了本地代理用 `JSD_PROXY=http://127.0.0.1:7890 npm start`。详见 `desktop\README.md`（§4.8） |
+| 学校点「同步到云端」报上传失败，但 Gitee 明明能打开 | **先看错误原文，别急着怪网络**：写路径（`sync\lib\gitee.mjs` 的 `put/del`）只有 Gitee 后端走得到，而家里 `sync push` 走的是 git —— 「家里通」证明不了「学校通」。2026-10-16 那个 `api.stat()` → `transport.stat()` 的 TypeError 就这么活了一轮（见 §15）。复现：`node -e` 里 `createTransport(loadConfig().config)` → `pushInbox` 传个小文件 → `del` 清掉 |
+| 桌面版装到了 `C:\Program Files\811 套装\JinSuper`，和用户目录那份并存 | 老毛病：模式页会读注册表记住上次选择，而 `menuCategory` 会被拼进「所有用户」安装的默认路径。1.0.1 起 `installer.nsh` 的 `customInstallMode` 强制只给当前用户装（`%LOCALAPPDATA%\Programs\JinSuper`），并且**不许再用 `menuCategory`**；机器上遗留的那份 Program Files 安装要手动卸一次（安装器启动时会弹提醒） |
+| 安装完没快捷方式，或快捷方式名变乱码 | `.nsh` 的 **UTF-8 BOM 被编辑器/写文件工具吃掉了**：NSIS 靠 BOM 认 Unicode，少了不报错、只出乱码。`desktop\test\installer.test.cjs` 盯着这一条 |
+| 作业页测试突然红一片（科目数 / 条目数对不上） | 站点新加了一天作业，而测试原来拿「最新那天」当期望值。现在期望值钉在旧 `homework.json` 那一天（`LEGACY_NAME` / `serveFile` 里的固定索引），再加作业也不会红 |
+| 要出新安装包 / 看它在哪打的 | GitHub Actions：`gh workflow run desktop-win.yml --repo JinSuperOfficial/JinSuperKitBakup`，产物名 `JinSuper-811-win-x64`（Windows runner 原生命中 NSIS；Linux/WSL 侧没 wine 打不出卸载器）。打完 `7z t` 验一遍，再 `node desktop\build\upload-release.mjs --bakup-tag <源码tag>` 传到两个 Release |
 
 ---
 
@@ -1042,7 +1207,8 @@ Windows 上装个系统 Deno（`winget install DenoLand.Deno`），脚本优先�
 | `AGENTS.md` | **项目级约定**：硬规则 + UI 圆角规范（按 `theme-plus` 全局技能的 `references/circle_angle.md`） |
 | `MANIFEST.md` | **清单规范**：加工具只改 json、字段表、三条硬规则、校验命令 |
 | `build\README.md` | **构建系统详解**：打包器、预渲染、样式合并、对比度脚本、图标生成、部署细节 |
-| `desktop\README.md` | **桌面版（Electron）**：来源与回落规则、两个 WebContentsView 的窗口结构、离线副本、打包与快捷键；要点见 §4.8 |
+| `desktop\README.md` | **桌面版（Electron）**：来源与回落规则、两个 WebContentsView 的窗口结构、离线副本、打包与快捷键、安装位置规则；要点见 §4.8 |
+| `desktop\build\installer.nsh` + `desktop\test\installer.test.cjs` | **811 套装的安装规矩**：两条快捷方式、强制只给当前用户装、`.nsh` 必须带 BOM；规矩被测试盯着，别绕过去改 |
 | `sync\README.md` | **跨网同步**：Gitee 通道怎么建、四个入口命令、镜像与收件箱格式、配额、U 盘兜底、备案那项选项、排障表；要点见 §5.3 |
 | `console\lib\store.mjs` / `api.mjs` / `render.mjs` | **发布控制台**的实现（sk.json 保形读写、归档流程、预渲染器与「重刷外壳」、接口）；用法见 §4.5 |
 | `console\lib\hwk.mjs` / `console\hwk-cli.mjs` | **作业数据读写**：网页面板与终端入口共用这一份（写一天、顶目录、备份、重建清单）；数据格式见 §4.7 |
@@ -1065,7 +1231,8 @@ Windows 上装个系统 Deno（`winget install DenoLand.Deno`），脚本优先�
 - [ ] 拿到 `.env`（RTH_API_KEY），放到项目根
 - [ ] 确认 `部署.cmd status` 各项都是 ✓
 - [ ] 确认能打开三个域名
-- [ ] 跑一次 `部署.cmd check`，确认**五套**测试通过（外加 `npm run console:test` 的 23 条）
+- [ ] 跑一次 `部署.cmd check`（= `npm run check`），确认 §9 那张表**全绿**
+      （作业页 116 项、桌面 34 条、同步 15 条、控制台 54 条，外加管线 / TUI / 渲染 / DOM 各若干）
 - [ ] 双击 `控制台.cmd`，确认能起在 127.0.0.1:8791，且 `dist\` 里没有 `console\`
 - [ ] 在 `sk.json` 加一篇测试文档，跑一次 `部署.cmd full -y`，确认两个热铁盒站点都更新
 - [ ] 处理 §10.2 的裸域证书问题
@@ -1073,3 +1240,79 @@ Windows 上装个系统 Deno（`winget install DenoLand.Deno`），脚本优先�
 - [ ] 确认 GitHub 推送凭据（`dist\.git` 的 remote）可用，或重新配置
 - [ ] 确认备份通道可用：`部署.cmd bakup --check` 能列出文件，`部署.cmd bakup` 能推到 `JinSuperKitBakup`
 - [x] `theme-plus` 已移出仓库、改成 DSH 全局技能（`F:\@AI\skills\theme-plus\`），源码备份不再受它拖累
+
+---
+
+## 15. 最近这一轮：811 套装 1.0.1 + 学校上传修复（2026-10-16）
+
+一句话：**作业发布了、桌面版出了 1.0.1、学校那台「同步到云端」上传失败的真凶找到了**
+（跟网络无关），顺手把「安装位置会漂」和「回归测试太脆」两个隐患一起修了。
+
+### 15.1 交付物
+
+| 东西 | 在哪 |
+|:--|:--|
+| 安装版 `JinSuper-811-Setup-1.0.1.exe`（126,284,573 B · sha256 `e3f13da7…c56923a9`） | Release `JinSuper.github.io@desktop-v1.0.1` 与 `JinSuperKitBakup@v1.7.1`；U 盘 `I:\811-latest-setup.exe`；仓库根 `desktop\release\` |
+| 免安装版 `JinSuper-1.0.1-portable.exe`（126,045,921 B · `c22a5389…73715259`） | 同上，U 盘 `I:\811-latest-portable.exe` |
+| 源码快照 | 备份仓库 tag **v1.7.1**（commit 153ac00） |
+| 作业数据 | `class\data\hwk\hwk-n261017.json`（10-17，社会那栏加了「背诵道德与法治第二单元知识点（周一要默写）」）+ 重建的两个清单；热铁盒 / GitHub Pages / Gitee 镜像三处都已上线 |
+| CI 构建记录 | run **38872148122**（`desktop-win.yml`，Windows runner；唯一失败的是 post-cache 步骤，无害） |
+
+打包顺序（Linux/WSL 侧打不出 NSIS —— 要 wine 先烘卸载器，所以正式包一律走 Actions）：
+
+```bash
+JINS_NO_TERM=1 ./部署.sh bakup -y --tag v1.7.1 --tag-message "…"    # 先推源码：CI 只从仓库取代码
+gh workflow run desktop-win.yml --repo JinSuperOfficial/JinSuperKitBakup
+gh run download <run-id> -n JinSuper-811-win-x64 -D <目录>          # 下下来先 7z t + sha256 验一遍
+node desktop/build/upload-release.mjs --bakup-tag v1.7.1           # 传两个 Release
+```
+
+> 在 WSL 里跑 `部署.sh` 一定要带 `JINS_NO_TERM=1`：不带的话它看 `DISPLAY` 有值，
+> 会自己弹一个图形终端去干活（屏幕上闪窗口，还看不到输出）。
+
+### 15.2 修了什么
+
+1. **Gitee 写路径 `api.stat` → `transport.stat`**（`sync\lib\gitee.mjs`）：`api` 只是箭头函数，
+   所以 `put()` / `del()` 第一行就 `TypeError` —— 这就是学校「同步到云端」失败的**唯一原因**，
+   和 Gitee 通不通无关（浏览器能打开 Gitee 也没用）。验证方式：拿真令牌、真 Gitee 跑
+   `pushInbox → listInbox → del` 全通；并补了 5 条**假 fetch** 用例 —— 本地目录通道的用例
+   永远覆盖不到这条后端，这是教训本身。
+2. **安装位置固定**：`desktop\build\installer.nsh` 加 `customInstallMode` 宏（强制
+   `$isForceCurrentInstall`）→ 不再弹「给谁装」那一页、不要管理员权限、固定装到
+   `%LOCALAPPDATA%\Programs\JinSuper`；`desktop\package.json` 去掉 `menuCategory`
+   （它就是 `C:\Program Files\811 套装\JinSuper` 那层目录的来源）。另加 `customInit`：
+   机器上还有「所有用户」装的旧版就先弹一条提醒让先卸掉。
+3. **测试加固**：新增 `desktop\test\installer.test.cjs`（`.nsh` 必须带 BOM、必须强制当前用户、
+   不许 `menuCategory`、两份快捷方式自己建）；`build\test-homework.mjs` 的期望值改成钉在
+   旧 `homework.json` 那一天（以前拿「目录里最新那天」比，站点**每加一天作业就红 9 项**）。
+
+`npm run check`：作业页 **116/116**，其余四套全过；桌面 **34/34**；同步 **15/15**。
+
+### 15.3 学校那台怎么用
+
+1. 装 `I:\811-latest-setup.exe`（不需要管理员）。
+2. 打开「作业编辑器」→ 点 **「重试队列（N 天待同步）」** → 之前传失败的会补传
+   （失败的作业一直躺在 `%APPDATA%\JinSuper\sync\queue\`，**没丢**）。
+3. 家里：`部署.cmd sync pull` → `sync apply --write` → `部署.cmd full`。
+
+数据目录和安装目录无关：`%APPDATA%\JinSuper`（作业 / 设置 / 离线副本 / 队列都在这，卸载也不删）。
+同一个 exe 两种模式（看 `--app=`）：`班级百宝箱`（浏览站点）与 `作业编辑器`（离线录作业，先写本机）。
+
+### 15.4 这一轮留下的待办与实话
+
+- ⚠️ **令牌是明文**：`desktop\build\sync-config.json` 要打包进安装包（学校那台得能离线用），
+  仓库根 `.env` 也一样（已 gitignore + chmod 600）。它是「**可撤销**」而不是「不可读」——
+  要更严就再加一层 DPAPI / AES 包装，**现在没有**。
+- 机器上遗留的 `C:\Program Files\811 套装\JinSuper`（老配置装的）要手动卸一次；
+  「设置 → 应用」里能看到两个条目就是它。
+- 学校那台的实际安装目录还没确认：`C:\Users\seewo\JinSuper` **不是**我们任何一条默认路径
+  （程序默认 `%LOCALAPPDATA%\Programs\JinSuper`，数据 `%APPDATA%\JinSuper`）。
+  那个文件夹里若只有 `JinSuper.exe` + `resources\`，就是手工拷贝/手选目录装出来的
+  「绿色版」——**换成 1.0.1 的安装包**最省事。
+- `desktop\release\` 里留着 1.0.0 的两个 exe 和 `JinSuper-Setup-1.0.0.exe`（Release 上都有），
+  想省地方可以删；`win-unpacked\` / `linux-unpacked\` / `*.nsis.7z` 是构建中间物（约 807MB），
+  2026-10-16 已删，要重来就跑 `npm run dist:win`。
+- 缓存清理（2026-10-16，共约 **2.8GB**）：`/tmp` 1.1G → 7M、`F:\@Project\@temp\jsd-build` 998MB、
+  `desktop\release\` 构建中间物 807MB。留在原地的「有用缓存」：`~/.cache/electron` 388M
+  （Electron 二进制）、`~/.npm/_cacache` 344M（npm）、`~/.cache/electron-builder` 20M（NSIS 等）。
+  顺手给所有测试加了临时目录清理钩子，跑测试不再往 `/tmp` 里堆东西。

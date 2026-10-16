@@ -46,6 +46,12 @@ const itemHash = (sub, i, text) => fnv1a('hw1|' + sub + '|' + i + '|' + text);
 const looseJson = (t) => JSON.parse(String(t).replace(/,\s*([}\]])/g, '$1'));
 const lines = (v) => String(v == null ? '' : v).replace(/\\n/g, '\n').split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
 
+/* 临时目录跑完删掉，别在 /tmp 里积（见 build/test-sync.mjs 里同一段注释） */
+const GEN_TEMPS = [];
+process.on('exit', () => {
+  for (const d of GEN_TEMPS) { try { fs.rmSync(d, { recursive: true, force: true }); } catch { /* 删不掉就算了 */ } }
+});
+
 /* ═══════════════════════ A. 改名与迁移 ═══════════════════════ */
 console.log('\n── A1. 811 → class 改名 ──');
 check('站点里已经没有 811/ 目录', !fs.existsSync(path.join(SITE, '811')));
@@ -596,6 +602,7 @@ console.log('\n── D1. 生成器：目录 + 生产清单（内容、确定性
 const { buildAll } = await import('./lib/hwk-index.mjs');
 {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'hwk-gen-'));
+  GEN_TEMPS.push(tmp);
   const dir = path.join(tmp, 'class', 'data', 'hwk');
   fs.mkdirSync(dir, { recursive: true });
   const dump = (o) => JSON.stringify(o, null, '\t') + '\n';

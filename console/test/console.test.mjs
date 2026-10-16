@@ -23,12 +23,21 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const consoleDir = path.resolve(here, '..');
 const realBuild = path.resolve(consoleDir, '..', 'build');
 
+const TEMPS = [];
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'console-test-'));
+TEMPS.push(root);
 process.env.DSH_CONSOLE_ROOT = root;
 /* 状态文件也指到临时目录：测试会改设置、写归档元数据，
    不能让它落到人用的 console/state.json 上 */
 const stateTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'console-state-'));
+TEMPS.push(stateTmp);
 process.env.DSH_CONSOLE_STATE_DIR = stateTmp;
+
+/* 临时目录跑完删掉，别在 /tmp 里积（见 build/test-sync.mjs 里同一段注释） */
+process.on('exit', () => {
+  for (const d of TEMPS) { try { fs.rmSync(d, { recursive: true, force: true }); } catch { /* 删不掉就算了 */ } }
+});
+
 
 const site = path.join(root, 'jinsuper.rth1.xyz');
 const p = path.join(site, 'p');

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  旧版（API < 31）的自动备份规则。**把作业数据交出去** ——
+  同学换手机时这是最后一道保险（没有它，卸载 / 换机就全丢了）。
+  但同步队列与网页缓存不备份：那是**本机**的状态，换台机器上重来一遍更干净。
+-->
+<full-backup-content>
+    <include domain="file" path="hwk/" />
+    <exclude domain="file" path="sync/" />
+    <exclude domain="file" path="site/" />
+    <exclude domain="cache" path="." />
+</full-backup-content>

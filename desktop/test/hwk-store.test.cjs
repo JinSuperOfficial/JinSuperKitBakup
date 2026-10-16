@@ -20,9 +20,16 @@ process.env.JSD_SYNC_LIB = path.resolve(__dirname, '..', '..', 'sync', 'lib');
 
 const { createHwkStore, stampOf } = require('../src/hwk-store');
 
+/* 跑完统一清掉临时目录（见 build/test-sync.mjs 里同一段注释） */
+const TEMPS = [];
 function tmp(tag) {
-  return fs.mkdtempSync(path.join(os.tmpdir(), `jsd-hwk-${tag}-`));
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), `jsd-hwk-${tag}-`));
+  TEMPS.push(d);
+  return d;
 }
+process.on('exit', () => {
+  for (const d of TEMPS) { try { fs.rmSync(d, { recursive: true, force: true }); } catch { /* 删不掉就算了 */ } }
+});
 
 function makeStore({ baseline = null } = {}) {
   const base = tmp('base');

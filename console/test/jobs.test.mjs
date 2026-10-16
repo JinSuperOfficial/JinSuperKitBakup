@@ -20,10 +20,18 @@ import os from 'node:os';
 import path from 'node:path';
 
 /* paths.mjs 在 import 时就读环境变量 —— 所以必须先把目录定好再动态 import */
+const TEMPS = [];
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'console-jobs-'));
+TEMPS.push(root);
 process.env.DSH_CONSOLE_ROOT = root;
 process.env.DSH_CONSOLE_STATE_DIR = path.join(root, 'state');
 fs.mkdirSync(path.join(root, 'jinsuper.rth1.xyz'), { recursive: true });
+
+/* 临时目录跑完删掉，别在 /tmp 里积（见 build/test-sync.mjs 里同一段注释） */
+process.on('exit', () => {
+  for (const d of TEMPS) { try { fs.rmSync(d, { recursive: true, force: true }); } catch { /* 删不掉就算了 */ } }
+});
+
 fs.mkdirSync(process.env.DSH_CONSOLE_STATE_DIR, { recursive: true });
 
 const jobs = await import('../lib/jobs.mjs');

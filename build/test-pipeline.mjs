@@ -169,10 +169,18 @@ test('runPipeline：runStep 抛错时不会把整个进程带走', async () => {
 
 /* ═══════════ 部署文件规则 ═══════════ */
 
+const TEMPS = [];
 function tmpRoot(name) {
   const d = fs.mkdtempSync(path.join(os.tmpdir(), name + '-'));
+  TEMPS.push(d);
   return d;
 }
+
+/* 临时目录跑完删掉，别在 /tmp 里积（见 build/test-sync.mjs 里同一段注释） */
+process.on('exit', () => {
+  for (const d of TEMPS) { try { fs.rmSync(d, { recursive: true, force: true }); } catch { /* 删不掉就算了 */ } }
+});
+
 
 test('uploadSet：EXCLUDE 在任意层级都生效，asset/ 后写入覆盖同名', () => {
   const root = tmpRoot('deploy-files');

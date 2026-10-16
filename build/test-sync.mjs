@@ -29,9 +29,17 @@ import { normalizeInput, mergeIndex, DEFAULT_SUBJECTS, NOTES_KEY } from '../sync
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
+/* 临时目录登记一下，跑完统一删掉 —— 这些用例一次跑出几十个目录（分卷那个一份 17MB），
+   不删就在 /tmp 里越积越多（2026-10-16 清出 1.1G 的时候顺手加的）。 */
+const TEMPS = [];
 function tmpdir(tag) {
-  return fs.mkdtempSync(path.join(os.tmpdir(), `jsd-${tag}-`));
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), `jsd-${tag}-`));
+  TEMPS.push(d);
+  return d;
 }
+process.on('exit', () => {
+  for (const d of TEMPS) { try { fs.rmSync(d, { recursive: true, force: true }); } catch { /* 删不掉就算了 */ } }
+});
 
 test('tar：打包 → 解包，内容和路径都对', () => {
   const nested = 'p/docs/' + 'x'.repeat(120) + '/deep/readme.md';

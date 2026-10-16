@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  android/app/src/main/AndroidManifest.xml
+  ===========================================================
+  「一个 APK + 两个 activity-alias」—— 对齐桌面版的「同一个 exe + 一个参数」：
+
+    811 看作业（ViewAlias，默认） → mode=view → 直接进「看作业」
+    811 录作业（EditAlias）       → mode=edit → 先弹密码框，过了才进编辑
+
+  ★ mode 为什么不读 intent extra：
+    从桌面图标启动**没有** extra（用户只是点了图标，没人给他塞参数）。
+    所以每个 alias 用 <meta-data android:name="jsd.mode"> 声明自己的模式，
+    MainActivity 起来后用 componentName 反查自己的 alias —— 见 MainActivity.kt。
+    用 extra 的话，「点图标」这条路永远是 view，edit 那个图标就废了。
+
+  ★ 关于 WebView 的 origin（LocalContentHandler.kt 的固定域名）：
+    页面走 https://appassets.androidplatform.net/，所有子资源由
+    shouldInterceptRequest 接管。**不能用随机端口的本地 HTTP 服务**：
+    站点作业页的勾选状态存在 localStorage，键是 hw:<id>:<条目哈希>，
+    而 localStorage 按 origin（scheme://host:port）隔离 —— 端口一随机，
+    origin 每次冷启动都变，同学之前勾过的作业全部消失。
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- 看作业要联网（主站有回落链）；读网络状态只是为了让错误页说人话 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <application
+        android:name=".JinSuperApp"
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.JinSuper811"
+        android:usesCleartextTraffic="false"
+        tools:targetApi="34">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode|smallestScreenSize|density"
+            android:launchMode="singleTop"
+            android:windowSoftInputMode="adjustResize" />
+
+        <!-- ── 入口一：811 看作业（默认、桌面主图标） ── -->
+        <activity-alias
+            android:name=".ViewAlias"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:label="@string/alias_view"
+            android:targetActivity=".MainActivity">
+            <meta-data
+                android:name="jsd.mode"
+                android:value="view" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- ── 入口二：811 录作业（进去先验密码） ── -->
+        <activity-alias
+            android:name=".EditAlias"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_edit"
+            android:label="@string/alias_edit"
+            android:targetActivity=".MainActivity">
+            <meta-data
+                android:name="jsd.mode"
+                android:value="edit" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- ── 入口三：同步 / 设置（也给一枚图标，同学换机后好找） ── -->
+        <activity-alias
+            android:name=".SyncAlias"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_sync"
+            android:label="@string/alias_sync"
+            android:targetActivity=".MainActivity">
+            <meta-data
+                android:name="jsd.mode"
+                android:value="sync" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+    </application>
+</manifest>

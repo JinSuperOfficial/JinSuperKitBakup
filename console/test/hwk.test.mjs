@@ -34,6 +34,10 @@ const root = fs.mkdtempSync(path.join(os.tmpdir(), 'hwk-test-'));
 process.env.DSH_CONSOLE_ROOT = root;
 const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hwk-state-'));
 process.env.DSH_CONSOLE_STATE_DIR = stateDir;
+/* 跑完删掉这两份临时目录（见 build/test-sync.mjs 里同一段注释） */
+process.on('exit', () => {
+  for (const d of [root, stateDir]) { try { fs.rmSync(d, { recursive: true, force: true }); } catch { /* 删不掉就算了 */ } }
+});
 
 const site = path.join(root, 'jinsuper.rth1.xyz');
 const dataDir = path.join(site, 'class', 'data');

@@ -102,7 +102,56 @@ F:\@AI\skills\theme-plus\references\circle_angle.md
   （`部署.cmd` / `部署.sh` / `控制台.cmd` / `控制台.sh`）的用法列表也要一起改
 - 令牌从 `.env`（`JINS_GITEE_TOKEN`）来；桌面版是**打包时注进包内**的
   （`desktop/build/make-sync-config.mjs` → `resources/sync-config.json`，这个文件不许入库）
+- **家里的 `sync push` 走 git，学校的「同步到云端」走 Gitee OpenAPI** ——
+  两条路不是同一份代码，「家里通」证明不了「学校通」。写路径（`sync/lib/gitee.mjs` 的
+  `put/del/list`）只有 `build/test-sync.mjs` 里那几条**假 fetch** 用例覆盖得到，别删。
 - 细节、配额、排障见 **`sync/README.md`**
+
+## 移动端（`android/`）
+
+整站还打了**第三端**：给同学用的安卓应用（`android/`，一个 APK + 三枚桌面图标）。
+**不发布到应用商店**，跟 `desktop/` 一样只待在源码里。用法 / 打包 / 排障见
+**`android/README.md`**，要点见 `project.md` §4.9。
+
+- **一个 APK + 三个 `activity-alias`**（对齐桌面版的「同一个 exe + 一个参数」）：
+  `811 看作业`（默认）/ `811 录作业`（先过密码门）/ `811 设置与同步`。
+  **模式不读 intent extra** —— 从桌面图标启动没有 extra，所以每个 alias 用
+  `<meta-data name="jsd.mode">` 声明，`MainActivity` 用 `componentName` 反查
+- **本地内容不走 `file://`，也不用本地端口**：全部走固定虚拟域
+  `https://appassets.androidplatform.net/`，子资源由 `shouldInterceptRequest` 接管。
+  **端口一随机，`localStorage` 的 origin 就变，同学勾过的作业全部消失** —— 这是硬要求
+- 本地服务对 `.php` 一律回 **404**（理由同桌面版）；**Range 要支持**（206 + `Content-Range`）
+- 作业数据落 `filesDir/hwk/`（**不是**外部存储），形状与 `class/data/hwk/` 逐字段一致；
+  令牌打包时明文注入 `assets/sync-config.json`（**不入库**）
+- 离线副本与编辑器界面是**生成物**（源头在站点目录 / `desktop/src/ui/hwk/`），
+  由 `android/tools/sync-site-assets.mjs` 同步，**不入库**
+- **写 `.gradle.kts` 顶上只能用 `//` 行注释** —— 用块注释会让整个脚本被编译成空脚本
+  （不报错、plugin 全不生效）。Kotlin 注释里也别写「斜杠+星号」；XML 注释里别写连续两个减号
+
+## 站点响应式（桌面 + 移动）
+
+站点页面做了完整响应式适配（重点 `class/homework.html`）。断点统一：
+**桌面 ≥1024（不动）/ 平板 768–1023 / 手机 ≤767 / 窄屏 ≤400`，一律用 `max-width` 覆盖**。
+
+- **桌面端（≥1024px）视觉与交互必须和改造前逐像素一致** —— 新规则只许写在 max-width 媒体查询里
+- 颜色一律走 token（响应式块里不许出现写死的 `#RRGGBB` 或 `rgba(数字…)`）
+- 触摸目标 ≥ 48px；底部固定元素要留 `env(safe-area-inset-bottom)`
+- **`build/test-responsive.mjs` 只做静态断言**（viewport / 断点 / 安全区 / 触摸目标 /
+  `100vw` / 写死颜色 / 站外地址）；真实布局要人眼在几个视口下对照截图
+
+## 测试（`build/test-*.mjs` / `console/test/` / `desktop/test/` / `android/app/src/test/`）
+
+- **新增测试文件要登记**：`npm run check` 与 `check:desktop` 是**逐个文件列出来**跑的
+  （`node --test 目录` 在这台机器上会 MODULE_NOT_FOUND）。只加文件不改 `package.json`
+  = 测试永远不跑，而且看不出来。
+  - `build/test-responsive.mjs` —— 响应式的静态断言（已登记进 `npm run check`）
+  - `build/test-android.mjs` —— **跨端契约**：来源表 / 保留字 / 收件箱常量 / tar 样本
+    / manifest 最后写 / 令牌不许明文 / 离线副本体积（已登记进 `npm run check`）
+  - `android/app/src/test/` —— 安卓侧的 JVM 单测，由 `npm run check:android` 跑（要 JDK + Android SDK）
+- 测试里用 `fs.mkdtempSync` 建的临时目录，**要挂到 `process.on('exit')` 上删掉**：
+  跑一次 `npm run check` 能建几十个（分卷那份一个 17MB），不删就在 `/tmp` 里堆积。
+- 断言的期望值**别钉在「站点里最新那天 / 最新那份」上**：站点内容天天变，
+  测试会跟着红。要固定就固定一份 fixture 或明确写死某一天（见 `build/test-homework.mjs`）。
 
 ## 提交与备份（改完代码之后）
 

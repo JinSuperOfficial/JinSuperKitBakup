@@ -20,6 +20,21 @@ import { render } from 'ink';
 import { TuiApp } from './tui/app.mjs';
 import { PIPELINES } from './lib/pipeline.mjs';
 
+/**
+ * 终端控制序列（颜色 / 光标 / 括号同步）。
+ *
+ * `ink` 往 stdout 写的是**带控制码的原始终端输出**，而这一套断言问的是
+ * 「屏幕上该有的字在不在」—— 所以在 `.text` 里就把控制码剥掉，一处修干净。
+ *
+ * 踩过的坑（两层，都会让正则匹配不上）：
+ *   ① `dist/     ` 是 `<Text dimColor>`、值在另一个 `<Text>` 里，ink 在两者交界处
+ *      会补一个 `ESC[22m`（关掉暗色）—— 正好夹在 `dist/` 和 `717 个文件` 中间，
+ *      而正则里写的是 `\s+`，于是匹配失败；
+ *   ② `.text` 原本把 ink 的**每一帧**直接拼起来，光标移动 / 括号同步那些序列也混在里面。
+ * 所以别去逐个放宽正则（后面每条断言都会再踩一次），剥在 `.text` 这个入口上。
+ */
+const stripAnsi = (s) => String(s).replace(/\x1B\[[0-9;?]*[A-Za-z]/g, '');
+
 /** 假 stdout：ink 只用到 write / columns / rows / isTTY / on('resize') */
 class FakeStdout extends EventEmitter {
   constructor(cols = 100, rows = 30) {
@@ -30,7 +45,10 @@ class FakeStdout extends EventEmitter {
     this.frames = [];
   }
   write(s) { this.frames.push(String(s)); return true; }
-  get text() { return this.frames.join(''); }
+  /** ★ 屏幕上「看得见的字」—— 控制码在这里就剥掉，断言只管找字 */
+  get text() { return stripAnsi(this.frames.join('')); }
+  /** 原始输出（真要检查控制码本身时才用，目前没有断言用它） */
+  get raw() { return this.frames.join(''); }
 }
 
 /** 假 stdin：ink v7 用 `on('readable')` + `read()` 收输入，所以得按这个契约实现 */
@@ -52,7 +70,15 @@ class FakeStdin extends EventEmitter {
   press(s) { this.queue.push(s); this.emit('readable'); }
 }
 
+const TEMPS = [];
 const tmpLogDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tui-log-'));
+TEMPS.push(tmpLogDir);
+
+/* 临时目录跑完删掉，别在 /tmp 里积（见 build/test-sync.mjs 里同一段注释） */
+process.on('exit', () => {
+  for (const d of TEMPS) { try { fs.rmSync(d, { recursive: true, force: true }); } catch { /* 删不掉就算了 */ } }
+});
+
 
 const PLANS = [
   { id: 'full', name: '快速部署', desc: '构建 → 自检 → 组装 → 热铁盒 → GitHub', steps: PIPELINES.full.map((s) => ({ ...s, on: true })) },
@@ -103,10 +129,20 @@ function mount(opts = {}) {
 const tick = (ms = 60) => new Promise((r) => setTimeout(r, ms));
 
 /** 最后一帧的文本：ink 是一帧帧重绘的，用累积文本判断「现在屏幕上有什么」会误判 */
+/**
+ * 屏幕上**最后一帧**的文字（已经剥掉控制码）。
+ *
+ * 分帧必须在**原始输出**上做：ink 用 `ESC[?2026h`（同步输出开始）当一帧的开头，
+ * 而 `.text` 现在把控制码剥掉了 —— 直接拿 `.text` 找那个标记会找不到，
+ * 于是「最后一帧」退回成「所有帧拼起来」，上一帧的内容就留在里面，
+ * `doesNotMatch(frame, …)` 那种断言会莫名其妙地红（这里栽过一次）。
+ * 所以：标记在 raw 上找，切出最后一帧之后再剥控制码。
+ */
 function lastFrame(stdout) {
-  const t = stdout.text;
-  const i = t.lastIndexOf('\u001b[?2026h');
-  return i >= 0 ? t.slice(i) : t;
+  const raw = stdout.raw;
+  const mark = '\u001b[?2026h';
+  const i = raw.lastIndexOf(mark);
+  return stripAnsi(i >= 0 ? raw.slice(i) : raw);
 }
 
 /* ink 7 的渲染是批处理的：固定 sleep 会偶发赶不上，改成等到内容真的出现 */
@@ -165,6 +201,47 @@ test('状态页显示站点/dist/密钥/Deno/Git', async () => {
   assert.match(t, /RTH_API_KEY=3aef…47ca/);
   assert.match(t, /项目内 node_modules\/\.bin\/deno\.cmd/);
   assert.match(t, /main · 无待提交改动/);
+  inst.unmount();
+});
+
+/**
+ * 回归：`.text` 里**不许**再夹终端控制码。
+ *
+ * 病根：状态页的 `dist/     ` 是 `<Text dimColor>`、值在另一个 `<Text>` 里，
+ * ink 在两者交界处会补一个 `ESC[22m`（关掉暗色）；而 `.text` 原本把 ink 的
+ * 每一帧原样拼起来，连光标移动 / 括号同步那些序列也混在里面。
+ * 于是 `/dist\/\s+717 个文件/` 这种「标签 + 空格 + 数字」的正则会匹配失败 ——
+ * 报出来像「预期和现实不一致」，其实是**解析方式**的问题。
+ *
+ * 剥控制码已经做在 `FakeStdout.text` 上（一处修干净），这两条把它钉住：
+ * 第一条不管颜色开没开都必须过；第二条在颜色被关掉的环境里退化成同一条恒真断言，
+ * 在颜色开着的地方（比如开发机跑 `部署.cmd check`）才是真正会红的那条。
+ */
+test('回归：屏幕上取到的文字里没有终端控制码', async () => {
+  const { stdout, inst } = mount({ initialId: 'status' });
+  await waitFor(() => /个文件/.test(stdout.text));
+  assert.doesNotMatch(stdout.text, /\x1B\[|\u001b\[/, '.text 里混进了控制码 —— 断言会看不懂屏幕');
+  assert.match(stdout.raw, /\u001b\[/, 'raw 里没有控制码：ink 大概没在着色，这条用例的覆盖力会下降（不是 bug）');
+  inst.unmount();
+});
+
+test('回归：标签和值分属两个 <Text> 的那几行也能被正则匹配上', async () => {
+  /* 状态页每一行都是 `line(标签, 值)` —— 标签 dimColor、值不带色，
+     ink 会在中间插 `ESC[22m`。这几行全是「标签 + 空白 + 值」的形状，
+     老正则只允许空白，所以**每一行**都可能踩同一个坑，这里逐个钉住。 */
+  const { stdout, inst } = mount({ initialId: 'status' });
+  await waitFor(() => /个文件/.test(stdout.text));
+  const t = stdout.text;
+  const rows = [
+    ['站点', new RegExp('jinsuper\\.rth1\\.xyz · ' + SITE_INFO.siteFiles + ' 个文件')],
+    ['dist/', new RegExp('dist/\\s+' + SITE_INFO.distFiles + ' 个文件')],
+    ['.env', /\.env\s+✓ RTH_API_KEY=/],
+    ['Deno', /Deno\s+✓/],
+    ['Git', /Git\s+main · 无待提交改动/],
+  ];
+  for (const [label, re] of rows) {
+    assert.match(t, re, `状态页的「${label}」那一行匹配不上 —— 标签与值之间多半又夹了控制码`);
+  }
   inst.unmount();
 });
 

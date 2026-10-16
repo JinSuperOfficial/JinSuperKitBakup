@@ -47,3 +47,43 @@ desktop/build/sync-config.json
 sync/inbox/
 sync/cache/
 console/logs/
+
+# ── 移动端（android/） ──────────────────────────────────────────────
+# 打包产物、Gradle 状态、本机 SDK 路径：都不进备份
+android/build/
+android/app/build/
+android/.gradle/
+android/.kotlin/
+android/local.properties
+android/release/
+android/.cxx/
+# 构建期从站点拷进来的离线副本与编辑器界面 —— 源头在 jinsuper.rth1.xyz/ 与
+# desktop/src/ui/hwk/，由 android/tools/sync-site-assets.mjs 生成，别提交副本
+android/app/src/main/assets/site/
+android/app/src/main/assets/hwk-ui/
+# ★ 令牌：打包时注入，**绝不入库**（对齐 desktop/build/sync-config.json 的处理）
+android/app/src/main/assets/sync-config.json
+# ★ 签名文件：丢了就永远无法覆盖升级。
+#   **这个文件要进备份仓库**（`部署.cmd bakup` 走的 git 是按 .gitignore 过滤的）——
+#   它是口令保护的，安全的是**口令**，不是文件本身；口令存密码管理器，绝不写进任何被提交的文件。
+#   下面这条 `!` 就是把它从「一律不认 jks」里单独捞出来。
+android/keystore/*.jks
+*.jks
+*.keystore
+!android/keystore/jinsuper.jks
+
+# 但要挡掉「别的」keystore：不是这套签名体系的钥匙不该被顺手带进来。
+# （`android/keystore/` 里除了 jinsuper.jks 之外的任何 jks 都进不来。）
+android/keystore/*.jks.bak
+android/keystore/*.old
+android/keystore/*.keystore
+# 有人会把口令写成一份 keystore.properties（Gradle 的常见做法）—— 一并挡掉，
+# 免得它落在 `android/` 下被同步/备份流程扫走。**口令不要写进 android/gradle.properties**
+# （那个文件是入库的）。
+keystore.properties
+android/keystore.properties
+
+# ★ 例外：Gradle wrapper 的 jar **必须**入库 —— CI 上没有它就 ./gradlew 起不来，
+#   源码备份里少了它，换台机器也构建不了。
+#   写在最后、用 ! 反选：这是 android/ 这一节里唯一要进仓库的二进制。
+!android/gradle/wrapper/gradle-wrapper.jar

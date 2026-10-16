@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  android/app/src/main/res/values/colors.xml
+  ===========================================================
+  壳层的几个底色。**只有壳层用** —— 站点页面的颜色一律走站点自己的 CSS token
+  （见 AGENTS.md 的「主题」一节），两边别混。
+
+  注意：XML 注释里**不能出现连续两个减号**（那是 XML 的语法），
+  写「浅色一侧、暗色一侧」时别顺手敲破折号当连接符。
+-->
+<resources>
+    <!-- window_bg 取自站点暗色一侧的背景色（#14120E 附近）：
+         窗口底色和 WebView 首帧对齐，冷启动就不会闪一块白 -->
+    <color name="window_bg">#14120E</color>
+
+    <!-- 三枚图标的底色：看是纸色（浅）、录是暖橘（站点 accent）、设置是橄榄（站点 olive）。
+         一眼能分辨谁是干什么的，不用读字 -->
+    <color name="icon_view">#F8F3EC</color>
+    <color name="icon_edit">#C9683D</color>
+    <color name="icon_sync">#8E9867</color>
+</resources>
