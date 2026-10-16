@@ -118,7 +118,9 @@ export function createGiteeTransport(cfg, { fetchImpl = globalThis.fetch, retrie
         message: String(message).slice(0, 200) || 'sync',
         branch,
       };
-      const at = await api.stat(key, { branch });
+      /* 注意：这里是 transport.stat（对象方法），不是 api.stat —— api 只是个箭头函数，
+         写成 api.stat() 会立刻 TypeError，而这正是「学校那台上传失败」的老毛病。 */
+      const at = await transport.stat(key, { branch });
       if (at && at.type === 'file') {
         await api(`/contents/${key}`, {}, { method: 'PUT', body: JSON.stringify({ ...body, sha: at.sha }) });
       } else {
@@ -128,7 +130,7 @@ export function createGiteeTransport(cfg, { fetchImpl = globalThis.fetch, retrie
     },
 
     async del(key, { message = 'sync prune', branch = cfg.gitee.branch } = {}) {
-      const at = await api.stat(key, { branch });
+      const at = await transport.stat(key, { branch });
       if (!at || at.type !== 'file') return false;
       await api(`/contents/${key}`, {}, {
         method: 'DELETE',

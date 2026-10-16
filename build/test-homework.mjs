@@ -118,7 +118,11 @@ check('目录里只剩 hwk-*.json + index.json（旧版内容片已清）',
 console.log('\n── A3. 迁移能不能原样拼回去 ──');
 const OLD_FILE = path.join(SITE, 'class/data/homework.json');
 const old = looseJson(fs.readFileSync(OLD_FILE, 'utf8'));
-const rec0 = JSON.parse(fs.readFileSync(path.join(HWK_DIR, idx[0].name), 'utf8'));
+/* 盯的是**旧数据那一天**的迁移产物，不是「目录里最新的一天」——
+   站点每加一天作业 idx[0] 就换人，拿它当期望值会一天红一次。 */
+const LEGACY_NAME = 'hwk-' + old.id + '.json';
+const LEGACY_REC = JSON.parse(fs.readFileSync(path.join(HWK_DIR, LEGACY_NAME), 'utf8'));
+const rec0 = LEGACY_REC;
 const pieceOf = (id) => (id ? JSON.parse(fs.readFileSync(path.join(HWK_DIR, id + '.json'), 'utf8')).text : null);
 const oldSubjects = Object.keys(old).filter((k) => !['title', 'id', 'bg', 'date', 'homework', '笔记', 'notes', 'egg', '彩蛋'].includes(k));
 let same = JSON.stringify(oldSubjects.filter((k) => k in rec0)) === JSON.stringify(oldSubjects);
@@ -193,9 +197,29 @@ function boot({ fetchPlan, withFetch = true, beforeParse } = {}) {
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const qa = (win, sel) => [].slice.call(win.document.querySelectorAll(sel));
 
-/* 磁盘上的数据（新结构 + 旧备份），给「主页」那几段用 */
+/* 磁盘上的数据（新结构 + 旧备份），给「主页」那几段用。
+   ---------------------------------------------------------------
+   下面这些用例的期望值全是**旧 homework.json 那一天**的内容（逐字节一致 / 勾选键 /
+   13 条正文 / 笔记里的「返校」…），所以 hwk 的目录与生产清单在这里**钉在那一天**：
+   不然站点一加新作业，页面显示的「当天」就换了人，这份回归测试会天天红。
+   其余文件照真实磁盘内容发。 */
+const LEGACY_IDX = [{
+  id: old.id, name: LEGACY_NAME, date: LEGACY_REC.date || '', title: LEGACY_REC.title || '',
+}];
+const LEGACY_INDEX = JSON.stringify(LEGACY_IDX);
+const LEGACY_PRODUCE = JSON.stringify({
+  note: '测试用：只放旧数据那一天',
+  source: HWK_REL,
+  count: 1,
+  previewCount: 1,
+  entries: JSON.parse(LEGACY_INDEX),
+  preview: { [LEGACY_NAME]: LEGACY_REC },
+});
 const serveFile = (rel) => {
-  const p = path.join(SITE, rel);
+  const r = String(rel).replace(/^\.\//, '').replace(/^\//, '');
+  if (r === HWK_REL + '/index.json') return { ok: true, status: 200, body: LEGACY_INDEX };
+  if (r === 'class/data/index-produce.json') return { ok: true, status: 200, body: LEGACY_PRODUCE };
+  const p = path.join(SITE, r);
   return fs.existsSync(p) ? { ok: true, status: 200, body: fs.readFileSync(p, 'utf8') } : { ok: false, status: 404, body: '' };
 };
 
@@ -275,7 +299,8 @@ const PRODUCE_URL = 'https://cdn.jsdelivr.net/gh/JinSuperOfficial/jinsuperoffici
   const A = boot({
     fetchPlan: (u) => {
       if (u === API_URL) {
-        return { ok: true, status: 200, body: JSON.stringify(idx.map((e) => ({
+        /* 只列旧数据那一天（理由见 serveFile 上面那段） */
+        return { ok: true, status: 200, body: JSON.stringify(LEGACY_IDX.map((e) => ({
           type: 'file', name: e.name, sha: 'sha-' + e.id, download_url: RAW_BASE + e.name
         })).concat([{ type: 'file', name: 'index.json', download_url: RAW_BASE + 'index.json' }])) };
       }
@@ -291,7 +316,7 @@ const PRODUCE_URL = 'https://cdn.jsdelivr.net/gh/JinSuperOfficial/jinsuperoffici
   doc.getElementById('tmBtn').click();
   await wait(500);
   const listed = qa(A.win, '#tmList .log-item');
-  check('时光机按钮能打开，列表按 index 渲染', listed.length === idx.length, listed.length + ' 条');
+  check('时光机按钮能打开，列表按 index 渲染', listed.length === LEGACY_IDX.length, listed.length + ' 条');
   check('列表里没有 index.json 这种非作业文件（只认 hwk-*.json）',
     A.reqs.filter((u) => u.endsWith('index.json') && u.startsWith(RAW_BASE)).length === 0);
   check('GitHub API 通了就不去读 CDN 的生产清单（主力路径最省）',

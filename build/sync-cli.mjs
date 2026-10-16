@@ -27,6 +27,7 @@ import { pushInbox, listInbox, pullInbox, applyInbox, collectDir, defaultStamp }
 import { collectState, cloudManifest, localSiteManifest, versionOf } from '../sync/lib/state.mjs';
 import {
   git, ensureRepo, ensureCommitIdentity, ensureRemote, remoteHeads, pushTo, fetchFrom, authedUrl, GITEE_REMOTE,
+  directArgs, proxyArgsFor,
 } from './lib/git-dist.mjs';
 
 const projectRoot = PROJECT_ROOT;
@@ -265,14 +266,16 @@ export async function cmdPush({ dryRun = false, noGithub = false, noPrep = false
 
   const authUrl = authedUrl(repoUrl, { owner: config.gitee.owner, token: config.gitee.token });
   const branch = config.gitee.branch;
-  const heads = remoteHeads(authUrl, branch);
+  const heads = probeGitee(authUrl, branch);
   if (!heads.ok) {
     bad('连不上 Gitee 仓库：' + heads.error);
     note(`确认仓库存在、令牌有写权限：https://gitee.com/${config.gitee.owner}/${config.gitee.repo}`);
+    note('直连和本机代理都试过了 —— 检查网络，或者再跑一次（DNS 有时会抽）。');
     return 1;
   }
+  const gargs = heads.args;
   if (heads.exists) {
-    const fetched = fetchFrom(authUrl, branch);
+    const fetched = fetchFrom(authUrl, branch, { args: gargs });
     if (fetched.status === 0) {
       const behind = git(['merge-base', '--is-ancestor', 'FETCH_HEAD', 'HEAD']);
       if (behind.status !== 0) {
@@ -285,11 +288,11 @@ export async function cmdPush({ dryRun = false, noGithub = false, noPrep = false
       }
     }
   }
-  let push = pushTo(authUrl, `HEAD:refs/heads/${branch}`);
+  let push = pushTo(authUrl, `HEAD:refs/heads/${branch}`, { args: gargs });
   if (push.status !== 0) {
     warn('第一次推被拒，fetch 后重试一次');
-    fetchFrom(authUrl, branch);
-    push = pushTo(authUrl, `HEAD:refs/heads/${branch}`);
+    fetchFrom(authUrl, branch, { args: gargs });
+    push = pushTo(authUrl, `HEAD:refs/heads/${branch}`, { args: gargs });
   }
   if (push.status !== 0) {
     bad('推 Gitee 镜像失败：' + ((push.stderr || '') + (push.stdout || '')).trim().slice(0, 500));
@@ -420,6 +423,20 @@ export async function cmdUpload(paths, { root = 'misc', to = '', stamp = '', jso
   return 0;
 }
 
+/**
+ * 探一次 Gitee 仓库：先直连，连不上（本地 DNS 解不出 gitee.com 之类的）再退本机代理。
+ * 返回 {ok, exists, args, error}，args 是这次能用的那组 git 参数，后面 push/fetch 沿用同一组。
+ */
+function probeGitee(url, branch) {
+  let lastError = '';
+  for (const args of [directArgs(), proxyArgsFor(url)]) {
+    const r = remoteHeads(url, branch, { args });
+    if (r.ok) return { ok: true, exists: r.exists, args, error: '' };
+    lastError = r.error || '';
+  }
+  return { ok: false, exists: false, args: directArgs(), error: lastError };
+}
+
 function hostName() {
   try {
     return `${process.env.COMPUTERNAME || process.env.HOSTNAME || '设备'}`;
@@ -440,23 +457,23 @@ export async function cmdInit({ to = '' } = {}) {
   }
   const repoUrl = `https://gitee.com/${config.gitee.owner}/${config.gitee.repo}.git`;
   const authUrl = authedUrl(repoUrl, { owner: config.gitee.owner, token: config.gitee.token });
-  const main = remoteHeads(authUrl, config.gitee.branch);
+  const main = probeGitee(authUrl, config.gitee.branch);
   if (!main.ok) {
     bad('连不上仓库：' + main.error);
     note(`先在 Gitee 建一个仓库：https://gitee.com/projects/new （建议私有），名字 ${config.gitee.repo}`);
     return 1;
   }
   ok('仓库可达');
-  const inbox = remoteHeads(authUrl, config.gitee.inboxBranch);
+  const inbox = probeGitee(authUrl, config.gitee.inboxBranch);
   if (!inbox.exists) {
     if (!main.exists) {
       warn('镜像分支还没有内容 —— 先跑 `部署.cmd sync push`，它会把两个分支都建好');
       return 0;
     }
-    const r = pushTo(authUrl, `refs/remotes/gitee/${config.gitee.branch}:refs/heads/${config.gitee.inboxBranch}`);
+    const r = pushTo(authUrl, `refs/remotes/gitee/${config.gitee.branch}:refs/heads/${config.gitee.inboxBranch}`, { args: main.args });
     if (r.status !== 0) {
       /* 本地可能还没有那个 ref，退回用 HEAD 建分支 */
-      const r2 = pushTo(authUrl, `HEAD:refs/heads/${config.gitee.inboxBranch}`);
+      const r2 = pushTo(authUrl, `HEAD:refs/heads/${config.gitee.inboxBranch}`, { args: main.args });
       if (r2.status !== 0) { bad('建收件箱分支失败：' + ((r2.stderr || '') + (r2.stdout || '')).trim().slice(0, 300)); return 1; }
     }
     ok(`已建收件箱分支 ${config.gitee.inboxBranch}`);

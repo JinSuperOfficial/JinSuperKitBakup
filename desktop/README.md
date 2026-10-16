@@ -51,8 +51,8 @@ node build/make-sync-config.mjs --check    # 令牌打码显示，不写文件
 
 | 产物 | 形态 | 启动 | 卸载 |
 |:--|:--|:--|:--|
-| `JinSuper-1.0.0-portable.exe`（约 120 MB） | 免安装，就一个 exe | 每次启动先解压到 `%TEMP%\JinSuperDesktop`（几秒） | 删掉 exe 即可，不留注册表 |
-| `JinSuper-811-Setup-1.0.0.exe`（约 120 MB） | 安装版「811 套装」（NSIS，中文界面） | 秒开 | 控制面板「811 套装」或开始菜单里的卸载 |
+| `JinSuper-<版本>-portable.exe`（约 120 MB） | 免安装，就一个 exe | 每次启动先解压到 `%TEMP%\JinSuperDesktop`（几秒） | 删掉 exe 即可，不留注册表 |
+| `JinSuper-811-Setup-<版本>.exe`（约 120 MB） | 安装版「811 套装」（NSIS，中文界面） | 秒开 | 控制面板「811 套装」或开始菜单里的卸载 |
 
 ### 安装版就是「更新」：装新版会先把旧版卸掉
 
@@ -66,8 +66,17 @@ node build/make-sync-config.mjs --check    # 令牌打码显示，不写文件
   会并排装第二份，控制面板里也会出现两个条目。
 - `nsis.deleteAppDataOnUninstall: false`：卸载/升级都**不动** `%APPDATA%\JinSuper`
   （设置、缓存、站点 localStorage 都留着），只有用户主动卸载且想清干净时才手动删。
-- 安装模式：默认「仅为我安装」（装到 `%LOCALAPPDATA%\Programs\JinSuper`，不弹 UAC）；
-  安装器里可以选「为所有用户安装」。
+- **安装模式固定「仅为我安装」**：`build/installer.nsh` 的 `customInstallMode` 宏把
+  `$isForceCurrentInstall` 置 1，安装器不再出现「给谁装」那一页、不弹 UAC，
+  装到 `%LOCALAPPDATA%\Programs\JinSuper`；升级时沿用注册表里记的 `InstallLocation`，
+  永远落回同一处。为什么要强制：Electron 安装器的模式页会**读注册表记住上一次的选择**，
+  机器上只要有过一份「所有用户」装的旧版，新版就默认跟进 Program Files ——
+  于是两份并存（`appId` 相同也照并存，因为一份在 HKLM、一份在 HKCU）、
+  两个卸载项、快捷方式互相覆盖，更新就乱了。
+- **不许再加 `menuCategory`**：electron-builder 把它当 `MENU_FILENAME` 拼进「所有用户」
+  安装的默认路径（`C:\Program Files\811 套装\JinSuper`）；开始菜单那个「811 套装」目录
+  本来就由 `installer.nsh` 自己建。这几条有测试盯着：`desktop/test/installer.test.cjs`。
+- 机器上如果已经有一份「所有用户」装的旧版，安装器启动时会先弹一条提醒，让用户卸掉它。
 - **免安装版没有注册表痕迹，安装版管不着它**：用户之前用的是 portable，得自己把那个 exe 删掉。
 
 ### 811 套装：装完桌面和开始菜单各有两份快捷方式

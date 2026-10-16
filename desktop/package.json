@@ -1,6 +1,6 @@
 {
   "name": "jinsuper-desktop",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "JinSuper 百宝箱 桌面版 —— 把 jinsuper.rth1.xyz 那套静态网页装进一个 Electron 窗口：默认走云端主站，连不上自动回落内置离线副本；每个页面顶上都有统一的 topbar（上一页 / 主页 / 工具站 / 班级工具箱 / 博客 / 设置 / 退出）。",
   "main": "src/main.js",
@@ -104,7 +104,6 @@
       "uninstallerIcon": "build/icon.ico",
       "installerHeaderIcon": "build/icon.ico",
       "differentialPackage": false,
-      "menuCategory": "811 套装",
       "include": "build/installer.nsh"
     },
     "compression": "normal"

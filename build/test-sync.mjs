@@ -7,6 +7,8 @@
  *   · 收件箱：上传 → 列出 → 拉下来 → apply（dry-run 不写、--write 才写）
  *   · 分卷读写（超过 CHUNK 的内容）
  *   · 作业规则（sync/lib/hwk-schema.mjs）与页面/控制台同一套
+ *   · Gitee 后端（sync/lib/gitee.mjs）用**假 fetch** 测请求形状 —— 学校那台的上传
+ *     走的正是这条写路径，绝不能只靠「本地通道」的用例覆盖
  *   · 四个入口脚本的用法列表里都有 sync（docs 一起走）
  */
 import test from 'node:test';
@@ -22,6 +24,7 @@ import { scanDir, buildManifest, writeManifestFile, readManifestFile, diffManife
 import { createFsTransport } from '../sync/lib/fs.mjs';
 import { putChunked, getChunked, CHUNK } from '../sync/lib/transport.mjs';
 import { pushInbox, listInbox, pullInbox, applyInbox, defaultStamp } from '../sync/lib/inbox.mjs';
+import { createGiteeTransport } from '../sync/lib/gitee.mjs';
 import { normalizeInput, mergeIndex, DEFAULT_SUBJECTS, NOTES_KEY } from '../sync/lib/hwk-schema.mjs';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -208,4 +211,128 @@ test('CLI：check 在没配 Gitee 时给出可照做的提示（退出码 2）',
   /* 现场可能已经配好了（真在用时），那就必须是能连通的退出码 */
   assert.ok([0, 1, 2].includes(r.status), `退出码异常：${r.status}`);
   if (r.status === 2) assert.match(r.stdout + r.stderr, /sync\.json|JINS_GITEE_TOKEN/);
+});
+
+/* ═══════════════════════════════════════════════════
+   Gitee 后端（收件箱那条写路径）
+   ---------------------------------------------------
+   学校那台的「同步到云端」= pushInbox → putChunked → transport.put，
+   也就是**只有 Gitee 后端才走得到**的代码。上面那些用例全跑本地通道，
+   覆盖不到它 —— 所以这里注入一个假 fetch，只看请求长什么样。
+   （历史教训：put 里误写成 `api.stat`，`api` 只是箭头函数，于是每次上传
+     都是 TypeError，而本地通道的用例全绿。）
+   ═══════════════════════════════════════════════════ */
+
+const giteeCfg = {
+  gitee: {
+    owner: 'jinsuper', repo: 'jinsupercn-sync', token: 'T0KEN',
+    branch: 'main', inboxBranch: 'inbox', visibility: 'private', publicBase: '',
+  },
+};
+
+/** 假 fetch：按「方法 + URL 片段」给应答，并把每次请求记下来 */
+function fakeGitee(routes) {
+  const calls = [];
+  const impl = async (url, init = {}) => {
+    const method = String((init && init.method) || 'GET').toUpperCase();
+    const href = String(url);
+    let body = null;
+    if (init && init.body) { try { body = JSON.parse(init.body); } catch { body = init.body; } }
+    calls.push({ method, url: href, body, headers: (init && init.headers) || {} });
+    const hit = routes.find((r) => r.method === method && href.includes(r.match));
+    if (!hit) {
+      return { ok: false, status: 404, json: async () => ({ message: 'not found' }), text: async () => '{"message":"not found"}' };
+    }
+    return {
+      ok: hit.status ? hit.status < 400 : true,
+      status: hit.status || 200,
+      json: async () => hit.json,
+      text: async () => JSON.stringify(hit.json),
+      arrayBuffer: async () => {
+        const b = hit.buf || Buffer.alloc(0);
+        return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
+      },
+    };
+  };
+  return { impl, calls };
+}
+
+test('Gitee 后端：put 先 stat 再写（写成 api.stat 会 TypeError —— 学校上传就是这么挂的）', async () => {
+  const { impl, calls } = fakeGitee([{ method: 'POST', match: '/contents/inbox/x/a.tar.gz', json: {} }]);
+  const t = createGiteeTransport(giteeCfg, { fetchImpl: impl, retries: 1 });
+  const res = await t.put('inbox/x/a.tar.gz', Buffer.from('你好', 'utf8'), { branch: 'inbox', message: '作业' });
+
+  assert.equal(res.path, 'inbox/x/a.tar.gz');
+  assert.equal(res.size, 6);
+  assert.deepEqual(calls.map((c) => c.method), ['GET', 'POST']);
+  assert.match(calls[0].url, /^https:\/\/gitee\.com\/api\/v5\/repos\/jinsuper\/jinsupercn-sync\/contents\/inbox\/x\/a\.tar\.gz\?ref=inbox/);
+  assert.equal(calls[1].body.content, Buffer.from('你好', 'utf8').toString('base64'));
+  assert.equal(calls[1].body.access_token, 'T0KEN');
+  assert.equal(calls[1].body.branch, 'inbox');
+  assert.equal(calls[1].body.sha, undefined, '新文件不该带 sha');
+});
+
+test('Gitee 后端：文件已存在就改走 PUT 并带上 sha', async () => {
+  const { impl, calls } = fakeGitee([
+    { method: 'GET', match: '/contents/inbox/x/b.json', json: { sha: 'deadbeef', size: 2 } },
+    { method: 'PUT', match: '/contents/inbox/x/b.json', json: {} },
+  ]);
+  const t = createGiteeTransport(giteeCfg, { fetchImpl: impl, retries: 1 });
+  await t.put('inbox/x/b.json', Buffer.from('{}'), { branch: 'inbox' });
+  assert.deepEqual(calls.map((c) => c.method), ['GET', 'PUT']);
+  assert.equal(calls[1].body.sha, 'deadbeef');
+});
+
+test('Gitee 后端：del 带 sha 删；文件不在就返回 false', async () => {
+  const { impl, calls } = fakeGitee([
+    { method: 'GET', match: '/contents/inbox/x/a.tar.gz', json: { sha: 'abc123', size: 1 } },
+    { method: 'DELETE', match: '/contents/inbox/x/a.tar.gz', json: {} },
+  ]);
+  const t = createGiteeTransport(giteeCfg, { fetchImpl: impl, retries: 1 });
+  assert.equal(await t.del('inbox/x/a.tar.gz', { branch: 'inbox' }), true);
+  assert.deepEqual(calls.map((c) => c.method), ['GET', 'DELETE']);
+  assert.equal(calls[1].body.sha, 'abc123');
+
+  const miss = fakeGitee([]);
+  const t2 = createGiteeTransport(giteeCfg, { fetchImpl: miss.impl, retries: 1 });
+  assert.equal(await t2.del('inbox/x/none', { branch: 'inbox' }), false);
+  assert.equal(miss.calls.length, 1, '不存在就只 stat 一次，不再发 DELETE');
+});
+
+test('Gitee 后端：私有仓库读文件走 /raw?ref=分支', async () => {
+  const { impl, calls } = fakeGitee([{ method: 'GET', match: '/raw/_sync.json', json: {}, buf: Buffer.from('镜像', 'utf8') }]);
+  const t = createGiteeTransport(giteeCfg, { fetchImpl: impl, retries: 1 });
+  const buf = await t.get('_sync.json', { branch: 'main' });
+  assert.equal(buf.toString('utf8'), '镜像');
+  assert.match(calls[0].url, /\/raw\/_sync\.json\?ref=main/);
+  assert.equal(calls[0].headers['User-Agent'], 'JinSuperSync/1.0');
+});
+
+test('收件箱：pushInbox 走 Gitee 后端时写的是 tar.gz + 最后写 _manifest.json', async () => {
+  const { impl, calls } = fakeGitee([
+    { method: 'POST', match: '/contents/inbox/20261015-2218/hwk.tar.gz', json: {} },
+    { method: 'POST', match: '/contents/inbox/20261015-2218/_manifest.json', json: {} },
+  ]);
+  const t = createGiteeTransport(giteeCfg, { fetchImpl: impl, retries: 1 });
+  const res = await pushInbox(t, {
+    root: 'hwk',
+    entries: [{ name: 'hwk-n261017.json', data: Buffer.from('{"id":"n261017"}') }],
+    stamp: '20261015-2218',
+    branch: 'inbox',
+    from: 'seewo',
+  });
+  assert.equal(res.count, 1);
+  /* 顺序：tar.gz 先、_manifest.json 最后（半份上传永远不会被当成完整的一份） */
+  const posts = calls.filter((c) => c.method === 'POST').map((c) => c.url);
+  assert.equal(posts.length, 2);
+  assert.match(posts[0], /hwk\.tar\.gz/);
+  assert.match(posts[1], /_manifest\.json\?/);
+  /* 压缩包是能解开的 tar.gz，不是 base64 原文 */
+  const packed = Buffer.from(calls.find((c) => c.method === 'POST' && /hwk\.tar\.gz/.test(c.url)).body.content, 'base64');
+  const back = unpackTarGz(packed);
+  assert.equal(back.length, 1);
+  assert.equal(back[0].name, 'hwk-n261017.json');
+  const manifest = JSON.parse(Buffer.from(calls.find((c) => c.method === 'POST' && /_manifest/.test(c.url)).body.content, 'base64').toString('utf8'));
+  assert.equal(manifest.from, 'seewo');
+  assert.equal(manifest.root, 'hwk');
 });

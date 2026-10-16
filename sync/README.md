@@ -127,4 +127,5 @@
 | 学校点「更新离线副本」没反应 | 先看通道是否可达（`sync check`）；桌面版会把错误直接显示在设置面板里 |
 | 收件箱里有一份「还没有 _manifest.json」 | 上传中途断了；重传一次即可，家里会跳过不完整的那份 |
 | 桌面版同步按钮报未配置 | 打包时没注令牌：跑 `node desktop/build/make-sync-config.mjs --check` 看看 |
+| 学校点「同步到云端」报上传失败（网络明明通） | 先看错误原文。**别急着怪网络**：写路径（`gitee.mjs` 的 put/del）只有 Gitee 后端走得到，曾经有个 `api.stat` 的 TypeError，本地通道的用例全绿也照挂 —— 现在 `build/test-sync.mjs` 用假 fetch 盯着这条路径。抓不到就手动验一遍：`node -e` 里 `createTransport(loadConfig().config)` 然后 `pushInbox` 传个小文件、再 `del` 掉 |
 | 家里 `apply` 之后作业页没变 | 只 apply 还没发布：`部署.cmd full`（作业清单会在 apply --write 时重建） |

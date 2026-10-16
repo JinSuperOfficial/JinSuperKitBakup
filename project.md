@@ -571,6 +571,11 @@ npm run dist:win   # 打 Windows 免安装 exe → desktop\release\
   安装包名 `JinSuper-811-Setup-<版本>.exe`，卸载能清掉这两份快捷方式而**保留**
   `%APPDATA%\JinSuper`（本机作业数据不会被卸载带走）。`.nsh` 是 UTF-8 **带 BOM** 的，
   否则中文快捷方式名会乱码。
+- **安装位置固定，升级才落得回原处**：`installer.nsh` 的 `customInstallMode` 宏强制
+  `$isForceCurrentInstall`（只装给当前用户 → `%LOCALAPPDATA%\Programs\JinSuper`，不弹 UAC），
+  并且**不许用 `nsis.menuCategory`** —— electron-builder 会把它拼进「所有用户」安装的默认路径
+  （`C:\Program Files\811 套装\JinSuper`），而模式页会读注册表记住上次的选择，于是新旧两份
+  并存、快捷方式互相覆盖。`desktop/test/installer.test.cjs` 盯着 BOM / 强制模式 / 无 menuCategory。
 - `local-server.js` 对 `.php` 一律回 404：阅读器先试 `p/raw.php`，404 后按设计回落去取 `.md`；
   真把 `raw.php` 发回去，页面会把 PHP 源码当正文显示。
 

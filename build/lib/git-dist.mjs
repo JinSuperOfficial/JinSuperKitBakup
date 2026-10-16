@@ -53,9 +53,22 @@ export function git(args, opts = {}) {
 
 export const GITEE_REMOTE = 'gitee';
 
-/** 走直连（显式清掉可能存在的全局代理），Gitee 才连得上 */
+/** 走直连（显式清掉可能存在的全局代理），Gitee 在国内通常直连最快 */
 export function directArgs() {
   return ['-c', 'http.proxy=', '-c', 'https.proxy='];
+}
+
+/**
+ * 走本机代理（环境变量优先，没有就用常见的 7890）。
+ * 有些机器（WSL 里尤其常见）本地 DNS 解不出 gitee.com，但代理端口是通的 ——
+ * 代理那边能远程解析，所以直连失败时要能退到这条路，否则同步直接卡死。
+ */
+export function proxyArgsFor(url = '') {
+  const fromEnv = process.env.https_proxy || process.env.HTTPS_PROXY
+               || process.env.http_proxy || process.env.HTTP_PROXY;
+  const proxy = fromEnv || 'http://127.0.0.1:7890';
+  void url;
+  return ['-c', `http.proxy=${proxy}`, '-c', `https.proxy=${proxy}`];
 }
 
 /** 带令牌的推送地址：令牌只出现在这次命令行里，不写进 .git/config */
@@ -82,20 +95,20 @@ export function ensureRemote(name, url) {
 }
 
 /** 远程有没有这个分支（直连、带令牌） */
-export function remoteHeads(url, branch, { timeout = 60000 } = {}) {
-  const r = git([...directArgs(), 'ls-remote', '--heads', url, branch], { timeout });
+export function remoteHeads(url, branch, { timeout = 60000, args = null } = {}) {
+  const r = git([...(args || directArgs()), 'ls-remote', '--heads', url, branch], { timeout });
   if (r.status !== 0) {
     return { ok: false, error: ((r.stderr || '') + (r.stdout || '')).trim() || 'ls-remote 失败' };
   }
   return { ok: true, exists: new RegExp(`refs/heads/${branch}$`, 'm').test(r.stdout || '') };
 }
 
-export function pushTo(url, refspec, { timeout = 600000 } = {}) {
-  return git([...directArgs(), 'push', url, refspec], { timeout, maxBuffer: 16 * 1024 * 1024 });
+export function pushTo(url, refspec, { timeout = 600000, args = null } = {}) {
+  return git([...(args || directArgs()), 'push', url, refspec], { timeout, maxBuffer: 16 * 1024 * 1024 });
 }
 
-export function fetchFrom(url, branch, { timeout = 600000 } = {}) {
-  return git([...directArgs(), 'fetch', url, branch], { timeout, maxBuffer: 16 * 1024 * 1024 });
+export function fetchFrom(url, branch, { timeout = 600000, args = null } = {}) {
+  return git([...(args || directArgs()), 'fetch', url, branch], { timeout, maxBuffer: 16 * 1024 * 1024 });
 }
 
 export function hasRepo() {
